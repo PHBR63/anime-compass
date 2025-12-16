@@ -1,10 +1,9 @@
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { ThemeSelector } from '@/components/theme/ThemeSelector';
 
 /**
  * Navbar da landing page
- * Exibe logo, seletor de temas e botões de navegação para login/cadastro
+ * Exibe logo e botões de navegação para login/cadastro
  */
 export const Navbar = () => {
   return (
@@ -22,7 +21,6 @@ export const Navbar = () => {
 
         {/* Botões de ação */}
         <div className="flex items-center gap-3">
-          <ThemeSelector />
           <Button variant="ghost" asChild>
             <Link to="/auth">Entrar</Link>
           </Button>

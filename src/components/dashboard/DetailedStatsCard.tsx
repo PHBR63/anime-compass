@@ -72,30 +72,30 @@ export function DetailedStatsCard() {
   ];
 
   return (
-    <div className="glass-card p-6 space-y-6 animate-fade-in">
-      <h3 className="font-display text-lg font-semibold flex items-center gap-2">
-        <Trophy className="h-5 w-5 text-primary" />
+    <div className="glass-card p-4 md:p-6 space-y-4 md:space-y-6 animate-fade-in">
+      <h3 className="font-display text-base md:text-lg font-semibold flex items-center gap-2">
+        <Trophy className="h-4 w-4 md:h-5 md:w-5 text-primary" />
         Estatísticas Detalhadas
       </h3>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 md:gap-6 md:grid-cols-3">
         {/* Tempo Total Assistido */}
-        <div className="space-y-4 p-4 rounded-xl bg-background/50 border border-border/50">
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Clock className="h-4 w-4" />
+        <div className="space-y-3 md:space-y-4 p-3 md:p-4 rounded-xl bg-background/50 border border-border/50">
+          <div className="flex items-center gap-2 text-xs md:text-sm font-medium text-muted-foreground">
+            <Clock className="h-3.5 w-3.5 md:h-4 md:w-4" />
             Tempo Total Assistido
           </div>
           
           <div className="space-y-1">
-            <div className="text-3xl font-bold text-primary">
+            <div className="text-2xl md:text-3xl font-bold text-primary">
               {stats.time.formattedShort}
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs md:text-sm text-muted-foreground">
               {stats.time.formattedLong}
             </p>
           </div>
 
-          <div className="pt-2 border-t border-border/50 space-y-2 text-sm">
+          <div className="pt-2 border-t border-border/50 space-y-1.5 md:space-y-2 text-xs md:text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total de horas</span>
               <span className="font-medium">{stats.time.totalHours.toLocaleString()}h</span>
@@ -108,14 +108,14 @@ export function DetailedStatsCard() {
         </div>
 
         {/* Gêneros Favoritos */}
-        <div className="space-y-4 p-4 rounded-xl bg-background/50 border border-border/50">
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Palette className="h-4 w-4" />
+        <div className="space-y-3 md:space-y-4 p-3 md:p-4 rounded-xl bg-background/50 border border-border/50">
+          <div className="flex items-center gap-2 text-xs md:text-sm font-medium text-muted-foreground">
+            <Palette className="h-3.5 w-3.5 md:h-4 md:w-4" />
             Gêneros Favoritos
           </div>
 
           {stats.genres.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-2 md:space-y-3">
               {stats.genres.map((genre, index) => (
                 <StatBar
                   key={genre.name}
@@ -127,21 +127,21 @@ export function DetailedStatsCard() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="text-xs md:text-sm text-muted-foreground text-center py-4">
               Adicione mais animes para ver estatísticas de gêneros
             </p>
           )}
         </div>
 
         {/* Estúdios Favoritos */}
-        <div className="space-y-4 p-4 rounded-xl bg-background/50 border border-border/50">
-          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <Building2 className="h-4 w-4" />
+        <div className="space-y-3 md:space-y-4 p-3 md:p-4 rounded-xl bg-background/50 border border-border/50">
+          <div className="flex items-center gap-2 text-xs md:text-sm font-medium text-muted-foreground">
+            <Building2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
             Estúdios Favoritos
           </div>
 
           {stats.studios.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-2 md:space-y-3">
               {stats.studios.map((studio, index) => (
                 <StatBar
                   key={studio.name}
@@ -153,7 +153,7 @@ export function DetailedStatsCard() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="text-xs md:text-sm text-muted-foreground text-center py-4">
               Adicione mais animes para ver estatísticas de estúdios
             </p>
           )}
@@ -161,14 +161,14 @@ export function DetailedStatsCard() {
       </div>
 
       {/* Resumo adicional */}
-      <div className="flex flex-wrap gap-4 pt-4 border-t border-border/50">
-        <div className="flex items-center gap-2 text-sm">
-          <Film className="h-4 w-4 text-primary" />
+      <div className="flex flex-wrap gap-3 md:gap-4 pt-3 md:pt-4 border-t border-border/50">
+        <div className="flex items-center gap-2 text-xs md:text-sm">
+          <Film className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
           <span className="text-muted-foreground">Total:</span>
           <span className="font-medium">{stats.totalAnimes} animes</span>
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <Trophy className="h-4 w-4 text-green-500" />
+        <div className="flex items-center gap-2 text-xs md:text-sm">
+          <Trophy className="h-3.5 w-3.5 md:h-4 md:w-4 text-green-500" />
           <span className="text-muted-foreground">Completados:</span>
           <span className="font-medium">{stats.completedAnimes} animes</span>
         </div>

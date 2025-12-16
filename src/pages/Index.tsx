@@ -1,6 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import Dashboard from './Dashboard';
 import LandingPage from './LandingPage';
+import { MainLayout } from '@/components/layout/MainLayout';
 
 /**
  * Página Index - redireciona para Dashboard ou Landing
@@ -18,8 +19,16 @@ const Index = () => {
     );
   }
 
-  // Usuário logado vê o Dashboard, não logado vê a Landing
-  return user ? <Dashboard /> : <LandingPage />;
+  // Usuário logado vê o Dashboard com layout, não logado vê a Landing
+  if (user) {
+    return (
+      <MainLayout>
+        <Dashboard />
+      </MainLayout>
+    );
+  }
+
+  return <LandingPage />;
 };
 
 export default Index;

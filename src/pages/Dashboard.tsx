@@ -43,20 +43,20 @@ export default function Dashboard() {
   const isLoading = entriesLoading || statsLoading;
 
   return (
-    <div className="space-y-8 pt-12 md:pt-0">
+    <div className="space-y-6 md:space-y-8 pt-14 md:pt-0">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl md:text-4xl font-bold">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold truncate">
             Olá, {profile?.display_name || profile?.username || 'Otaku'}! 👋
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm md:text-base">
             Acompanhe seu progresso e descubra novos animes
           </p>
         </div>
         
-        <Link to="/discover">
-          <Button variant="glow" className="w-fit">
+        <Link to="/discover" className="shrink-0">
+          <Button variant="glow" className="w-full sm:w-fit">
             <Sparkles className="h-4 w-4" />
             Descobrir Novos
           </Button>
@@ -64,7 +64,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
         {isLoading ? (
           <>
             {[1, 2, 3, 4].map(i => (
@@ -98,7 +98,7 @@ export default function Dashboard() {
       </div>
 
       {/* Charts and Activity */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
         {isLoading ? (
           <>
             <Skeleton className="h-80 rounded-xl" />
@@ -121,25 +121,25 @@ export default function Dashboard() {
       {/* Currently Watching */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-xl font-semibold flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
+          <h2 className="font-display text-lg md:text-xl font-semibold flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-primary" />
             Assistindo Agora
           </h2>
           <Link to="/list">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="text-xs md:text-sm">
               Ver todos
             </Button>
           </Link>
         </div>
         
         {entriesLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
             {[1, 2, 3, 4].map(i => (
               <Skeleton key={i} className="aspect-[3/4] rounded-xl" />
             ))}
           </div>
         ) : entries && entries.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
             {entries.slice(0, 4).map((entry, index) => (
               <div 
                 key={entry.id}

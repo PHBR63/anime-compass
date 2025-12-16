@@ -34,11 +34,11 @@ export function RecentActivity() {
 
   if (isLoading) {
     return (
-      <div className="glass-card p-6 animate-fade-in">
-        <h3 className="font-display text-lg font-semibold mb-4">Atividade Recente</h3>
-        <div className="space-y-4">
+      <div className="glass-card p-4 md:p-6 animate-fade-in">
+        <h3 className="font-display text-base md:text-lg font-semibold mb-4">Atividade Recente</h3>
+        <div className="space-y-3 md:space-y-4">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-16 bg-secondary/30 rounded-lg animate-pulse" />
+            <div key={i} className="h-14 md:h-16 bg-secondary/30 rounded-lg animate-pulse" />
           ))}
         </div>
       </div>
@@ -46,22 +46,22 @@ export function RecentActivity() {
   }
 
   return (
-    <div className="glass-card p-6 animate-fade-in">
-      <h3 className="font-display text-lg font-semibold mb-4">Atividade Recente</h3>
+    <div className="glass-card p-4 md:p-6 animate-fade-in">
+      <h3 className="font-display text-base md:text-lg font-semibold mb-4">Atividade Recente</h3>
       
       {recentEntries.length === 0 ? (
-        <p className="text-muted-foreground text-center py-8">
+        <p className="text-muted-foreground text-center text-sm py-6 md:py-8">
           Nenhuma atividade recente
         </p>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           {recentEntries.map((entry, index) => {
             const StatusIcon = statusIcons[entry.status];
             return (
               <div 
                 key={entry.id}
                 className={cn(
-                  "flex items-center gap-4 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors",
+                  "flex items-center gap-3 md:gap-4 p-2 md:p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors",
                   "animate-slide-up"
                 )}
                 style={{ animationDelay: `${index * 100}ms` }}
@@ -69,11 +69,11 @@ export function RecentActivity() {
                 <img
                   src={entry.image_url || '/placeholder.svg'}
                   alt={entry.title}
-                  className="w-12 h-16 object-cover rounded-md"
+                  className="w-10 h-14 md:w-12 md:h-16 object-cover rounded-md shrink-0"
                 />
                 
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{entry.title}</p>
+                  <p className="font-medium text-sm md:text-base truncate">{entry.title}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <StatusIcon className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">
@@ -88,7 +88,7 @@ export function RecentActivity() {
                   </div>
                 </div>
                 
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block">
                   {formatDistanceToNow(new Date(entry.updated_at), { 
                     addSuffix: true,
                     locale: ptBR 

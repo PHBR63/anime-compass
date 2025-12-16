@@ -13,9 +13,9 @@ interface StatusChartProps {
 export function StatusChart({ data }: StatusChartProps) {
   if (data.length === 0) {
     return (
-      <div className="glass-card p-6 animate-fade-in">
-        <h3 className="font-display text-lg font-semibold mb-4">Por Status</h3>
-        <div className="h-64 flex items-center justify-center text-muted-foreground">
+      <div className="glass-card p-4 md:p-6 animate-fade-in">
+        <h3 className="font-display text-base md:text-lg font-semibold mb-4">Por Status</h3>
+        <div className="h-48 md:h-64 flex items-center justify-center text-muted-foreground text-sm">
           Nenhum dado disponível
         </div>
       </div>
@@ -23,18 +23,18 @@ export function StatusChart({ data }: StatusChartProps) {
   }
 
   return (
-    <div className="glass-card p-6 animate-fade-in">
-      <h3 className="font-display text-lg font-semibold mb-4">Por Status</h3>
+    <div className="glass-card p-4 md:p-6 animate-fade-in">
+      <h3 className="font-display text-base md:text-lg font-semibold mb-4">Por Status</h3>
       
-      <div className="h-64">
+      <div className="h-48 md:h-64">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               cx="50%"
               cy="50%"
-              innerRadius={60}
-              outerRadius={80}
+              innerRadius={40}
+              outerRadius={60}
               paddingAngle={4}
               dataKey="value"
             >

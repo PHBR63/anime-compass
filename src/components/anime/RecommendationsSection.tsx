@@ -57,12 +57,12 @@ export function RecommendationsSection() {
   // Se não tem recomendações e não está carregando
   if (!isLoading && (!data?.recommendations || data.recommendations.length === 0)) {
     return (
-      <section className="glass-card p-6 rounded-xl">
+      <section className="glass-card p-4 md:p-6 rounded-xl">
         <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="h-5 w-5 text-warning" />
-          <h2 className="font-display text-xl font-semibold">Recomendações Para Você</h2>
+          <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-warning" />
+          <h2 className="font-display text-lg md:text-xl font-semibold">Recomendações Para Você</h2>
         </div>
-        <p className="text-muted-foreground text-center py-8">
+        <p className="text-muted-foreground text-center text-sm md:text-base py-6 md:py-8">
           {data?.message || 'Adicione mais animes à sua lista para receber recomendações personalizadas!'}
         </p>
       </section>
@@ -71,17 +71,17 @@ export function RecommendationsSection() {
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 md:mb-6">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-warning" />
-          <h2 className="font-display text-xl font-semibold">Recomendações Para Você</h2>
+          <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-warning" />
+          <h2 className="font-display text-lg md:text-xl font-semibold">Recomendações Para Você</h2>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           {data?.topGenres && data.topGenres.length > 0 && (
-            <div className="hidden md:flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Baseado em:</span>
-              {data.topGenres.map((genre) => (
-                <Badge key={genre.id} variant="outline" className="text-xs">
+            <div className="flex items-center gap-1.5 md:gap-2 overflow-x-auto">
+              <span className="text-xs text-muted-foreground shrink-0">Baseado em:</span>
+              {data.topGenres.slice(0, 3).map((genre) => (
+                <Badge key={genre.id} variant="outline" className="text-xs shrink-0">
                   {genre.name}
                 </Badge>
               ))}
@@ -89,7 +89,8 @@ export function RecommendationsSection() {
           )}
           <Button 
             variant="ghost" 
-            size="sm" 
+            size="icon"
+            className="h-8 w-8 shrink-0"
             onClick={handleRefresh}
             disabled={isFetching}
           >
@@ -99,7 +100,7 @@ export function RecommendationsSection() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 md:gap-4 lg:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="space-y-2">
               <Skeleton className="aspect-[3/4] rounded-xl" />
@@ -109,7 +110,7 @@ export function RecommendationsSection() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 md:gap-4 lg:grid-cols-6">
           {data?.recommendations.map((anime) => (
             <div 
               key={anime.mal_id} 

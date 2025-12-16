@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 import { StarRating } from './StarRating';
 import { ReviewsList } from './ReviewsList';
 import { useAnimeEntries, useAddAnimeEntry, useUpdateAnimeEntry } from '@/hooks/useAnimeEntries';
@@ -259,39 +260,112 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
                     </div>
                   </div>
 
-                  {/* Progresso */}
+                  {/* Progresso com Slider interativo */}
                   {totalEpisodes && (
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                      <label className="text-sm font-medium text-muted-foreground mb-3 block">
                         Progresso
                       </label>
-                      <div className="flex items-center gap-4">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleEpisodesChange(-1)}
-                          disabled={localEpisodes <= 0}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                        <span className="text-lg font-semibold min-w-[100px] text-center">
-                          {localEpisodes} / {totalEpisodes}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleEpisodesChange(1)}
-                          disabled={localEpisodes >= totalEpisodes}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      {/* Barra de progresso */}
-                      <div className="mt-2 h-2 bg-secondary rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-primary rounded-full transition-all duration-300"
-                          style={{ width: `${(localEpisodes / totalEpisodes) * 100}%` }}
-                        />
+                      <div className="space-y-4">
+                        {/* Controles numéricos */}
+                        <div className="flex items-center gap-4">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9 rounded-full"
+                            onClick={() => handleEpisodesChange(-1)}
+                            disabled={localEpisodes <= 0}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <div className="flex-1 text-center">
+                            <span className="text-2xl font-bold text-primary">
+                              {localEpisodes}
+                            </span>
+                            <span className="text-lg text-muted-foreground">
+                              {' / '}{totalEpisodes}
+                            </span>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {Math.round((localEpisodes / totalEpisodes) * 100)}% completo
+                            </p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-9 w-9 rounded-full"
+                            onClick={() => handleEpisodesChange(1)}
+                            disabled={localEpisodes >= totalEpisodes}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        {/* Slider interativo */}
+                        <div className="px-1">
+                          <Slider
+                            value={[localEpisodes]}
+                            onValueChange={(value) => {
+                              setLocalEpisodes(value[0]);
+                            }}
+                            onValueCommit={(value) => {
+                              if (entry) {
+                                handleUpdate({ 
+                                  episodes_watched: value[0],
+                                  ...(value[0] === totalEpisodes && { 
+                                    status: 'completed' as AnimeStatus, 
+                                    completed_at: new Date().toISOString().split('T')[0] 
+                                  })
+                                });
+                              }
+                            }}
+                            max={totalEpisodes}
+                            min={0}
+                            step={1}
+                            className="cursor-pointer"
+                          />
+                        </div>
+
+                        {/* Atalhos rápidos */}
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setLocalEpisodes(0);
+                              if (entry) handleUpdate({ episodes_watched: 0 });
+                            }}
+                          >
+                            Resetar
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              const half = Math.floor(totalEpisodes / 2);
+                              setLocalEpisodes(half);
+                              if (entry) handleUpdate({ episodes_watched: half });
+                            }}
+                          >
+                            Metade
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-green-500 hover:text-green-400"
+                            onClick={() => {
+                              setLocalEpisodes(totalEpisodes);
+                              if (entry) handleUpdate({ 
+                                episodes_watched: totalEpisodes,
+                                status: 'completed' as AnimeStatus,
+                                completed_at: new Date().toISOString().split('T')[0]
+                              });
+                            }}
+                          >
+                            Completo
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}

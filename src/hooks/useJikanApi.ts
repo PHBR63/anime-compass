@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 
 // Tipos da API Jikan
 export interface JikanAnime {
@@ -47,16 +47,16 @@ const fetchWithDelay = async (url: string) => {
   return response.json();
 };
 
-// Hook para buscar animes em alta
+// Hook para buscar animes em alta (simples)
 export function useTopAnimes(page: number = 1) {
   return useQuery<JikanResponse<JikanAnime[]>>({
     queryKey: ['jikan', 'top', page],
     queryFn: () => fetchWithDelay(`${JIKAN_BASE_URL}/top/anime?page=${page}&limit=12`),
-    staleTime: 1000 * 60 * 10, // 10 minutos de cache
+    staleTime: 1000 * 60 * 10,
   });
 }
 
-// Hook para buscar animes da temporada atual
+// Hook para buscar animes da temporada atual (simples)
 export function useSeasonNow(page: number = 1) {
   return useQuery<JikanResponse<JikanAnime[]>>({
     queryKey: ['jikan', 'season', 'now', page],
@@ -65,7 +65,77 @@ export function useSeasonNow(page: number = 1) {
   });
 }
 
-// Hook para buscar animes por termo de pesquisa
+// Hook infinito para Top Animes com paginação
+export function useInfiniteTopAnimes() {
+  return useInfiniteQuery<JikanResponse<JikanAnime[]>>({
+    queryKey: ['jikan', 'top', 'infinite'],
+    queryFn: ({ pageParam = 1 }) => 
+      fetchWithDelay(`${JIKAN_BASE_URL}/top/anime?page=${pageParam}&limit=24`),
+    getNextPageParam: (lastPage) => {
+      if (lastPage.pagination?.has_next_page) {
+        return (lastPage.pagination.current_page || 1) + 1;
+      }
+      return undefined;
+    },
+    initialPageParam: 1,
+    staleTime: 1000 * 60 * 10,
+  });
+}
+
+// Hook infinito para Temporada Atual com paginação
+export function useInfiniteSeasonNow() {
+  return useInfiniteQuery<JikanResponse<JikanAnime[]>>({
+    queryKey: ['jikan', 'season', 'now', 'infinite'],
+    queryFn: ({ pageParam = 1 }) => 
+      fetchWithDelay(`${JIKAN_BASE_URL}/seasons/now?page=${pageParam}&limit=24`),
+    getNextPageParam: (lastPage) => {
+      if (lastPage.pagination?.has_next_page) {
+        return (lastPage.pagination.current_page || 1) + 1;
+      }
+      return undefined;
+    },
+    initialPageParam: 1,
+    staleTime: 1000 * 60 * 10,
+  });
+}
+
+// Hook infinito para busca de animes
+export function useInfiniteSearchAnimes(query: string) {
+  return useInfiniteQuery<JikanResponse<JikanAnime[]>>({
+    queryKey: ['jikan', 'search', 'infinite', query],
+    queryFn: ({ pageParam = 1 }) => 
+      fetchWithDelay(`${JIKAN_BASE_URL}/anime?q=${encodeURIComponent(query)}&page=${pageParam}&limit=24&sfw=true`),
+    getNextPageParam: (lastPage) => {
+      if (lastPage.pagination?.has_next_page) {
+        return (lastPage.pagination.current_page || 1) + 1;
+      }
+      return undefined;
+    },
+    initialPageParam: 1,
+    enabled: query.length >= 2,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+// Hook infinito para animes por gênero
+export function useInfiniteAnimesByGenre(genreId: number) {
+  return useInfiniteQuery<JikanResponse<JikanAnime[]>>({
+    queryKey: ['jikan', 'genre', 'infinite', genreId],
+    queryFn: ({ pageParam = 1 }) => 
+      fetchWithDelay(`${JIKAN_BASE_URL}/anime?genres=${genreId}&page=${pageParam}&limit=24&order_by=score&sort=desc`),
+    getNextPageParam: (lastPage) => {
+      if (lastPage.pagination?.has_next_page) {
+        return (lastPage.pagination.current_page || 1) + 1;
+      }
+      return undefined;
+    },
+    initialPageParam: 1,
+    enabled: genreId > 0,
+    staleTime: 1000 * 60 * 10,
+  });
+}
+
+// Hook para buscar animes por termo de pesquisa (simples)
 export function useSearchAnimes(query: string, page: number = 1) {
   return useQuery<JikanResponse<JikanAnime[]>>({
     queryKey: ['jikan', 'search', query, page],
@@ -75,7 +145,7 @@ export function useSearchAnimes(query: string, page: number = 1) {
   });
 }
 
-// Hook para buscar animes por gênero
+// Hook para buscar animes por gênero (simples)
 export function useAnimesByGenre(genreId: number, page: number = 1) {
   return useQuery<JikanResponse<JikanAnime[]>>({
     queryKey: ['jikan', 'genre', genreId, page],

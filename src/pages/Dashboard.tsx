@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { StatusChart } from '@/components/dashboard/StatusChart';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
+import { DetailedStatsCard } from '@/components/dashboard/DetailedStatsCard';
 import { AnimeCard } from '@/components/anime/AnimeCard';
 import { RecommendationsSection } from '@/components/anime/RecommendationsSection';
 import { Button } from '@/components/ui/button';
@@ -110,6 +111,9 @@ export default function Dashboard() {
           </>
         )}
       </div>
+
+      {/* Estatísticas Detalhadas */}
+      <DetailedStatsCard />
 
       {/* Recomendações Personalizadas */}
       <RecommendationsSection />

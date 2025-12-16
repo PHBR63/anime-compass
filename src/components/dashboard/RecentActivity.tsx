@@ -74,16 +74,18 @@ export function RecentActivity() {
                 
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm md:text-base truncate">{entry.title}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <StatusIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">
-                      {statusLabels[entry.status]}
-                    </span>
+                  <div className="flex items-center gap-1.5 md:gap-2 mt-1 flex-wrap">
+                    <div className="flex items-center gap-1 bg-secondary/50 px-1.5 py-0.5 rounded-full">
+                      <StatusIcon className="h-3 w-3 md:h-3.5 md:w-3.5 text-primary" />
+                      <span className="text-[10px] md:text-xs text-foreground font-medium">
+                        {statusLabels[entry.status]}
+                      </span>
+                    </div>
                     {entry.rating && (
-                      <>
-                        <Star className="h-3.5 w-3.5 text-warning fill-warning" />
-                        <span className="text-xs text-muted-foreground">{Number(entry.rating).toFixed(1)}</span>
-                      </>
+                      <div className="flex items-center gap-0.5 bg-warning/20 px-1.5 py-0.5 rounded-full">
+                        <Star className="h-3 w-3 md:h-3.5 md:w-3.5 text-warning fill-warning" />
+                        <span className="text-[10px] md:text-xs text-warning font-medium">{Number(entry.rating).toFixed(1)}</span>
+                      </div>
                     )}
                   </div>
                 </div>

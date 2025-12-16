@@ -8,6 +8,23 @@ const corsHeaders = {
 
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 
+// Ratings e tipos a serem filtrados (conteúdo adulto e músicas)
+const EXCLUDED_RATINGS = ["Rx - Hentai"];
+const EXCLUDED_TYPES = ["Music"];
+
+// Função para filtrar animes indesejados
+const filterAnimes = (animes: any[]): any[] => {
+  return animes.filter(anime => {
+    if (anime.rating && EXCLUDED_RATINGS.includes(anime.rating)) {
+      return false;
+    }
+    if (anime.type && EXCLUDED_TYPES.includes(anime.type)) {
+      return false;
+    }
+    return true;
+  });
+};
+
 // Edge function para gerar recomendações personalizadas baseadas nos gêneros do usuário
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -134,7 +151,8 @@ serve(async (req) => {
         
         if (response.ok) {
           const data = await response.json();
-          const animes = data.data || [];
+          // Aplicar filtro para remover conteúdo adulto e músicas
+          const animes = filterAnimes(data.data || []);
           
           for (const anime of animes) {
             // Não recomendar animes que o usuário já tem

@@ -130,7 +130,7 @@ export function AnimeCard({ entry }: AnimeCardProps) {
           {/* Status badge */}
           <div className="absolute top-2 md:top-3 left-2 md:left-3">
             <span className={cn(
-              "px-2 md:px-2.5 py-0.5 md:py-1 text-[10px] md:text-xs font-medium rounded-full border",
+              "inline-flex items-center gap-1 px-2 md:px-2.5 py-0.5 md:py-1 text-[10px] md:text-xs font-semibold rounded-full border backdrop-blur-sm",
               statusColors[entry.status]
             )}>
               {statusLabels[entry.status]}

@@ -1,11 +1,14 @@
 import { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
+import { useRealtimeNotifications } from '@/hooks/useNotifications';
 
 interface MainLayoutProps {
   children: ReactNode;
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
+  // Ativar escuta de notificações em tempo real
+  useRealtimeNotifications();
   return (
     <div className="min-h-screen bg-background">
       {/* Background effects */}

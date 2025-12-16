@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Globe, Lock, Pencil, GripVertical, LayoutGrid, List } from 'lucide-react';
+import { ArrowLeft, Globe, Lock, Pencil, GripVertical, LayoutGrid, Share2, Check, Copy } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -18,6 +18,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
 import { AnimeGrid } from '@/components/anime/AnimeGrid';
 import { SortableAnimeItem } from './SortableAnimeItem';
 import { useListItems, useRemoveFromList, useReorderListItems } from '@/hooks/useCustomLists';
@@ -37,9 +43,25 @@ type ViewMode = 'grid' | 'reorder';
  */
 export function ListDetailView({ list, onBack }: ListDetailViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [copied, setCopied] = useState(false);
   const { data: items, isLoading } = useListItems(list.id);
   const removeFromList = useRemoveFromList();
   const reorderItems = useReorderListItems();
+
+  // URL de compartilhamento
+  const shareUrl = `${window.location.origin}/shared/list/${list.id}`;
+
+  // Handler para copiar link
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      toast.success('Link copiado!');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast.error('Erro ao copiar link');
+    }
+  };
 
   // Sensores para drag-and-drop
   const sensors = useSensors(
@@ -195,6 +217,46 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
                   <GripVertical className="h-4 w-4" />
                 </Button>
               </div>
+              {/* Botão compartilhar (apenas para listas públicas) */}
+              {list.is_public && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Compartilhar
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80" align="end">
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="font-medium text-sm mb-1">Compartilhar lista</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Qualquer pessoa com o link pode ver esta lista
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Input 
+                          value={shareUrl} 
+                          readOnly 
+                          className="text-xs h-9"
+                        />
+                        <Button 
+                          size="sm" 
+                          onClick={handleCopyLink}
+                          className="shrink-0"
+                        >
+                          {copied ? (
+                            <Check className="h-4 w-4" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+              
               <Button variant="outline" size="sm">
                 <Pencil className="h-4 w-4 mr-2" />
                 Editar

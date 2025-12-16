@@ -10,7 +10,7 @@ const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 
 // Ratings e tipos a serem filtrados (conteúdo adulto e músicas)
 const EXCLUDED_RATINGS = ["Rx - Hentai"];
-const EXCLUDED_TYPES = ["Music"];
+const EXCLUDED_TYPES = ["Music", "CM", "PV"];
 
 // Função para filtrar animes indesejados
 const filterAnimes = (animes: any[]): any[] => {

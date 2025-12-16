@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Plus, Minus, Calendar, Clock, Tv, Star, Heart, Loader2, Check, Bookmark } from 'lucide-react';
+import { X, Plus, Minus, Calendar, Clock, Tv, Star, Heart, Loader2, Check, Bookmark, Languages } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -9,9 +9,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 import { StarRating } from './StarRating';
 import { useAnimeEntries, useAddAnimeEntry, useUpdateAnimeEntry } from '@/hooks/useAnimeEntries';
 import { JikanAnime, useAnimeDetails } from '@/hooks/useJikanApi';
+import { useTranslation } from '@/hooks/useTranslation';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
@@ -46,6 +48,11 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
 
   // Determina o anime a ser exibido
   const anime = jikanAnime || animeDetails?.data;
+
+  // Tradução da sinopse para PT-BR
+  const { data: translatedSynopsis, isLoading: loadingTranslation } = useTranslation(
+    open && anime?.synopsis ? anime.synopsis : null
+  );
   
   // Verifica se já está na lista
   const existingEntry = userEntries?.find(e => e.mal_id === (anime?.mal_id || userEntry?.mal_id));
@@ -322,13 +329,27 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
                 </div>
               )}
 
-              {/* Sinopse */}
+              {/* Sinopse traduzida */}
               {anime?.synopsis && (
                 <div>
-                  <h3 className="font-semibold mb-2">Sinopse</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {anime.synopsis}
-                  </p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="font-semibold">Sinopse</h3>
+                    <Badge variant="outline" className="text-xs gap-1">
+                      <Languages className="h-3 w-3" />
+                      PT-BR
+                    </Badge>
+                  </div>
+                  {loadingTranslation ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {translatedSynopsis || anime.synopsis}
+                    </p>
+                  )}
                 </div>
               )}
 

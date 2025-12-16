@@ -85,7 +85,11 @@ export function RecentActivity() {
                   <p className="font-medium text-sm md:text-base truncate">{entry.title}</p>
                   <div className="flex items-center gap-1.5 md:gap-2 mt-1 flex-wrap">
                     <div className={cn("flex items-center gap-1 px-2 py-0.5 rounded-full", statusColors[entry.status].bg)}>
-                      <StatusIcon className={cn("h-3.5 w-3.5 md:h-4 md:w-4", statusColors[entry.status].icon)} />
+                      <StatusIcon className={cn(
+                        "h-3.5 w-3.5 md:h-4 md:w-4",
+                        statusColors[entry.status].icon,
+                        entry.status === 'watching' && "animate-pulse"
+                      )} />
                       <span className={cn("text-[10px] md:text-xs font-semibold", statusColors[entry.status].text)}>
                         {statusLabels[entry.status]}
                       </span>

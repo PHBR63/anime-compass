@@ -67,11 +67,23 @@ export default function Discover() {
     isLoading: loadingGenre
   } = useInfiniteAnimesByGenre(selectedGenre || 0);
 
-  // Flatten dos dados paginados
-  const topAnimes = topAnimesData?.pages.flatMap(page => page.data) || [];
-  const seasonAnimes = seasonAnimesData?.pages.flatMap(page => page.data) || [];
-  const searchAnimes = searchData?.pages.flatMap(page => page.data) || [];
-  const genreAnimes = genreData?.pages.flatMap(page => page.data) || [];
+  // Função para remover duplicatas por mal_id
+  const removeDuplicates = (animes: JikanAnime[]): JikanAnime[] => {
+    const seen = new Set<number>();
+    return animes.filter((anime) => {
+      if (seen.has(anime.mal_id)) {
+        return false;
+      }
+      seen.add(anime.mal_id);
+      return true;
+    });
+  };
+
+  // Flatten dos dados paginados e remoção de duplicatas
+  const topAnimes = removeDuplicates(topAnimesData?.pages.flatMap(page => page.data) || []);
+  const seasonAnimes = removeDuplicates(seasonAnimesData?.pages.flatMap(page => page.data) || []);
+  const searchAnimes = removeDuplicates(searchData?.pages.flatMap(page => page.data) || []);
+  const genreAnimes = removeDuplicates(genreData?.pages.flatMap(page => page.data) || []);
 
   // Verifica estados
   const isSearching = debouncedQuery.length >= 2;

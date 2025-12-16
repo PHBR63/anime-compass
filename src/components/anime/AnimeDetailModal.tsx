@@ -10,7 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
 import { StarRating } from './StarRating';
+import { ReviewsList } from './ReviewsList';
 import { useAnimeEntries, useAddAnimeEntry, useUpdateAnimeEntry } from '@/hooks/useAnimeEntries';
 import { JikanAnime, useAnimeDetails } from '@/hooks/useJikanApi';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -381,6 +383,14 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* Seção de Reviews */}
+              {anime && (
+                <>
+                  <Separator className="my-6" />
+                  <ReviewsList malId={anime.mal_id} animeTitle={anime.title} />
+                </>
               )}
             </div>
           </>

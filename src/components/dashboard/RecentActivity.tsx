@@ -23,6 +23,15 @@ const statusLabels: Record<AnimeStatus, string> = {
   not_started: 'Planejado',
 };
 
+// Cores específicas para cada status - mais vibrantes e visíveis
+const statusColors: Record<AnimeStatus, { bg: string; icon: string; text: string }> = {
+  watching: { bg: 'bg-primary/30', icon: 'text-primary', text: 'text-primary' },
+  completed: { bg: 'bg-green-500/30', icon: 'text-green-400', text: 'text-green-400' },
+  paused: { bg: 'bg-yellow-500/30', icon: 'text-yellow-400', text: 'text-yellow-400' },
+  dropped: { bg: 'bg-red-500/30', icon: 'text-red-400', text: 'text-red-400' },
+  not_started: { bg: 'bg-purple-500/30', icon: 'text-purple-400', text: 'text-purple-400' },
+};
+
 export function RecentActivity() {
   const { data: entries, isLoading } = useAnimeEntries();
 
@@ -75,9 +84,9 @@ export function RecentActivity() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm md:text-base truncate">{entry.title}</p>
                   <div className="flex items-center gap-1.5 md:gap-2 mt-1 flex-wrap">
-                    <div className="flex items-center gap-1 bg-secondary/50 px-1.5 py-0.5 rounded-full">
-                      <StatusIcon className="h-3 w-3 md:h-3.5 md:w-3.5 text-primary" />
-                      <span className="text-[10px] md:text-xs text-foreground font-medium">
+                    <div className={cn("flex items-center gap-1 px-2 py-0.5 rounded-full", statusColors[entry.status].bg)}>
+                      <StatusIcon className={cn("h-3.5 w-3.5 md:h-4 md:w-4", statusColors[entry.status].icon)} />
+                      <span className={cn("text-[10px] md:text-xs font-semibold", statusColors[entry.status].text)}>
                         {statusLabels[entry.status]}
                       </span>
                     </div>

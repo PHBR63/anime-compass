@@ -1,0 +1,110 @@
+import { useQuery } from '@tanstack/react-query';
+
+// Tipos da API Jikan
+export interface JikanAnime {
+  mal_id: number;
+  title: string;
+  title_english: string | null;
+  title_japanese: string | null;
+  images: {
+    jpg: {
+      image_url: string;
+      large_image_url: string;
+    };
+  };
+  synopsis: string | null;
+  score: number | null;
+  scored_by: number | null;
+  episodes: number | null;
+  status: string;
+  year: number | null;
+  season: string | null;
+  genres: { mal_id: number; name: string }[];
+  studios: { mal_id: number; name: string }[];
+  type: string;
+  rating: string | null;
+  popularity: number;
+  members: number;
+}
+
+interface JikanResponse<T> {
+  data: T;
+  pagination?: {
+    last_visible_page: number;
+    has_next_page: boolean;
+    current_page: number;
+  };
+}
+
+const JIKAN_BASE_URL = 'https://api.jikan.moe/v4';
+
+// Função para buscar com rate limiting (Jikan tem limite de 3 req/s)
+const fetchWithDelay = async (url: string) => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('Erro ao buscar dados da API');
+  }
+  return response.json();
+};
+
+// Hook para buscar animes em alta
+export function useTopAnimes(page: number = 1) {
+  return useQuery<JikanResponse<JikanAnime[]>>({
+    queryKey: ['jikan', 'top', page],
+    queryFn: () => fetchWithDelay(`${JIKAN_BASE_URL}/top/anime?page=${page}&limit=12`),
+    staleTime: 1000 * 60 * 10, // 10 minutos de cache
+  });
+}
+
+// Hook para buscar animes da temporada atual
+export function useSeasonNow(page: number = 1) {
+  return useQuery<JikanResponse<JikanAnime[]>>({
+    queryKey: ['jikan', 'season', 'now', page],
+    queryFn: () => fetchWithDelay(`${JIKAN_BASE_URL}/seasons/now?page=${page}&limit=12`),
+    staleTime: 1000 * 60 * 10,
+  });
+}
+
+// Hook para buscar animes por termo de pesquisa
+export function useSearchAnimes(query: string, page: number = 1) {
+  return useQuery<JikanResponse<JikanAnime[]>>({
+    queryKey: ['jikan', 'search', query, page],
+    queryFn: () => fetchWithDelay(`${JIKAN_BASE_URL}/anime?q=${encodeURIComponent(query)}&page=${page}&limit=12&sfw=true`),
+    enabled: query.length >= 2,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+// Hook para buscar animes por gênero
+export function useAnimesByGenre(genreId: number, page: number = 1) {
+  return useQuery<JikanResponse<JikanAnime[]>>({
+    queryKey: ['jikan', 'genre', genreId, page],
+    queryFn: () => fetchWithDelay(`${JIKAN_BASE_URL}/anime?genres=${genreId}&page=${page}&limit=12&order_by=score&sort=desc`),
+    enabled: genreId > 0,
+    staleTime: 1000 * 60 * 10,
+  });
+}
+
+// Hook para buscar detalhes de um anime específico
+export function useAnimeDetails(malId: number) {
+  return useQuery<JikanResponse<JikanAnime>>({
+    queryKey: ['jikan', 'anime', malId],
+    queryFn: () => fetchWithDelay(`${JIKAN_BASE_URL}/anime/${malId}`),
+    enabled: malId > 0,
+    staleTime: 1000 * 60 * 30,
+  });
+}
+
+// Mapeamento de gêneros populares (IDs da API Jikan)
+export const GENRES = [
+  { id: 1, name: 'Ação' },
+  { id: 2, name: 'Aventura' },
+  { id: 4, name: 'Comédia' },
+  { id: 8, name: 'Drama' },
+  { id: 10, name: 'Fantasia' },
+  { id: 22, name: 'Romance' },
+  { id: 41, name: 'Suspense' },
+  { id: 24, name: 'Sci-Fi' },
+  { id: 36, name: 'Slice of Life' },
+  { id: 30, name: 'Esportes' },
+];

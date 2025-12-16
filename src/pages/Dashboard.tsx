@@ -12,6 +12,7 @@ import { StatCard } from '@/components/dashboard/StatCard';
 import { StatusChart } from '@/components/dashboard/StatusChart';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { AnimeCard } from '@/components/anime/AnimeCard';
+import { RecommendationsSection } from '@/components/anime/RecommendationsSection';
 import { Button } from '@/components/ui/button';
 import { useAnimeEntries, useUserStats } from '@/hooks/useAnimeEntries';
 import { useProfile } from '@/hooks/useProfile';
@@ -109,6 +110,9 @@ export default function Dashboard() {
           </>
         )}
       </div>
+
+      {/* Recomendações Personalizadas */}
+      <RecommendationsSection />
 
       {/* Currently Watching */}
       <section>

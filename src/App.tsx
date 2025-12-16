@@ -30,6 +30,9 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/shared/list/:listId" element={<PublicListView />} />
             
+            {/* Rota pública - Landing/Dashboard */}
+            <Route path="/" element={<Index />} />
+            
             {/* Rotas protegidas */}
             <Route
               path="/*"
@@ -37,7 +40,6 @@ const App = () => (
                 <ProtectedRoute>
                   <MainLayout>
                     <Routes>
-                      <Route path="/" element={<Index />} />
                       <Route path="/list" element={<MyList />} />
                       <Route path="/discover" element={<Discover />} />
                       <Route path="/social" element={<Social />} />

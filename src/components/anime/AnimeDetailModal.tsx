@@ -208,15 +208,15 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto glass-card border-border/50 p-0">
+      <DialogContent className="max-w-3xl w-[95vw] md:w-full max-h-[85vh] md:max-h-[90vh] overflow-y-auto glass-card border-border/50 p-0">
         {loadingDetails ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="flex items-center justify-center h-48 md:h-64">
+            <Loader2 className="h-6 w-6 md:h-8 md:w-8 animate-spin text-primary" />
           </div>
         ) : (
           <>
             {/* Header com imagem de fundo */}
-            <div className="relative h-48 md:h-64 overflow-hidden">
+            <div className="relative h-36 md:h-64 overflow-hidden">
               <img
                 src={imageUrl || '/placeholder.svg'}
                 alt={title}
@@ -227,43 +227,43 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
               {/* Botão de fechar */}
               <button
                 onClick={() => onOpenChange(false)}
-                className="absolute top-4 right-4 p-2 rounded-full bg-background/50 backdrop-blur-sm hover:bg-background/80 transition-colors"
+                className="absolute top-3 right-3 md:top-4 md:right-4 p-1.5 md:p-2 rounded-full bg-background/50 backdrop-blur-sm hover:bg-background/80 transition-colors touch-manipulation"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4 md:h-5 md:w-5" />
               </button>
 
               {/* Imagem e título */}
-              <div className="absolute bottom-0 left-0 right-0 p-6 flex gap-6">
+              <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 flex gap-3 md:gap-6">
                 <img
                   src={imageUrl || '/placeholder.svg'}
                   alt={title}
-                  className="w-24 md:w-32 h-36 md:h-48 object-cover rounded-xl shadow-2xl border border-border/50 -mb-12"
+                  className="w-20 md:w-32 h-28 md:h-48 object-cover rounded-lg md:rounded-xl shadow-2xl border border-border/50 -mb-10 md:-mb-12 shrink-0"
                 />
-                <div className="flex-1 min-w-0 pb-2">
+                <div className="flex-1 min-w-0 pb-1 md:pb-2">
                   <DialogHeader>
-                    <DialogTitle className="text-xl md:text-2xl font-display font-bold line-clamp-2">
+                    <DialogTitle className="text-base md:text-2xl font-display font-bold line-clamp-2 leading-tight">
                       {title}
                     </DialogTitle>
                   </DialogHeader>
                   
                   {/* Info rápida */}
-                  <div className="flex flex-wrap items-center gap-3 mt-2 text-sm text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-1.5 md:mt-2 text-xs md:text-sm text-muted-foreground">
                     {anime?.year && (
                       <span className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
+                        <Calendar className="h-3 w-3 md:h-4 md:w-4" />
                         {anime.year}
                       </span>
                     )}
                     {totalEpisodes && (
                       <span className="flex items-center gap-1">
-                        <Tv className="h-4 w-4" />
+                        <Tv className="h-3 w-3 md:h-4 md:w-4" />
                         {totalEpisodes} eps
                       </span>
                     )}
                     {anime?.score && (
                       <span className="flex items-center gap-1">
-                        <Star className="h-4 w-4 text-warning fill-warning" />
-                        {anime.score.toFixed(1)} MAL
+                        <Star className="h-3 w-3 md:h-4 md:w-4 text-warning fill-warning" />
+                        {anime.score.toFixed(1)}
                       </span>
                     )}
                   </div>
@@ -272,7 +272,7 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
             </div>
 
             {/* Conteúdo */}
-            <div className="p-6 pt-16 space-y-6">
+            <div className="p-4 md:p-6 pt-12 md:pt-16 space-y-4 md:space-y-6">
               {/* Gêneros */}
               {anime?.genres && anime.genres.length > 0 && (
                 <div className="flex flex-wrap gap-2">

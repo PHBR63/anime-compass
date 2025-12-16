@@ -68,7 +68,7 @@ export function AnimeCard({ entry }: AnimeCardProps) {
   return (
     <>
       <div 
-        className="anime-card group cursor-pointer"
+        className="anime-card group cursor-pointer touch-manipulation"
         onClick={() => setModalOpen(true)}
       >
         {/* Image */}
@@ -77,48 +77,49 @@ export function AnimeCard({ entry }: AnimeCardProps) {
             src={entry.image_url || '/placeholder.svg'}
             alt={entry.title}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            loading="lazy"
           />
           
           {/* Overlay gradient */}
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
           
-          {/* Top actions */}
-          <div className="absolute top-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Top actions - visíveis sempre em mobile, hover em desktop */}
+          <div className="absolute top-2 md:top-3 right-2 md:right-3 flex items-center gap-1.5 md:gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             <Button
               variant="glass"
               size="icon"
-              className="h-8 w-8"
+              className="h-7 w-7 md:h-8 md:w-8 touch-manipulation"
               onClick={handleToggleFavorite}
             >
               <Heart className={cn(
-                "h-4 w-4 transition-colors",
+                "h-3.5 w-3.5 md:h-4 md:w-4 transition-colors",
                 entry.is_favorite && "fill-destructive text-destructive"
               )} />
             </Button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="glass" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
+                <Button variant="glass" size="icon" className="h-7 w-7 md:h-8 md:w-8 touch-manipulation">
+                  <MoreVertical className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="glass-card">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange('watching'); }}>
+              <DropdownMenuContent align="end" className="glass-card min-w-[140px]">
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange('watching'); }} className="py-2.5">
                   Assistindo
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange('completed'); }}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange('completed'); }} className="py-2.5">
                   Completo
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange('paused'); }}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange('paused'); }} className="py-2.5">
                   Pausado
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange('not_started'); }}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleStatusChange('not_started'); }} className="py-2.5">
                   Planejado
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   onClick={(e) => { e.stopPropagation(); deleteEntry.mutate(entry.id); }}
-                  className="text-destructive"
+                  className="text-destructive py-2.5"
                 >
                   Remover
                 </DropdownMenuItem>
@@ -127,9 +128,9 @@ export function AnimeCard({ entry }: AnimeCardProps) {
           </div>
 
           {/* Status badge */}
-          <div className="absolute top-3 left-3">
+          <div className="absolute top-2 md:top-3 left-2 md:left-3">
             <span className={cn(
-              "px-2.5 py-1 text-xs font-medium rounded-full border",
+              "px-2 md:px-2.5 py-0.5 md:py-1 text-[10px] md:text-xs font-medium rounded-full border",
               statusColors[entry.status]
             )}>
               {statusLabels[entry.status]}
@@ -138,26 +139,26 @@ export function AnimeCard({ entry }: AnimeCardProps) {
           
           {/* Rating */}
           {entry.rating && (
-            <div className="absolute bottom-16 right-3 flex items-center gap-1 bg-background/80 backdrop-blur-sm px-2 py-1 rounded-full">
-              <Star className="h-3.5 w-3.5 text-warning fill-warning" />
-              <span className="text-sm font-medium">{Number(entry.rating).toFixed(0)}</span>
+            <div className="absolute bottom-14 md:bottom-16 right-2 md:right-3 flex items-center gap-1 bg-background/80 backdrop-blur-sm px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">
+              <Star className="h-3 w-3 md:h-3.5 md:w-3.5 text-warning fill-warning" />
+              <span className="text-xs md:text-sm font-medium">{Number(entry.rating).toFixed(0)}</span>
             </div>
           )}
           
           {/* Content */}
-          <div className="absolute bottom-0 left-0 right-0 p-4">
-            <h3 className="font-display font-semibold text-sm line-clamp-2 mb-2">
+          <div className="absolute bottom-0 left-0 right-0 p-2.5 md:p-4">
+            <h3 className="font-display font-semibold text-xs md:text-sm line-clamp-2 mb-1 md:mb-2">
               {entry.title}
             </h3>
             
             {/* Progress bar */}
             {entry.total_episodes && (
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Episódio {entry.episodes_watched || 0}</span>
+              <div className="space-y-0.5 md:space-y-1">
+                <div className="flex justify-between text-[10px] md:text-xs text-muted-foreground">
+                  <span>Ep {entry.episodes_watched || 0}</span>
                   <span>/ {entry.total_episodes}</span>
                 </div>
-                <div className="h-1 bg-secondary rounded-full overflow-hidden">
+                <div className="h-0.5 md:h-1 bg-secondary rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-gradient-primary rounded-full transition-all duration-300"
                     style={{ width: `${progress}%` }}

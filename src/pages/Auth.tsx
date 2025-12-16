@@ -99,26 +99,26 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center p-4">
-      {/* Background effects */}
+    <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center p-4 md:p-6">
+      {/* Background effects - otimizado para mobile */}
       <div className="absolute inset-0 bg-grid-pattern opacity-5" />
-      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse-glow" />
-      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse-glow" />
+      <div className="absolute top-1/4 -left-16 md:-left-32 w-48 md:w-96 h-48 md:h-96 bg-primary/20 rounded-full blur-3xl animate-pulse-glow" />
+      <div className="absolute bottom-1/4 -right-16 md:-right-32 w-48 md:w-96 h-48 md:h-96 bg-accent/20 rounded-full blur-3xl animate-pulse-glow" />
       
-      <div className="w-full max-w-md relative z-10">
+      <div className="w-full max-w-sm md:max-w-md relative z-10">
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 md:mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <Sparkles className="w-8 h-8 text-primary animate-glow" />
-            <h1 className="text-4xl font-bold text-gradient">AniCheck</h1>
+            <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-primary animate-glow" />
+            <h1 className="text-3xl md:text-4xl font-bold text-gradient">AniCheck</h1>
           </div>
-          <p className="text-muted-foreground">
+          <p className="text-sm md:text-base text-muted-foreground">
             {isLogin ? 'Bem-vindo de volta!' : 'Crie sua conta'}
           </p>
         </div>
 
         {/* Form Card */}
-        <div className="glass-card p-8 rounded-2xl border border-border/50">
+        <div className="glass-card p-6 md:p-8 rounded-xl md:rounded-2xl border border-border/50">
           <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
               <div className="space-y-2">

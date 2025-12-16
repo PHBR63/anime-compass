@@ -38,6 +38,25 @@ interface JikanResponse<T> {
 
 const JIKAN_BASE_URL = 'https://api.jikan.moe/v4';
 
+// Ratings e tipos a serem filtrados
+const EXCLUDED_RATINGS = ['Rx - Hentai'];
+const EXCLUDED_TYPES = ['Music'];
+
+// Função para filtrar animes indesejados
+const filterAnimes = (animes: JikanAnime[]): JikanAnime[] => {
+  return animes.filter(anime => {
+    // Filtra por rating (exclui Hentai)
+    if (anime.rating && EXCLUDED_RATINGS.includes(anime.rating)) {
+      return false;
+    }
+    // Filtra por tipo (exclui Music)
+    if (anime.type && EXCLUDED_TYPES.includes(anime.type)) {
+      return false;
+    }
+    return true;
+  });
+};
+
 // Função para buscar com rate limiting (Jikan tem limite de 3 req/s)
 const fetchWithDelay = async (url: string) => {
   const response = await fetch(url);
@@ -47,11 +66,20 @@ const fetchWithDelay = async (url: string) => {
   return response.json();
 };
 
+// Função para buscar e filtrar resultados
+const fetchAndFilter = async <T extends { data: JikanAnime[] }>(url: string): Promise<T> => {
+  const result = await fetchWithDelay(url);
+  if (result.data && Array.isArray(result.data)) {
+    result.data = filterAnimes(result.data);
+  }
+  return result;
+};
+
 // Hook para buscar animes em alta (simples)
 export function useTopAnimes(page: number = 1) {
   return useQuery<JikanResponse<JikanAnime[]>>({
     queryKey: ['jikan', 'top', page],
-    queryFn: () => fetchWithDelay(`${JIKAN_BASE_URL}/top/anime?page=${page}&limit=12`),
+    queryFn: () => fetchAndFilter(`${JIKAN_BASE_URL}/top/anime?page=${page}&limit=12`),
     staleTime: 1000 * 60 * 10,
   });
 }
@@ -60,7 +88,7 @@ export function useTopAnimes(page: number = 1) {
 export function useSeasonNow(page: number = 1) {
   return useQuery<JikanResponse<JikanAnime[]>>({
     queryKey: ['jikan', 'season', 'now', page],
-    queryFn: () => fetchWithDelay(`${JIKAN_BASE_URL}/seasons/now?page=${page}&limit=12`),
+    queryFn: () => fetchAndFilter(`${JIKAN_BASE_URL}/seasons/now?page=${page}&limit=12`),
     staleTime: 1000 * 60 * 10,
   });
 }
@@ -70,7 +98,7 @@ export function useInfiniteTopAnimes() {
   return useInfiniteQuery<JikanResponse<JikanAnime[]>>({
     queryKey: ['jikan', 'top', 'infinite'],
     queryFn: ({ pageParam = 1 }) => 
-      fetchWithDelay(`${JIKAN_BASE_URL}/top/anime?page=${pageParam}&limit=24`),
+      fetchAndFilter(`${JIKAN_BASE_URL}/top/anime?page=${pageParam}&limit=24`),
     getNextPageParam: (lastPage) => {
       if (lastPage.pagination?.has_next_page) {
         return (lastPage.pagination.current_page || 1) + 1;
@@ -87,7 +115,7 @@ export function useInfiniteSeasonNow() {
   return useInfiniteQuery<JikanResponse<JikanAnime[]>>({
     queryKey: ['jikan', 'season', 'now', 'infinite'],
     queryFn: ({ pageParam = 1 }) => 
-      fetchWithDelay(`${JIKAN_BASE_URL}/seasons/now?page=${pageParam}&limit=24`),
+      fetchAndFilter(`${JIKAN_BASE_URL}/seasons/now?page=${pageParam}&limit=24`),
     getNextPageParam: (lastPage) => {
       if (lastPage.pagination?.has_next_page) {
         return (lastPage.pagination.current_page || 1) + 1;
@@ -104,7 +132,7 @@ export function useInfiniteSearchAnimes(query: string) {
   return useInfiniteQuery<JikanResponse<JikanAnime[]>>({
     queryKey: ['jikan', 'search', 'infinite', query],
     queryFn: ({ pageParam = 1 }) => 
-      fetchWithDelay(`${JIKAN_BASE_URL}/anime?q=${encodeURIComponent(query)}&page=${pageParam}&limit=24&sfw=true`),
+      fetchAndFilter(`${JIKAN_BASE_URL}/anime?q=${encodeURIComponent(query)}&page=${pageParam}&limit=24&sfw=true`),
     getNextPageParam: (lastPage) => {
       if (lastPage.pagination?.has_next_page) {
         return (lastPage.pagination.current_page || 1) + 1;
@@ -122,7 +150,7 @@ export function useInfiniteAnimesByGenre(genreId: number) {
   return useInfiniteQuery<JikanResponse<JikanAnime[]>>({
     queryKey: ['jikan', 'genre', 'infinite', genreId],
     queryFn: ({ pageParam = 1 }) => 
-      fetchWithDelay(`${JIKAN_BASE_URL}/anime?genres=${genreId}&page=${pageParam}&limit=24&order_by=score&sort=desc`),
+      fetchAndFilter(`${JIKAN_BASE_URL}/anime?genres=${genreId}&page=${pageParam}&limit=24&order_by=score&sort=desc`),
     getNextPageParam: (lastPage) => {
       if (lastPage.pagination?.has_next_page) {
         return (lastPage.pagination.current_page || 1) + 1;
@@ -139,7 +167,7 @@ export function useInfiniteAnimesByGenre(genreId: number) {
 export function useSearchAnimes(query: string, page: number = 1) {
   return useQuery<JikanResponse<JikanAnime[]>>({
     queryKey: ['jikan', 'search', query, page],
-    queryFn: () => fetchWithDelay(`${JIKAN_BASE_URL}/anime?q=${encodeURIComponent(query)}&page=${page}&limit=12&sfw=true`),
+    queryFn: () => fetchAndFilter(`${JIKAN_BASE_URL}/anime?q=${encodeURIComponent(query)}&page=${page}&limit=12&sfw=true`),
     enabled: query.length >= 2,
     staleTime: 1000 * 60 * 5,
   });
@@ -149,7 +177,7 @@ export function useSearchAnimes(query: string, page: number = 1) {
 export function useAnimesByGenre(genreId: number, page: number = 1) {
   return useQuery<JikanResponse<JikanAnime[]>>({
     queryKey: ['jikan', 'genre', genreId, page],
-    queryFn: () => fetchWithDelay(`${JIKAN_BASE_URL}/anime?genres=${genreId}&page=${page}&limit=12&order_by=score&sort=desc`),
+    queryFn: () => fetchAndFilter(`${JIKAN_BASE_URL}/anime?genres=${genreId}&page=${page}&limit=12&order_by=score&sort=desc`),
     enabled: genreId > 0,
     staleTime: 1000 * 60 * 10,
   });

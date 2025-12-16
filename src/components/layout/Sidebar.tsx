@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { NotificationsDropdown } from '@/components/notifications/NotificationsDropdown';
+import { useUnreadNotificationsCount } from '@/hooks/useNotifications';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -32,6 +34,7 @@ export function Sidebar() {
   const location = useLocation();
   const { signOut, user } = useAuth();
   const { data: profile } = useProfile();
+  const unreadCount = useUnreadNotificationsCount();
 
   const handleLogout = async () => {
     await signOut();
@@ -134,13 +137,15 @@ export function Sidebar() {
 
           {/* Bottom actions */}
           <div className="px-3 pb-6 space-y-2">
-            <Button variant="glass" className="w-full justify-start gap-3">
-              <Bell className="h-5 w-5" />
-              <span>Notificações</span>
-              <span className="ml-auto bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
-                0
-              </span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <NotificationsDropdown />
+              <span className="text-sm text-muted-foreground">Notificações</span>
+              {unreadCount > 0 && (
+                <span className="ml-auto bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </div>
             
             <Button 
               variant="ghost" 

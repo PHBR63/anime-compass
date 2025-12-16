@@ -26,6 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { AnimeGrid } from '@/components/anime/AnimeGrid';
 import { SortableAnimeItem } from './SortableAnimeItem';
+import { EditListModal } from './EditListModal';
 import { useListItems, useRemoveFromList, useReorderListItems } from '@/hooks/useCustomLists';
 import type { CustomList } from '@/hooks/useCustomLists';
 import { cn } from '@/lib/utils';
@@ -44,6 +45,7 @@ type ViewMode = 'grid' | 'reorder';
 export function ListDetailView({ list, onBack }: ListDetailViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [copied, setCopied] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const { data: items, isLoading } = useListItems(list.id);
   const removeFromList = useRemoveFromList();
   const reorderItems = useReorderListItems();
@@ -257,7 +259,7 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
                 </Popover>
               )}
               
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => setShowEditModal(true)}>
                 <Pencil className="h-4 w-4 mr-2" />
                 Editar
               </Button>
@@ -324,6 +326,13 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
           </p>
         </div>
       )}
+
+      {/* Modal de edição */}
+      <EditListModal
+        list={list}
+        open={showEditModal}
+        onOpenChange={setShowEditModal}
+      />
     </div>
   );
 }

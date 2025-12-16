@@ -1,7 +1,8 @@
-import { AnimeStatus } from '@/types/anime';
-import { statusLabels } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import type { Database } from '@/integrations/supabase/types';
+
+type AnimeStatus = Database['public']['Enums']['anime_status'];
 
 interface StatusFilterProps {
   activeStatus: AnimeStatus | 'all';
@@ -9,7 +10,16 @@ interface StatusFilterProps {
   counts: Record<AnimeStatus | 'all', number>;
 }
 
-const statuses: (AnimeStatus | 'all')[] = ['all', 'watching', 'completed', 'paused', 'dropped', 'planned'];
+const statusLabels: Record<AnimeStatus | 'all', string> = {
+  all: 'Todos',
+  watching: 'Assistindo',
+  completed: 'Completo',
+  paused: 'Pausado',
+  dropped: 'Abandonado',
+  not_started: 'Planejado',
+};
+
+const statuses: (AnimeStatus | 'all')[] = ['all', 'watching', 'completed', 'paused', 'dropped', 'not_started'];
 
 export function StatusFilter({ activeStatus, onChange, counts }: StatusFilterProps) {
   return (
@@ -25,14 +35,14 @@ export function StatusFilter({ activeStatus, onChange, counts }: StatusFilterPro
             activeStatus === status && "glow-primary"
           )}
         >
-          {status === 'all' ? 'Todos' : statusLabels[status]}
+          {statusLabels[status]}
           <span className={cn(
             "ml-2 px-1.5 py-0.5 text-xs rounded-full",
             activeStatus === status 
               ? "bg-primary-foreground/20" 
               : "bg-secondary"
           )}>
-            {counts[status]}
+            {counts[status] || 0}
           </span>
         </Button>
       ))}

@@ -10,10 +10,13 @@ import {
   Bell,
   Menu,
   X,
-  Sparkles
+  Sparkles,
+  LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -27,6 +30,12 @@ const navItems = [
 export function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { signOut, user } = useAuth();
+  const { data: profile } = useProfile();
+
+  const handleLogout = async () => {
+    await signOut();
+  };
 
   return (
     <>
@@ -67,6 +76,33 @@ export function Sidebar() {
             </span>
           </div>
 
+          {/* User info */}
+          {user && (
+            <div className="px-4 py-4 border-b border-border/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  {profile?.avatar_url ? (
+                    <img 
+                      src={profile.avatar_url} 
+                      alt="Avatar" 
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-5 w-5 text-primary" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">
+                    {profile?.display_name || profile?.username || 'Usuário'}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Navigation */}
           <nav className="flex-1 px-3 py-6 space-y-1">
             {navItems.map((item) => {
@@ -96,14 +132,23 @@ export function Sidebar() {
             })}
           </nav>
 
-          {/* Notifications button */}
-          <div className="px-3 pb-6">
+          {/* Bottom actions */}
+          <div className="px-3 pb-6 space-y-2">
             <Button variant="glass" className="w-full justify-start gap-3">
               <Bell className="h-5 w-5" />
               <span>Notificações</span>
               <span className="ml-auto bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
-                3
+                0
               </span>
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-5 w-5" />
+              <span>Sair</span>
             </Button>
           </div>
         </div>

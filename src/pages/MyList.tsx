@@ -6,6 +6,7 @@ import { BulkActionsBar } from '@/components/anime/BulkActionsBar';
 import { StatusFilter } from '@/components/anime/StatusFilter';
 import { AdvancedFilters, FilterOptions, SortOptions, SortOption } from '@/components/anime/AdvancedFilters';
 import { ListsSection } from '@/components/lists/ListsSection';
+import { ImportModal } from '@/components/import/ImportModal';
 import { useAnimeEntries } from '@/hooks/useAnimeEntries';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -175,7 +176,8 @@ export default function MyList() {
           </p>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <ImportModal />
           <Button 
             variant={isSelectionMode ? "default" : "outline"}
             onClick={handleToggleSelectionMode}

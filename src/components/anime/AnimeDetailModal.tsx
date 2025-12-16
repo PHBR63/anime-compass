@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { X, Plus, Minus, Calendar, Clock, Tv, Star, Heart, Loader2, Check, Bookmark, Languages } from 'lucide-react';
 import {
   Dialog,
@@ -14,7 +14,9 @@ import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { StarRating } from './StarRating';
 import { ReviewsList } from './ReviewsList';
+import { ProgressHistory } from './ProgressHistory';
 import { useAnimeEntries, useAddAnimeEntry, useUpdateAnimeEntry } from '@/hooks/useAnimeEntries';
+import { useAddProgressHistory } from '@/hooks/useProgressHistory';
 import { JikanAnime, useAnimeDetails } from '@/hooks/useJikanApi';
 import { useTranslation } from '@/hooks/useTranslation';
 import { toast } from 'sonner';
@@ -48,6 +50,10 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
   const { data: userEntries } = useAnimeEntries();
   const addEntry = useAddAnimeEntry();
   const updateEntry = useUpdateAnimeEntry();
+  const addProgressHistory = useAddProgressHistory();
+  
+  // Ref para rastrear episódios antes da mudança
+  const previousEpisodesRef = useRef<number | null>(null);
 
   // Determina o anime a ser exibido
   const anime = jikanAnime || animeDetails?.data;
@@ -109,17 +115,49 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
     }
   };
 
-  // Função para atualizar episódios
+  // Função para atualizar episódios com histórico
   const handleEpisodesChange = (delta: number) => {
     const totalEps = anime?.episodes || entry?.total_episodes || 999;
+    const oldValue = localEpisodes;
     const newValue = Math.max(0, Math.min(totalEps, localEpisodes + delta));
     setLocalEpisodes(newValue);
-    if (entry) {
+    if (entry && oldValue !== newValue) {
+      // Registrar no histórico
+      addProgressHistory.mutate({
+        anime_entry_id: entry.id,
+        episodes_from: oldValue,
+        episodes_to: newValue,
+      });
       handleUpdate({ 
         episodes_watched: newValue,
         ...(newValue === totalEps && { status: 'completed' as AnimeStatus, completed_at: new Date().toISOString().split('T')[0] })
       });
     }
+  };
+
+  // Função para atualizar episódios via slider com histórico
+  const handleSliderCommit = (newValue: number) => {
+    if (!entry) return;
+    const oldValue = previousEpisodesRef.current ?? entry.episodes_watched ?? 0;
+    
+    if (oldValue !== newValue) {
+      // Registrar no histórico
+      addProgressHistory.mutate({
+        anime_entry_id: entry.id,
+        episodes_from: oldValue,
+        episodes_to: newValue,
+      });
+      
+      const totalEps = anime?.episodes || entry?.total_episodes || 999;
+      handleUpdate({ 
+        episodes_watched: newValue,
+        ...(newValue === totalEps && { 
+          status: 'completed' as AnimeStatus, 
+          completed_at: new Date().toISOString().split('T')[0] 
+        })
+      });
+    }
+    previousEpisodesRef.current = null;
   };
 
   // Função para atualizar status
@@ -305,19 +343,13 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
                           <Slider
                             value={[localEpisodes]}
                             onValueChange={(value) => {
+                              // Salvar valor anterior antes de começar a arrastar
+                              if (previousEpisodesRef.current === null) {
+                                previousEpisodesRef.current = localEpisodes;
+                              }
                               setLocalEpisodes(value[0]);
                             }}
-                            onValueCommit={(value) => {
-                              if (entry) {
-                                handleUpdate({ 
-                                  episodes_watched: value[0],
-                                  ...(value[0] === totalEpisodes && { 
-                                    status: 'completed' as AnimeStatus, 
-                                    completed_at: new Date().toISOString().split('T')[0] 
-                                  })
-                                });
-                              }
-                            }}
+                            onValueCommit={(value) => handleSliderCommit(value[0])}
                             max={totalEpisodes}
                             min={0}
                             step={1}
@@ -332,8 +364,16 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
                             size="sm"
                             className="h-7 text-xs"
                             onClick={() => {
+                              const oldValue = localEpisodes;
                               setLocalEpisodes(0);
-                              if (entry) handleUpdate({ episodes_watched: 0 });
+                              if (entry && oldValue !== 0) {
+                                addProgressHistory.mutate({
+                                  anime_entry_id: entry.id,
+                                  episodes_from: oldValue,
+                                  episodes_to: 0,
+                                });
+                                handleUpdate({ episodes_watched: 0 });
+                              }
                             }}
                           >
                             Resetar
@@ -343,9 +383,17 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
                             size="sm"
                             className="h-7 text-xs"
                             onClick={() => {
+                              const oldValue = localEpisodes;
                               const half = Math.floor(totalEpisodes / 2);
                               setLocalEpisodes(half);
-                              if (entry) handleUpdate({ episodes_watched: half });
+                              if (entry && oldValue !== half) {
+                                addProgressHistory.mutate({
+                                  anime_entry_id: entry.id,
+                                  episodes_from: oldValue,
+                                  episodes_to: half,
+                                });
+                                handleUpdate({ episodes_watched: half });
+                              }
                             }}
                           >
                             Metade
@@ -355,17 +403,31 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
                             size="sm"
                             className="h-7 text-xs text-green-500 hover:text-green-400"
                             onClick={() => {
+                              const oldValue = localEpisodes;
                               setLocalEpisodes(totalEpisodes);
-                              if (entry) handleUpdate({ 
-                                episodes_watched: totalEpisodes,
-                                status: 'completed' as AnimeStatus,
-                                completed_at: new Date().toISOString().split('T')[0]
-                              });
+                              if (entry && oldValue !== totalEpisodes) {
+                                addProgressHistory.mutate({
+                                  anime_entry_id: entry.id,
+                                  episodes_from: oldValue,
+                                  episodes_to: totalEpisodes,
+                                });
+                                handleUpdate({ 
+                                  episodes_watched: totalEpisodes,
+                                  status: 'completed' as AnimeStatus,
+                                  completed_at: new Date().toISOString().split('T')[0]
+                                });
+                              }
                             }}
                           >
                             Completo
                           </Button>
                         </div>
+
+                        {/* Histórico de progresso */}
+                        <ProgressHistory 
+                          animeEntryId={entry?.id} 
+                          totalEpisodes={totalEpisodes}
+                        />
                       </div>
                     </div>
                   )}

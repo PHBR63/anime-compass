@@ -143,6 +143,41 @@ export type Database = {
         }
         Relationships: []
       }
+      episode_progress_history: {
+        Row: {
+          anime_entry_id: string
+          created_at: string
+          episodes_from: number
+          episodes_to: number
+          id: string
+          user_id: string
+        }
+        Insert: {
+          anime_entry_id: string
+          created_at?: string
+          episodes_from?: number
+          episodes_to: number
+          id?: string
+          user_id: string
+        }
+        Update: {
+          anime_entry_id?: string
+          created_at?: string
+          episodes_from?: number
+          episodes_to?: number
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "episode_progress_history_anime_entry_id_fkey"
+            columns: ["anime_entry_id"]
+            isOneToOne: false
+            referencedRelation: "anime_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       friendships: {
         Row: {
           addressee_id: string

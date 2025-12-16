@@ -19,6 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { NotificationsDropdown } from '@/components/notifications/NotificationsDropdown';
 import { useUnreadNotificationsCount } from '@/hooks/useNotifications';
+import { ThemeSelector } from '@/components/theme/ThemeSelector';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -137,6 +138,12 @@ export function Sidebar() {
 
           {/* Bottom actions */}
           <div className="px-3 pb-6 space-y-2">
+            {/* Theme and Notifications */}
+            <div className="flex items-center gap-2 px-2 py-2">
+              <ThemeSelector />
+              <span className="text-sm text-muted-foreground">Tema</span>
+            </div>
+            
             <div className="flex items-center gap-2">
               <NotificationsDropdown />
               <span className="text-sm text-muted-foreground">Notificações</span>

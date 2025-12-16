@@ -13,6 +13,7 @@ import Social from "./pages/Social";
 import Achievements from "./pages/Achievements";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
+import PublicListView from "./pages/PublicListView";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,7 +26,11 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Rotas públicas */}
             <Route path="/auth" element={<Auth />} />
+            <Route path="/shared/list/:listId" element={<PublicListView />} />
+            
+            {/* Rotas protegidas */}
             <Route
               path="/*"
               element={

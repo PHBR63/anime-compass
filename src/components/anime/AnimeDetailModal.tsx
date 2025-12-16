@@ -160,14 +160,33 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
     previousEpisodesRef.current = null;
   };
 
-  // Função para atualizar status
+  // Função para atualizar status - auto-completa episódios se marcado como completo
   const handleStatusChange = (status: AnimeStatus) => {
     setLocalStatus(status);
     if (entry) {
-      handleUpdate({ 
-        status,
-        ...(status === 'completed' && { completed_at: new Date().toISOString().split('T')[0] })
-      });
+      const totalEps = anime?.episodes || entry?.total_episodes;
+      const isCompletingAnime = status === 'completed';
+      
+      // Se marcando como completo, define todos os episódios como assistidos
+      if (isCompletingAnime && totalEps && localEpisodes < totalEps) {
+        const oldValue = localEpisodes;
+        setLocalEpisodes(totalEps);
+        addProgressHistory.mutate({
+          anime_entry_id: entry.id,
+          episodes_from: oldValue,
+          episodes_to: totalEps,
+        });
+        handleUpdate({ 
+          status,
+          episodes_watched: totalEps,
+          completed_at: new Date().toISOString().split('T')[0]
+        });
+      } else {
+        handleUpdate({ 
+          status,
+          ...(isCompletingAnime && { completed_at: new Date().toISOString().split('T')[0] })
+        });
+      }
     }
   };
 

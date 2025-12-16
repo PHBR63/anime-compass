@@ -257,3 +257,31 @@ export function useListItemCount(listId: string) {
     enabled: !!listId,
   });
 }
+
+/**
+ * Hook para reordenar itens de uma lista
+ */
+export function useReorderListItems() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ listId, itemIds }: { listId: string; itemIds: string[] }) => {
+      // Atualizar posições de todos os itens
+      const updates = itemIds.map((id, index) => 
+        supabase
+          .from('list_items')
+          .update({ position: index })
+          .eq('id', id)
+          .eq('list_id', listId)
+      );
+
+      await Promise.all(updates);
+    },
+    onSuccess: (_, { listId }) => {
+      queryClient.invalidateQueries({ queryKey: ['list-items', listId] });
+    },
+    onError: () => {
+      toast.error('Erro ao reordenar lista');
+    },
+  });
+}

@@ -13,12 +13,40 @@ export function useBulkUpdateStatus() {
 
   return useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: AnimeStatus }) => {
-      const { error } = await supabase
-        .from('anime_entries')
-        .update({ status, updated_at: new Date().toISOString() })
-        .in('id', ids);
+      // Se o status for "completed", buscar os animes para atualizar episódios
+      if (status === 'completed') {
+        // Buscar total de episódios de cada anime
+        const { data: entries, error: fetchError } = await supabase
+          .from('anime_entries')
+          .select('id, total_episodes')
+          .in('id', ids);
 
-      if (error) throw error;
+        if (fetchError) throw fetchError;
+
+        // Atualizar cada anime individualmente com episódios completos
+        for (const entry of entries || []) {
+          const { error } = await supabase
+            .from('anime_entries')
+            .update({ 
+              status, 
+              episodes_watched: entry.total_episodes || 0,
+              completed_at: new Date().toISOString().split('T')[0],
+              updated_at: new Date().toISOString() 
+            })
+            .eq('id', entry.id);
+
+          if (error) throw error;
+        }
+      } else {
+        // Para outros status, atualização normal em lote
+        const { error } = await supabase
+          .from('anime_entries')
+          .update({ status, updated_at: new Date().toISOString() })
+          .in('id', ids);
+
+        if (error) throw error;
+      }
+      
       return ids.length;
     },
     onSuccess: (count) => {

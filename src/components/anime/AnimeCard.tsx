@@ -46,12 +46,18 @@ export function AnimeCard({ entry }: AnimeCardProps) {
     ? ((entry.episodes_watched || 0) / entry.total_episodes) * 100 
     : 0;
 
+  // Handler para mudança de status - auto-completa episódios se marcado como completo
   const handleStatusChange = (status: AnimeStatus) => {
-    updateEntry.mutate({ 
-      id: entry.id, 
-      status,
-      ...(status === 'completed' && { completed_at: new Date().toISOString().split('T')[0] })
-    });
+    if (status === 'completed') {
+      updateEntry.mutate({ 
+        id: entry.id, 
+        status,
+        episodes_watched: entry.total_episodes || entry.episodes_watched || 0,
+        completed_at: new Date().toISOString().split('T')[0]
+      });
+    } else {
+      updateEntry.mutate({ id: entry.id, status });
+    }
   };
 
   const handleToggleFavorite = (e: React.MouseEvent) => {

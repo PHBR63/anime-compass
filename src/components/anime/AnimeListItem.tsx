@@ -173,7 +173,19 @@ export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
               {(['watching', 'completed', 'paused', 'dropped', 'not_started'] as AnimeStatus[]).map((status) => (
                 <DropdownMenuItem
                   key={status}
-                  onClick={() => updateEntry.mutate({ id: entry.id, status })}
+                  onClick={() => {
+                    // Se marcando como completo, atualiza episódios para o total
+                    if (status === 'completed') {
+                      updateEntry.mutate({ 
+                        id: entry.id, 
+                        status,
+                        episodes_watched: entry.total_episodes || entry.episodes_watched || 0,
+                        completed_at: new Date().toISOString().split('T')[0]
+                      });
+                    } else {
+                      updateEntry.mutate({ id: entry.id, status });
+                    }
+                  }}
                 >
                   {statusLabels[status]}
                 </DropdownMenuItem>

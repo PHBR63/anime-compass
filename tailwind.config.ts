@@ -18,8 +18,16 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Outfit', 'sans-serif'],
-        display: ['Space Grotesk', 'sans-serif'],
+        sans: ['var(--font-body)', 'Outfit', 'sans-serif'],
+        display: ['var(--font-display)', 'Space Grotesk', 'sans-serif'],
+        outfit: ['Outfit', 'sans-serif'],
+        grotesk: ['Space Grotesk', 'sans-serif'],
+        orbitron: ['Orbitron', 'sans-serif'],
+        quicksand: ['Quicksand', 'sans-serif'],
+        playfair: ['Playfair Display', 'serif'],
+        bebas: ['Bebas Neue', 'sans-serif'],
+        dela: ['Dela Gothic One', 'sans-serif'],
+        noto: ['Noto Sans JP', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",

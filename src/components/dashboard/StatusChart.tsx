@@ -1,27 +1,26 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { AnimeStatus } from '@/types/anime';
-import { statusLabels } from '@/data/mockData';
 
-interface StatusChartProps {
-  data: Record<AnimeStatus, number>;
+interface StatusChartData {
+  name: string;
+  value: number;
+  color: string;
 }
 
-const COLORS = {
-  watching: 'hsl(183, 100%, 50%)',
-  completed: 'hsl(142, 76%, 45%)',
-  paused: 'hsl(38, 92%, 50%)',
-  dropped: 'hsl(0, 84%, 60%)',
-  planned: 'hsl(270, 80%, 60%)',
-};
+interface StatusChartProps {
+  data: StatusChartData[];
+}
 
 export function StatusChart({ data }: StatusChartProps) {
-  const chartData = Object.entries(data)
-    .filter(([_, value]) => value > 0)
-    .map(([status, value]) => ({
-      name: statusLabels[status as AnimeStatus],
-      value,
-      color: COLORS[status as AnimeStatus],
-    }));
+  if (data.length === 0) {
+    return (
+      <div className="glass-card p-6 animate-fade-in">
+        <h3 className="font-display text-lg font-semibold mb-4">Por Status</h3>
+        <div className="h-64 flex items-center justify-center text-muted-foreground">
+          Nenhum dado disponível
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="glass-card p-6 animate-fade-in">
@@ -31,7 +30,7 @@ export function StatusChart({ data }: StatusChartProps) {
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={chartData}
+              data={data}
               cx="50%"
               cy="50%"
               innerRadius={60}
@@ -39,7 +38,7 @@ export function StatusChart({ data }: StatusChartProps) {
               paddingAngle={4}
               dataKey="value"
             >
-              {chartData.map((entry, index) => (
+              {data.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
                   fill={entry.color}

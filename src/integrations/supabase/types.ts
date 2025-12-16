@@ -14,16 +14,419 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      achievements: {
+        Row: {
+          category: string
+          code: string
+          created_at: string
+          description: string
+          icon: string | null
+          id: string
+          name: string
+          rarity: string | null
+          requirement_type: string
+          requirement_value: number
+        }
+        Insert: {
+          category: string
+          code: string
+          created_at?: string
+          description: string
+          icon?: string | null
+          id?: string
+          name: string
+          rarity?: string | null
+          requirement_type: string
+          requirement_value: number
+        }
+        Update: {
+          category?: string
+          code?: string
+          created_at?: string
+          description?: string
+          icon?: string | null
+          id?: string
+          name?: string
+          rarity?: string | null
+          requirement_type?: string
+          requirement_value?: number
+        }
+        Relationships: []
+      }
+      anime_entries: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          episodes_watched: number | null
+          id: string
+          image_url: string | null
+          is_archived: boolean | null
+          is_favorite: boolean | null
+          mal_id: number
+          notes: string | null
+          rating: number | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["anime_status"]
+          title: string
+          total_episodes: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          episodes_watched?: number | null
+          id?: string
+          image_url?: string | null
+          is_archived?: boolean | null
+          is_favorite?: boolean | null
+          mal_id: number
+          notes?: string | null
+          rating?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["anime_status"]
+          title: string
+          total_episodes?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          episodes_watched?: number | null
+          id?: string
+          image_url?: string | null
+          is_archived?: boolean | null
+          is_favorite?: boolean | null
+          mal_id?: number
+          notes?: string | null
+          rating?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["anime_status"]
+          title?: string
+          total_episodes?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      custom_lists: {
+        Row: {
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      friendships: {
+        Row: {
+          addressee_id: string
+          created_at: string
+          id: string
+          requester_id: string
+          status: Database["public"]["Enums"]["friendship_status"]
+          updated_at: string
+        }
+        Insert: {
+          addressee_id: string
+          created_at?: string
+          id?: string
+          requester_id: string
+          status?: Database["public"]["Enums"]["friendship_status"]
+          updated_at?: string
+        }
+        Update: {
+          addressee_id?: string
+          created_at?: string
+          id?: string
+          requester_id?: string
+          status?: Database["public"]["Enums"]["friendship_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      list_items: {
+        Row: {
+          anime_entry_id: string
+          created_at: string
+          id: string
+          list_id: string
+          position: number | null
+        }
+        Insert: {
+          anime_entry_id: string
+          created_at?: string
+          id?: string
+          list_id: string
+          position?: number | null
+        }
+        Update: {
+          anime_entry_id?: string
+          created_at?: string
+          id?: string
+          list_id?: string
+          position?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "list_items_anime_entry_id_fkey"
+            columns: ["anime_entry_id"]
+            isOneToOne: false
+            referencedRelation: "anime_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "list_items_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "custom_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          is_read: boolean | null
+          message: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          is_read?: boolean | null
+          message?: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          is_read?: boolean | null
+          message?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          banner_url: string | null
+          bio: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          is_public: boolean | null
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          banner_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          is_public?: boolean | null
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          banner_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_public?: boolean | null
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      review_reactions: {
+        Row: {
+          created_at: string
+          id: string
+          is_like: boolean
+          review_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_like: boolean
+          review_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_like?: boolean
+          review_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_reactions_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reviews: {
+        Row: {
+          content: string
+          created_at: string
+          has_spoilers: boolean | null
+          id: string
+          likes_count: number | null
+          mal_id: number
+          rating: number | null
+          tags: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          has_spoilers?: boolean | null
+          id?: string
+          likes_count?: number | null
+          mal_id: number
+          rating?: number | null
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          has_spoilers?: boolean | null
+          id?: string
+          likes_count?: number | null
+          mal_id?: number
+          rating?: number | null
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_achievements: {
+        Row: {
+          achievement_id: string
+          id: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          achievement_id: string
+          id?: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          achievement_id?: string
+          id?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_achievement_id_fkey"
+            columns: ["achievement_id"]
+            isOneToOne: false
+            referencedRelation: "achievements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      anime_status:
+        | "not_started"
+        | "watching"
+        | "completed"
+        | "paused"
+        | "dropped"
+      app_role: "admin" | "moderator" | "user"
+      friendship_status: "pending" | "accepted" | "rejected" | "blocked"
+      notification_type:
+        | "friend_request"
+        | "friend_accepted"
+        | "review_like"
+        | "achievement"
+        | "system"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +553,23 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      anime_status: [
+        "not_started",
+        "watching",
+        "completed",
+        "paused",
+        "dropped",
+      ],
+      app_role: ["admin", "moderator", "user"],
+      friendship_status: ["pending", "accepted", "rejected", "blocked"],
+      notification_type: [
+        "friend_request",
+        "friend_accepted",
+        "review_like",
+        "achievement",
+        "system",
+      ],
+    },
   },
 } as const

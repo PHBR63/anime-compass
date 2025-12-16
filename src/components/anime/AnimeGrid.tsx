@@ -1,9 +1,11 @@
-import { UserAnimeEntry } from '@/types/anime';
 import { AnimeCard } from './AnimeCard';
 import { cn } from '@/lib/utils';
+import type { Database } from '@/integrations/supabase/types';
+
+type AnimeEntry = Database['public']['Tables']['anime_entries']['Row'];
 
 interface AnimeGridProps {
-  entries: UserAnimeEntry[];
+  entries: AnimeEntry[];
   className?: string;
 }
 

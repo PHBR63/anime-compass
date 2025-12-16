@@ -1,67 +1,84 @@
 import { useState, useMemo } from 'react';
-import { Search, SlidersHorizontal, Grid, List as ListIcon } from 'lucide-react';
+import { Search, SlidersHorizontal, Grid, List as ListIcon, Plus } from 'lucide-react';
 import { AnimeGrid } from '@/components/anime/AnimeGrid';
 import { StatusFilter } from '@/components/anime/StatusFilter';
-import { mockUserEntries } from '@/data/mockData';
-import { AnimeStatus } from '@/types/anime';
+import { useAnimeEntries } from '@/hooks/useAnimeEntries';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Link } from 'react-router-dom';
+import type { Database } from '@/integrations/supabase/types';
 
+type AnimeStatus = Database['public']['Enums']['anime_status'];
 type ViewMode = 'grid' | 'list';
 
 export default function MyList() {
   const [activeStatus, setActiveStatus] = useState<AnimeStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  
+  const { data: entries, isLoading } = useAnimeEntries();
 
   const filteredEntries = useMemo(() => {
-    let entries = mockUserEntries.filter(e => !e.isArchived);
+    if (!entries) return [];
+    
+    let result = entries.filter(e => !e.is_archived);
     
     if (activeStatus !== 'all') {
-      entries = entries.filter(e => e.status === activeStatus);
+      result = result.filter(e => e.status === activeStatus);
     }
     
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      entries = entries.filter(e => 
-        e.anime.title.toLowerCase().includes(query) ||
-        e.anime.titleEnglish?.toLowerCase().includes(query)
+      result = result.filter(e => 
+        e.title.toLowerCase().includes(query)
       );
     }
     
-    return entries;
-  }, [activeStatus, searchQuery]);
+    return result;
+  }, [entries, activeStatus, searchQuery]);
 
   const statusCounts = useMemo(() => {
-    const counts: Record<AnimeStatus | 'all', number> = {
-      all: mockUserEntries.filter(e => !e.isArchived).length,
+    if (!entries) return {
+      all: 0,
       watching: 0,
       completed: 0,
       paused: 0,
       dropped: 0,
-      planned: 0,
+      not_started: 0,
     };
+
+    const nonArchived = entries.filter(e => !e.is_archived);
     
-    mockUserEntries
-      .filter(e => !e.isArchived)
-      .forEach(e => {
-        counts[e.status]++;
-      });
-    
-    return counts;
-  }, []);
+    return {
+      all: nonArchived.length,
+      watching: nonArchived.filter(e => e.status === 'watching').length,
+      completed: nonArchived.filter(e => e.status === 'completed').length,
+      paused: nonArchived.filter(e => e.status === 'paused').length,
+      dropped: nonArchived.filter(e => e.status === 'dropped').length,
+      not_started: nonArchived.filter(e => e.status === 'not_started').length,
+    };
+  }, [entries]);
 
   return (
     <div className="space-y-6 pt-12 md:pt-0">
       {/* Header */}
-      <div>
-        <h1 className="font-display text-3xl md:text-4xl font-bold">
-          Minha Lista
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Gerencie seus animes e acompanhe seu progresso
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl md:text-4xl font-bold">
+            Minha Lista
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Gerencie seus animes e acompanhe seu progresso
+          </p>
+        </div>
+        
+        <Link to="/discover">
+          <Button variant="glow">
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar Anime
+          </Button>
+        </Link>
       </div>
 
       {/* Filters bar */}
@@ -114,7 +131,32 @@ export default function MyList() {
       </p>
 
       {/* Anime grid */}
-      <AnimeGrid entries={filteredEntries} />
+      {isLoading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+            <Skeleton key={i} className="aspect-[3/4] rounded-xl" />
+          ))}
+        </div>
+      ) : filteredEntries.length > 0 ? (
+        <AnimeGrid entries={filteredEntries} />
+      ) : (
+        <div className="glass-card p-8 text-center">
+          <p className="text-muted-foreground mb-4">
+            {searchQuery || activeStatus !== 'all' 
+              ? 'Nenhum anime encontrado com esses filtros'
+              : 'Sua lista está vazia. Que tal adicionar alguns animes?'
+            }
+          </p>
+          {!searchQuery && activeStatus === 'all' && (
+            <Link to="/discover">
+              <Button variant="glow">
+                <Plus className="h-4 w-4 mr-2" />
+                Descobrir Animes
+              </Button>
+            </Link>
+          )}
+        </div>
+      )}
     </div>
   );
 }

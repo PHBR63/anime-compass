@@ -16,17 +16,19 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { NotificationsDropdown } from '@/components/notifications/NotificationsDropdown';
 import { useUnreadNotificationsCount } from '@/hooks/useNotifications';
+import { useUnreadMessagesCount } from '@/hooks/useConversations';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
   { icon: List, label: 'Minha Lista', path: '/list' },
   { icon: Search, label: 'Descobrir', path: '/discover' },
   { icon: Users, label: 'Social', path: '/social' },
-  { icon: MessageCircle, label: 'Chat', path: '/chat' },
+  { icon: MessageCircle, label: 'Chat', path: '/chat', hasBadge: true },
   { icon: Trophy, label: 'Conquistas', path: '/achievements' },
   { icon: User, label: 'Perfil', path: '/profile' },
 ];
@@ -37,6 +39,7 @@ export function Sidebar() {
   const { signOut, user } = useAuth();
   const { data: profile } = useProfile();
   const unreadCount = useUnreadNotificationsCount();
+  const { data: unreadMessages } = useUnreadMessagesCount();
 
   const handleLogout = async () => {
     await signOut();
@@ -113,13 +116,15 @@ export function Sidebar() {
           <nav className="flex-1 px-3 py-6 space-y-1">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;
+              const showBadge = item.hasBadge && unreadMessages && unreadMessages > 0;
+              
               return (
                 <NavLink
                   key={item.path}
                   to={item.path}
                   onClick={() => setIsOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group",
+                    "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group relative",
                     isActive
                       ? "bg-primary/10 text-primary border border-primary/20"
                       : "text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -130,7 +135,18 @@ export function Sidebar() {
                     isActive && "text-primary"
                   )} />
                   <span className="font-medium">{item.label}</span>
-                  {isActive && (
+                  
+                  {/* Badge de não lidas para Chat */}
+                  {showBadge && (
+                    <Badge 
+                      className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 text-xs"
+                      variant="default"
+                    >
+                      {unreadMessages > 99 ? '99+' : unreadMessages}
+                    </Badge>
+                  )}
+                  
+                  {isActive && !showBadge && (
                     <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                   )}
                 </NavLink>

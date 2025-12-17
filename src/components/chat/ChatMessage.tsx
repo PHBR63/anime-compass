@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,8 +8,14 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Trash2, Reply, Star, ExternalLink } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { MoreVertical, Trash2, Reply, Star, ExternalLink, SmilePlus } from 'lucide-react';
 import { ChatMessageWithSender } from '@/hooks/useChatMessages';
+import { useMessageReactions, useToggleReaction, REACTION_TYPES, ReactionType } from '@/hooks/useChatReactions';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -31,8 +38,18 @@ export default function ChatMessage({
   onDelete,
   onReply,
 }: ChatMessageProps) {
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const { data: reactions } = useMessageReactions(message.id);
+  const toggleReaction = useToggleReaction();
+
   // Formatar hora da mensagem
   const time = format(new Date(message.created_at), 'HH:mm', { locale: ptBR });
+
+  // Toggle reação
+  const handleReaction = (type: ReactionType) => {
+    toggleReaction.mutate({ messageId: message.id, reactionType: type });
+    setShowReactionPicker(false);
+  };
 
   // Renderizar conteúdo baseado no tipo
   const renderContent = () => {
@@ -160,6 +177,34 @@ export default function ChatMessage({
     </div>
   );
 
+  // Renderizar reações
+  const renderReactions = () => {
+    if (!reactions?.length) return null;
+
+    return (
+      <div className={cn(
+        'flex flex-wrap gap-1 mt-1',
+        isOwn ? 'justify-end' : 'justify-start'
+      )}>
+        {reactions.map(reaction => (
+          <button
+            key={reaction.reaction_type}
+            onClick={() => handleReaction(reaction.reaction_type)}
+            className={cn(
+              'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors',
+              reaction.has_reacted 
+                ? 'bg-primary/20 border border-primary/30' 
+                : 'bg-muted/50 hover:bg-muted'
+            )}
+          >
+            <span>{REACTION_TYPES[reaction.reaction_type]}</span>
+            <span className="text-muted-foreground">{reaction.count}</span>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   // Se for mensagem do sistema, renderizar centralizado
   if (message.message_type === 'system') {
     return renderSystemMessage();
@@ -213,10 +258,37 @@ export default function ChatMessage({
             {time}
           </span>
         </div>
+
+        {/* Reações */}
+        {renderReactions()}
       </div>
 
       {/* Menu de ações */}
-      <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity self-center">
+      <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity self-center flex items-center gap-1">
+        {/* Botão de reação */}
+        <Popover open={showReactionPicker} onOpenChange={setShowReactionPicker}>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-6 w-6">
+              <SmilePlus className="h-3 w-3" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-2" align={isOwn ? 'end' : 'start'}>
+            <div className="flex gap-1">
+              {(Object.entries(REACTION_TYPES) as [ReactionType, string][]).map(([type, emoji]) => (
+                <button
+                  key={type}
+                  onClick={() => handleReaction(type)}
+                  className="text-xl p-1 hover:bg-muted rounded transition-colors"
+                  title={type}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Menu dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-6 w-6">

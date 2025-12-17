@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Users, MessageCircle } from 'lucide-react';
 import { ConversationWithDetails } from '@/hooks/useConversations';
+import { useGlobalPresence } from '@/hooks/useChatPresence';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import CreateGroupModal from './CreateGroupModal';
@@ -28,16 +29,21 @@ export default function ConversationList({
 }: ConversationListProps) {
   const [search, setSearch] = useState('');
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const { isUserOnline } = useGlobalPresence();
 
-  // Filtrar conversas pela busca
-  const filteredConversations = conversations.filter(conv => {
+  // Filtrar conversas pela busca (com debounce simulado via useMemo)
+  const filteredConversations = useMemo(() => {
+    if (!search.trim()) return conversations;
+    
     const searchLower = search.toLowerCase();
-    if (conv.type === 'direct') {
-      const otherName = conv.other_participant?.display_name || conv.other_participant?.username || '';
-      return otherName.toLowerCase().includes(searchLower);
-    }
-    return conv.name?.toLowerCase().includes(searchLower);
-  });
+    return conversations.filter(conv => {
+      if (conv.type === 'direct') {
+        const otherName = conv.other_participant?.display_name || conv.other_participant?.username || '';
+        return otherName.toLowerCase().includes(searchLower);
+      }
+      return conv.name?.toLowerCase().includes(searchLower);
+    });
+  }, [conversations, search]);
 
   // Obter nome de exibição da conversa
   const getConversationName = (conv: ConversationWithDetails) => {
@@ -55,6 +61,12 @@ export default function ConversationList({
   const getInitials = (conv: ConversationWithDetails) => {
     const name = getConversationName(conv);
     return name.substring(0, 2).toUpperCase();
+  };
+
+  // Verificar se o outro usuário está online (para chats diretos)
+  const isOtherUserOnline = (conv: ConversationWithDetails) => {
+    if (conv.type !== 'direct' || !conv.other_participant) return false;
+    return isUserOnline(conv.other_participant.user_id);
   };
 
   // Formatar preview da última mensagem
@@ -137,57 +149,64 @@ export default function ConversationList({
           </div>
         ) : (
           <div className="p-2">
-            {filteredConversations.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => onSelect(conv.id)}
-                className={`w-full p-3 rounded-lg flex items-center gap-3 transition-colors mb-1 ${
-                  selectedId === conv.id 
-                    ? 'bg-primary/10 border border-primary/20' 
-                    : 'hover:bg-muted/50'
-                }`}
-              >
-                {/* Avatar */}
-                <div className="relative">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={getConversationAvatar(conv) || undefined} />
-                    <AvatarFallback className={conv.type === 'group' ? 'bg-primary/20' : ''}>
-                      {conv.type === 'group' ? <Users className="h-5 w-5" /> : getInitials(conv)}
-                    </AvatarFallback>
-                  </Avatar>
-                  {/* Badge de não lidas */}
-                  {conv.unread_count > 0 && (
-                    <Badge 
-                      className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs"
-                    >
-                      {conv.unread_count > 99 ? '99+' : conv.unread_count}
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Info da conversa */}
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={`font-medium truncate ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
-                      {getConversationName(conv)}
-                    </span>
-                    {conv.last_message && (
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {formatDistanceToNow(new Date(conv.last_message.created_at), {
-                          addSuffix: false,
-                          locale: ptBR,
-                        })}
-                      </span>
+            {filteredConversations.map((conv) => {
+              const online = isOtherUserOnline(conv);
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => onSelect(conv.id)}
+                  className={`w-full p-3 rounded-lg flex items-center gap-3 transition-colors mb-1 ${
+                    selectedId === conv.id 
+                      ? 'bg-primary/10 border border-primary/20' 
+                      : 'hover:bg-muted/50'
+                  }`}
+                >
+                  {/* Avatar */}
+                  <div className="relative">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={getConversationAvatar(conv) || undefined} />
+                      <AvatarFallback className={conv.type === 'group' ? 'bg-primary/20' : ''}>
+                        {conv.type === 'group' ? <Users className="h-5 w-5" /> : getInitials(conv)}
+                      </AvatarFallback>
+                    </Avatar>
+                    {/* Badge de não lidas */}
+                    {conv.unread_count > 0 && (
+                      <Badge 
+                        className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs"
+                      >
+                        {conv.unread_count > 99 ? '99+' : conv.unread_count}
+                      </Badge>
+                    )}
+                    {/* Indicador online (para chats diretos) */}
+                    {conv.type === 'direct' && online && (
+                      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-card" />
                     )}
                   </div>
-                  <p className={`text-sm truncate ${
-                    conv.unread_count > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'
-                  }`}>
-                    {getLastMessagePreview(conv)}
-                  </p>
-                </div>
-              </button>
-            ))}
+
+                  {/* Info da conversa */}
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`font-medium truncate ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
+                        {getConversationName(conv)}
+                      </span>
+                      {conv.last_message && (
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {formatDistanceToNow(new Date(conv.last_message.created_at), {
+                            addSuffix: false,
+                            locale: ptBR,
+                          })}
+                        </span>
+                      )}
+                    </div>
+                    <p className={`text-sm truncate ${
+                      conv.unread_count > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'
+                    }`}>
+                      {getLastMessagePreview(conv)}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </ScrollArea>

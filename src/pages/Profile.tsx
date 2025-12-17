@@ -26,10 +26,12 @@ import { useDetailedStats } from '@/hooks/useDetailedStats';
 import { useAnimeEntries } from '@/hooks/useAnimeEntries';
 import { useUserAchievementStats } from '@/hooks/useAchievements';
 import { toast } from 'sonner';
+import { GradientText, CountUp, AnimatedContent } from '@/components/animations';
 
 /**
  * Página de perfil do usuário
  * Exibe informações pessoais, estatísticas de animes e favoritos
+ * Com animações avançadas para visual premium
  */
 export default function Profile() {
   const { user } = useAuth();
@@ -122,156 +124,168 @@ export default function Profile() {
   return (
     <div className="space-y-8 pt-12 md:pt-0">
       {/* Cabeçalho do perfil */}
-      <div className="glass-card p-6 md:p-8">
-        <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-          {/* Avatar com upload */}
-          {user && (
-            <AvatarUpload
-              userId={user.id}
-              currentAvatarUrl={profile?.avatar_url || null}
-              displayName={profile?.display_name || null}
-              onAvatarUpdated={handleAvatarUpdated}
-            />
-          )}
-          
-          {/* Informações do perfil */}
-          <div className="flex-1 text-center md:text-left">
-            <div className="flex items-center justify-center md:justify-start gap-2">
-              <h1 className="font-display text-2xl md:text-3xl font-bold">
-                {profile?.display_name || 'Usuário'}
-              </h1>
-              <span title={profile?.is_public ? "Perfil público" : "Perfil privado"}>
-                {profile?.is_public ? (
-                  <Globe className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <Lock className="h-4 w-4 text-muted-foreground" />
-                )}
-              </span>
-            </div>
-            
-            <p className="text-muted-foreground mt-1">
-              {profile?.username ? `@${profile.username}` : 'Sem username'} 
-              {memberSince && ` • Membro desde ${memberSince}`}
-            </p>
-            
-            {profile?.bio && (
-              <p className="text-sm text-muted-foreground mt-2 max-w-md">
-                {profile.bio}
-              </p>
+      <AnimatedContent direction="down" duration={0.5}>
+        <div className="glass-card p-6 md:p-8">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
+            {/* Avatar com upload */}
+            {user && (
+              <AvatarUpload
+                userId={user.id}
+                currentAvatarUrl={profile?.avatar_url || null}
+                displayName={profile?.display_name || null}
+                onAvatarUpdated={handleAvatarUpdated}
+              />
             )}
             
-            {/* Estatísticas rápidas */}
-            <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-gradient">
-                  {statsLoading ? '-' : stats?.totalAnimes || 0}
-                </p>
-                <p className="text-xs text-muted-foreground">Animes</p>
+            {/* Informações do perfil */}
+            <div className="flex-1 text-center md:text-left">
+              <div className="flex items-center justify-center md:justify-start gap-2">
+                <h1 className="font-display text-2xl md:text-3xl font-bold">
+                  <GradientText animate speed={0.5}>
+                    {profile?.display_name || 'Usuário'}
+                  </GradientText>
+                </h1>
+                <span title={profile?.is_public ? "Perfil público" : "Perfil privado"}>
+                  {profile?.is_public ? (
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Lock className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </span>
               </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-gradient">
-                  {statsLoading ? '-' : (stats?.time.totalHours || 0)}
+              
+              <p className="text-muted-foreground mt-1">
+                {profile?.username ? `@${profile.username}` : 'Sem username'} 
+                {memberSince && ` • Membro desde ${memberSince}`}
+              </p>
+              
+              {profile?.bio && (
+                <p className="text-sm text-muted-foreground mt-2 max-w-md">
+                  {profile.bio}
                 </p>
-                <p className="text-xs text-muted-foreground">Horas</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-gradient">
-                  {achievementStats?.unlocked || 0}
-                </p>
-                <p className="text-xs text-muted-foreground">Conquistas</p>
+              )}
+              
+              {/* Estatísticas rápidas com CountUp */}
+              <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-gradient">
+                    {statsLoading ? '-' : (
+                      <CountUp end={stats?.totalAnimes || 0} duration={1.5} />
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Animes</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-gradient">
+                    {statsLoading ? '-' : (
+                      <CountUp end={stats?.time.totalHours || 0} duration={1.5} />
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Horas</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-gradient">
+                    {statsLoading ? '-' : (
+                      <CountUp end={achievementStats?.unlocked || 0} duration={1.5} />
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Conquistas</p>
+                </div>
               </div>
             </div>
-          </div>
-          
-          {/* Botões de ação */}
-          <div className="flex gap-2">
-            <Button variant="outline" size="icon" onClick={handleShare} title="Compartilhar perfil">
-              <Share2 className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={() => setIsEditModalOpen(true)}
-              title="Editar perfil"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
+            
+            {/* Botões de ação */}
+            <div className="flex gap-2">
+              <Button variant="outline" size="icon" onClick={handleShare} title="Compartilhar perfil">
+                <Share2 className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={() => setIsEditModalOpen(true)}
+                title="Editar perfil"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      </AnimatedContent>
 
       {/* Grid de estatísticas */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="glass-card p-4 text-center">
-          <Film className="h-6 w-6 text-primary mx-auto mb-2" />
-          <p className="text-2xl font-bold">
-            {statsLoading ? <Skeleton className="h-8 w-12 mx-auto" /> : stats?.totalAnimes || 0}
-          </p>
-          <p className="text-xs text-muted-foreground">Total de Animes</p>
-        </div>
-        <div className="glass-card p-4 text-center">
-          <PlayCircle className="h-6 w-6 text-primary mx-auto mb-2" />
-          <p className="text-2xl font-bold">
-            {statsLoading ? <Skeleton className="h-8 w-12 mx-auto" /> : stats?.averageEpisodesPerAnime || 0}
-          </p>
-          <p className="text-xs text-muted-foreground">Média por Anime</p>
-        </div>
-        <div className="glass-card p-4 text-center">
-          <Clock className="h-6 w-6 text-primary mx-auto mb-2" />
-          <p className="text-2xl font-bold">
-            {statsLoading ? <Skeleton className="h-8 w-12 mx-auto" /> : stats?.time.formattedShort || '0m'}
-          </p>
-          <p className="text-xs text-muted-foreground">Tempo Total</p>
-        </div>
-        <div className="glass-card p-4 text-center">
-          <Star className="h-6 w-6 text-warning mx-auto mb-2" />
-          <p className="text-2xl font-bold">
-            {statsLoading ? <Skeleton className="h-8 w-12 mx-auto" /> : stats?.completedAnimes || 0}
-          </p>
-          <p className="text-xs text-muted-foreground">Completados</p>
-        </div>
+        {[
+          { icon: Film, value: stats?.totalAnimes || 0, label: 'Total de Animes', delay: 0 },
+          { icon: PlayCircle, value: stats?.averageEpisodesPerAnime || 0, label: 'Média por Anime', delay: 0.1 },
+          { icon: Clock, value: stats?.time.formattedShort || '0m', label: 'Tempo Total', delay: 0.2, isString: true },
+          { icon: Star, value: stats?.completedAnimes || 0, label: 'Completados', delay: 0.3 },
+        ].map((stat, i) => (
+          <AnimatedContent key={i} direction="up" delay={stat.delay} duration={0.4}>
+            <div className="glass-card p-4 text-center">
+              <stat.icon className={`h-6 w-6 ${i === 3 ? 'text-warning' : 'text-primary'} mx-auto mb-2`} />
+              <p className="text-2xl font-bold">
+                {statsLoading ? (
+                  <Skeleton className="h-8 w-12 mx-auto" />
+                ) : stat.isString ? (
+                  stat.value
+                ) : (
+                  <CountUp end={stat.value as number} duration={1.5} />
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground">{stat.label}</p>
+            </div>
+          </AnimatedContent>
+        ))}
       </div>
 
       {/* Taxa de conclusão */}
-      <div className="glass-card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-lg font-semibold flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-warning" />
-            Taxa de Conclusão
-          </h2>
-          <span className="text-2xl font-bold text-gradient">
-            {statsLoading ? '-' : `${completionRate}%`}
-          </span>
+      <AnimatedContent direction="up" delay={0.4} duration={0.5}>
+        <div className="glass-card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-warning" />
+              Taxa de Conclusão
+            </h2>
+            <span className="text-2xl font-bold">
+              <GradientText>
+                {statsLoading ? '-' : (
+                  <><CountUp end={completionRate} duration={1.5} />%</>
+                )}
+              </GradientText>
+            </span>
+          </div>
+          <Progress value={completionRate} className="h-3" />
+          <p className="text-sm text-muted-foreground mt-2">
+            {stats?.completedAnimes || 0} de {stats?.totalAnimes || 0} animes completados
+          </p>
         </div>
-        <Progress value={completionRate} className="h-3" />
-        <p className="text-sm text-muted-foreground mt-2">
-          {stats?.completedAnimes || 0} de {stats?.totalAnimes || 0} animes completados
-        </p>
-      </div>
+      </AnimatedContent>
 
       {/* Favoritos */}
       {!entriesLoading && favoriteEntries.length > 0 && (
-        <div className="glass-card p-6">
-          <h2 className="font-display text-lg font-semibold flex items-center gap-2 mb-4">
-            <Heart className="h-5 w-5 text-destructive fill-destructive" />
-            Favoritos
-          </h2>
-          
-          <div className="flex gap-4 overflow-x-auto pb-2">
-            {favoriteEntries.map((entry) => (
-              <div key={entry.id} className="flex-shrink-0">
-                <img
-                  src={entry.image_url || '/placeholder.svg'}
-                  alt={entry.title}
-                  className="w-20 h-28 object-cover rounded-lg"
-                />
-                <p className="text-xs text-center mt-1 max-w-20 truncate">
-                  {entry.title}
-                </p>
-              </div>
-            ))}
+        <AnimatedContent direction="up" delay={0.5} duration={0.5}>
+          <div className="glass-card p-6">
+            <h2 className="font-display text-lg font-semibold flex items-center gap-2 mb-4">
+              <Heart className="h-5 w-5 text-destructive fill-destructive" />
+              Favoritos
+            </h2>
+            
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {favoriteEntries.map((entry) => (
+                <div key={entry.id} className="flex-shrink-0">
+                  <img
+                    src={entry.image_url || '/placeholder.svg'}
+                    alt={entry.title}
+                    className="w-20 h-28 object-cover rounded-lg"
+                  />
+                  <p className="text-xs text-center mt-1 max-w-20 truncate">
+                    {entry.title}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </AnimatedContent>
       )}
 
       {/* Modal de edição */}

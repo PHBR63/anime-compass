@@ -12,6 +12,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
 import Index from "./pages/Index";
 import MyList from "./pages/MyList";
+import ListDetailPage from "./pages/ListDetailPage";
 import Franchises from "./pages/Franchises";
 import Studios from "./pages/Studios";
 import Discover from "./pages/Discover";
@@ -87,6 +88,7 @@ const App = () => (
                         <MainLayout>
                           <Routes>
                             <Route path="/list" element={<MyList />} />
+                            <Route path="/list/:id" element={<ListDetailPage />} />
                             <Route path="/list/franchises" element={<Franchises />} />
                             <Route path="/list/studios" element={<Studios />} />
                             <Route path="/discover" element={<Discover />} />

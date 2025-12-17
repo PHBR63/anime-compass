@@ -13,7 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { MoreVertical, Trash2, Reply, Star, ExternalLink, SmilePlus } from 'lucide-react';
+import { MoreVertical, Trash2, Reply, Star, ExternalLink, SmilePlus, Check, CheckCheck } from 'lucide-react';
 import { ChatMessageWithSender } from '@/hooks/useChatMessages';
 import { useMessageReactions, useToggleReaction, REACTION_TYPES, ReactionType } from '@/hooks/useChatReactions';
 import { format } from 'date-fns';
@@ -27,6 +27,7 @@ interface ChatMessageProps {
   showSenderName: boolean;
   onDelete?: () => void;
   onReply: () => void;
+  isRead?: boolean; // Se a mensagem foi lida pelo destinatário
 }
 
 // Componente para renderizar uma mensagem do chat
@@ -37,6 +38,7 @@ export default function ChatMessage({
   showSenderName,
   onDelete,
   onReply,
+  isRead = false,
 }: ChatMessageProps) {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const { data: reactions } = useMessageReactions(message.id);
@@ -249,13 +251,21 @@ export default function ChatMessage({
         )}>
           {renderContent()}
 
-          {/* Hora */}
+          {/* Hora e confirmação de leitura */}
           <span className={cn(
-            'text-[10px] mt-1 block',
-            isOwn ? 'text-primary-foreground/70 text-right' : 'text-muted-foreground text-left',
+            'text-[10px] mt-1 flex items-center gap-1',
+            isOwn ? 'text-primary-foreground/70 justify-end' : 'text-muted-foreground justify-start',
             message.message_type !== 'text' && 'text-muted-foreground px-1'
           )}>
             {time}
+            {/* Ícone de confirmação de leitura (somente para mensagens próprias) */}
+            {isOwn && (
+              isRead ? (
+                <CheckCheck className="h-3 w-3 text-blue-400" />
+              ) : (
+                <Check className="h-3 w-3" />
+              )
+            )}
           </span>
         </div>
 

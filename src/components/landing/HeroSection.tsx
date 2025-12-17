@@ -1,12 +1,40 @@
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { Play, Sparkles } from 'lucide-react';
+import { Play, Sparkles, Tv, Clock, Trophy, Film } from 'lucide-react';
+import { useGlobalStats, formatNumber } from '@/hooks/useGlobalStats';
+import { Skeleton } from '@/components/ui/skeleton';
 
 /**
  * Seção Hero da landing page
- * Apresenta o produto com headline, descrição e CTAs
+ * Apresenta o produto com headline, descrição, CTAs e estatísticas globais reais
  */
 export const HeroSection = () => {
+  const { data: stats, isLoading } = useGlobalStats();
+
+  // Configuração dos cards de estatísticas
+  const statsConfig = [
+    { 
+      label: 'Animes', 
+      value: stats?.totalAnimes || 0, 
+      icon: Tv 
+    },
+    { 
+      label: 'Episódios', 
+      value: stats?.totalEpisodes || 0, 
+      icon: Film 
+    },
+    { 
+      label: 'Horas', 
+      value: stats?.totalHours || 0, 
+      icon: Clock 
+    },
+    { 
+      label: 'Conquistas', 
+      value: stats?.totalAchievements || 0, 
+      icon: Trophy 
+    },
+  ];
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 px-4">
       {/* Background com efeitos - otimizado para mobile */}
@@ -60,27 +88,36 @@ export const HeroSection = () => {
           </Button>
         </div>
 
-        {/* Preview/Mockup do app - responsivo */}
+        {/* Preview/Mockup do app com estatísticas reais - responsivo */}
         <div className="mt-10 md:mt-16 relative animate-fade-in" style={{ animationDelay: '0.4s' }}>
           <div className="relative mx-auto max-w-sm md:max-w-4xl">
             {/* Glow effect */}
             <div className="absolute -inset-2 md:-inset-4 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 rounded-xl md:rounded-2xl blur-xl md:blur-2xl" />
             
-            {/* Card preview */}
+            {/* Card preview com estatísticas reais */}
             <div className="relative bg-card/80 backdrop-blur-xl border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 shadow-2xl">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-                {/* Stats mockup */}
-                {[
-                  { label: 'Animes', value: '127' },
-                  { label: 'Episódios', value: '2.4k' },
-                  { label: 'Horas', value: '840' },
-                  { label: 'Conquistas', value: '24' },
-                ].map((stat, i) => (
-                  <div key={i} className="bg-background/50 rounded-lg md:rounded-xl p-2 md:p-4 text-center">
-                    <p className="text-lg sm:text-xl md:text-3xl font-bold text-primary">{stat.value}</p>
-                    <p className="text-xs md:text-sm text-muted-foreground">{stat.label}</p>
-                  </div>
-                ))}
+                {statsConfig.map((stat, i) => {
+                  const Icon = stat.icon;
+                  return (
+                    <div 
+                      key={i} 
+                      className="bg-background/50 rounded-lg md:rounded-xl p-3 md:p-4 text-center group hover:bg-background/70 transition-colors"
+                    >
+                      <div className="flex items-center justify-center mb-1 md:mb-2">
+                        <Icon className="w-4 h-4 md:w-5 md:h-5 text-primary/60 group-hover:text-primary transition-colors" />
+                      </div>
+                      {isLoading ? (
+                        <Skeleton className="h-7 md:h-9 w-16 md:w-20 mx-auto mb-1" />
+                      ) : (
+                        <p className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">
+                          {formatNumber(stat.value)}
+                        </p>
+                      )}
+                      <p className="text-xs md:text-sm text-muted-foreground">{stat.label}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

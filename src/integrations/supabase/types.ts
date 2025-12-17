@@ -75,7 +75,15 @@ export type Database = {
           reaction_type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "activity_reactions_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       anime_entries: {
         Row: {
@@ -132,7 +140,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "anime_entries_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       anime_recommendations: {
         Row: {
@@ -171,7 +187,22 @@ export type Database = {
           to_user_id?: string
           watched_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "anime_recommendations_from_user_id_profiles_fkey"
+            columns: ["from_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anime_recommendations_to_user_id_profiles_fkey"
+            columns: ["to_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_message_reactions: {
         Row: {
@@ -201,6 +232,13 @@ export type Database = {
             columns: ["message_id"]
             isOneToOne: false
             referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_message_reactions_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -257,6 +295,13 @@ export type Database = {
             referencedRelation: "chat_messages"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "chat_messages_sender_id_profiles_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       conversation_participants: {
@@ -290,6 +335,13 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_participants_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -398,6 +450,13 @@ export type Database = {
             referencedRelation: "anime_entries"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "episode_progress_history_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       friendships: {
@@ -425,7 +484,22 @@ export type Database = {
           status?: Database["public"]["Enums"]["friendship_status"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "friendships_addressee_id_profiles_fkey"
+            columns: ["addressee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "friendships_requester_id_profiles_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       list_items: {
         Row: {
@@ -497,7 +571,15 @@ export type Database = {
           type?: Database["public"]["Enums"]["notification_type"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -565,6 +647,13 @@ export type Database = {
             referencedRelation: "reviews"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "review_reactions_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       reviews: {
@@ -607,7 +696,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reviews_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_achievements: {
         Row: {
@@ -634,6 +731,13 @@ export type Database = {
             columns: ["achievement_id"]
             isOneToOne: false
             referencedRelation: "achievements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_achievements_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

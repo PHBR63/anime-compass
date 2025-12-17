@@ -12,7 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Users, X } from 'lucide-react';
+import { Users, X, AlertCircle, RefreshCw } from 'lucide-react';
 import { useFriends } from '@/hooks/useFriendships';
 import { useCreateConversation } from '@/hooks/useConversations';
 import { toast } from 'sonner';
@@ -29,6 +29,8 @@ export default function CreateGroupModal({
 }: CreateGroupModalProps) {
   const [groupName, setGroupName] = useState('');
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
   
   const { data: friends, isLoading } = useFriends();
   const createConversation = useCreateConversation();
@@ -38,6 +40,7 @@ export default function CreateGroupModal({
     if (!open) {
       setGroupName('');
       setSelectedFriends([]);
+      setLastError(null);
     }
     onOpenChange(open);
   };
@@ -63,6 +66,9 @@ export default function CreateGroupModal({
       return;
     }
 
+    setLastError(null);
+    console.log('[CreateGroupModal] Criando grupo:', { groupName, selectedFriends });
+
     try {
       await createConversation.mutateAsync({
         type: 'group',
@@ -72,8 +78,23 @@ export default function CreateGroupModal({
       
       toast.success('Grupo criado com sucesso!');
       handleOpenChange(false);
-    } catch (error) {
-      toast.error('Erro ao criar grupo');
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Erro desconhecido ao criar grupo';
+      console.error('[CreateGroupModal] Erro ao criar grupo:', error);
+      setLastError(errorMessage);
+      toast.error('Erro ao criar grupo', {
+        description: errorMessage,
+      });
+    }
+  };
+
+  // Tentar novamente
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    try {
+      await handleCreateGroup();
+    } finally {
+      setIsRetrying(false);
     }
   };
 
@@ -88,6 +109,35 @@ export default function CreateGroupModal({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Erro com botão de retry */}
+          {lastError && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-destructive">Erro ao criar grupo</p>
+                <p className="text-xs text-muted-foreground mt-1 break-words">
+                  {lastError}
+                </p>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={handleRetry}
+                disabled={isRetrying}
+                className="shrink-0"
+              >
+                {isRetrying ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Tentar
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
           {/* Nome do grupo */}
           <div>
             <Label htmlFor="group-name">Nome do grupo</Label>

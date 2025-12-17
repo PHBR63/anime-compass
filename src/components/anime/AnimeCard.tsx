@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useUpdateAnimeEntry, useDeleteAnimeEntry } from '@/hooks/useAnimeEntries';
 import { AnimeDetailModal } from './AnimeDetailModal';
+import { AnimeCardImage } from '@/components/ui/lazy-image';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,7 +49,7 @@ const statusColors: Record<AnimeStatus, { bg: string; text: string; border: stri
 
 /**
  * Card de anime da lista do usuário com modal de detalhes
- * Memoizado para evitar re-renders desnecessários
+ * Memoizado com lazy loading de imagens
  */
 function AnimeCardComponent({ entry }: AnimeCardProps) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -60,7 +61,7 @@ function AnimeCardComponent({ entry }: AnimeCardProps) {
     ? ((entry.episodes_watched || 0) / entry.total_episodes) * 100 
     : 0;
 
-  // Handler para mudança de status - auto-completa episódios se marcado como completo
+  // Handler para mudança de status
   const handleStatusChange = useCallback((status: AnimeStatus) => {
     if (status === 'completed') {
       updateEntry.mutate({ 
@@ -101,19 +102,18 @@ function AnimeCardComponent({ entry }: AnimeCardProps) {
         className="anime-card group cursor-pointer touch-manipulation"
         onClick={handleOpenModal}
       >
-        {/* Image */}
+        {/* Image com lazy loading */}
         <div className="relative aspect-[3/4] overflow-hidden rounded-xl">
-          <img
+          <AnimeCardImage
             src={entry.image_url || '/placeholder.svg'}
             alt={entry.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-            loading="lazy"
+            showHoverEffect={true}
           />
           
           {/* Overlay gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent pointer-events-none" />
           
-          {/* Top actions - visíveis sempre em mobile, hover em desktop */}
+          {/* Top actions */}
           <div className="absolute top-2 md:top-3 right-2 md:right-3 flex items-center gap-1.5 md:gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             <Button
               variant="glass"
@@ -220,7 +220,6 @@ export const AnimeCard = React.memo(AnimeCardComponent, (prevProps, nextProps) =
   const prev = prevProps.entry;
   const next = nextProps.entry;
   
-  // Só re-renderiza se propriedades relevantes mudarem
   return (
     prev.id === next.id &&
     prev.status === next.status &&

@@ -254,9 +254,15 @@ const Studios = () => {
   const [filterStatus, setFilterStatus] = useState<"all" | "completed" | "watching" | "partial">("all");
   const [expandedStudios, setExpandedStudios] = useState<Set<string>>(new Set());
 
+  // Gerar chave estável para a query (evita loop infinito)
+  const entriesKey = useMemo(() => 
+    entries?.map(e => e.mal_id).sort().join(',') || '', 
+    [entries]
+  );
+
   // Buscar informações dos estúdios para cada anime
   const { data: studioData, isLoading: studiosLoading } = useQuery({
-    queryKey: ['studios', entries?.map(e => e.mal_id)],
+    queryKey: ['studios', entriesKey],
     queryFn: async () => {
       if (!entries || entries.length === 0) return [];
 

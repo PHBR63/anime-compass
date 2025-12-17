@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Heart, MoreVertical, Star, Calendar, Tv } from 'lucide-react';
+import { Heart, MoreVertical, Star, Calendar, Tv, PlayCircle, CheckCircle, PauseCircle, Clock, XCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -18,21 +17,31 @@ import { cn } from '@/lib/utils';
 type AnimeEntry = Database['public']['Tables']['anime_entries']['Row'];
 type AnimeStatus = Database['public']['Enums']['anime_status'];
 
-// Mapeamento de labels e cores para os status
+// Mapeamento de labels para os status
 const statusLabels: Record<AnimeStatus, string> = {
   watching: 'Assistindo',
   completed: 'Completo',
   paused: 'Pausado',
-  dropped: 'Dropado',
+  dropped: 'Abandonado',
   not_started: 'Planejado',
 };
 
-const statusColors: Record<AnimeStatus, string> = {
-  watching: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  completed: 'bg-green-500/20 text-green-400 border-green-500/30',
-  paused: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  dropped: 'bg-red-500/20 text-red-400 border-red-500/30',
-  not_started: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+// Ícones para cada status
+const statusIcons: Record<AnimeStatus, typeof PlayCircle> = {
+  watching: PlayCircle,
+  completed: CheckCircle,
+  paused: PauseCircle,
+  dropped: XCircle,
+  not_started: Clock,
+};
+
+// Cores vibrantes para melhor visibilidade
+const statusColors: Record<AnimeStatus, { bg: string; text: string; border: string }> = {
+  watching: { bg: 'bg-primary/40', text: 'text-primary', border: 'border-primary/50' },
+  completed: { bg: 'bg-green-500/40', text: 'text-green-400', border: 'border-green-500/50' },
+  paused: { bg: 'bg-yellow-500/40', text: 'text-yellow-400', border: 'border-yellow-500/50' },
+  dropped: { bg: 'bg-red-500/40', text: 'text-red-400', border: 'border-red-500/50' },
+  not_started: { bg: 'bg-purple-500/40', text: 'text-purple-400', border: 'border-purple-500/50' },
 };
 
 interface AnimeListItemProps {
@@ -94,13 +103,23 @@ export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
               </div>
             </div>
             
-            {/* Badge de status */}
-            <Badge 
-              variant="outline" 
-              className={cn("text-xs shrink-0", statusColors[entry.status])}
-            >
-              {statusLabels[entry.status]}
-            </Badge>
+            {/* Badge de status com ícone */}
+            {(() => {
+              const StatusIcon = statusIcons[entry.status];
+              const colors = statusColors[entry.status];
+              return (
+                <span className={cn(
+                  "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full border shrink-0",
+                  colors.bg, colors.text, colors.border
+                )}>
+                  <StatusIcon className={cn(
+                    "h-3.5 w-3.5",
+                    entry.status === 'watching' && "animate-pulse"
+                  )} />
+                  {statusLabels[entry.status]}
+                </span>
+              );
+            })()}
           </div>
 
           {/* Progresso */}

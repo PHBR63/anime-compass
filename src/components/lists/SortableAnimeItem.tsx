@@ -1,9 +1,8 @@
 import { forwardRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, X } from 'lucide-react';
+import { GripVertical, X, PlayCircle, CheckCircle, PauseCircle, Clock, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -15,16 +14,26 @@ const statusLabels: Record<AnimeStatus, string> = {
   watching: 'Assistindo',
   completed: 'Completo',
   paused: 'Pausado',
-  dropped: 'Dropado',
+  dropped: 'Abandonado',
   not_started: 'Planejado',
 };
 
-const statusColors: Record<AnimeStatus, string> = {
-  watching: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  completed: 'bg-green-500/20 text-green-400 border-green-500/30',
-  paused: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  dropped: 'bg-red-500/20 text-red-400 border-red-500/30',
-  not_started: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+// Ícones para cada status
+const statusIcons: Record<AnimeStatus, typeof PlayCircle> = {
+  watching: PlayCircle,
+  completed: CheckCircle,
+  paused: PauseCircle,
+  dropped: XCircle,
+  not_started: Clock,
+};
+
+// Cores vibrantes para melhor visibilidade
+const statusColors: Record<AnimeStatus, { bg: string; text: string; border: string }> = {
+  watching: { bg: 'bg-primary/40', text: 'text-primary', border: 'border-primary/50' },
+  completed: { bg: 'bg-green-500/40', text: 'text-green-400', border: 'border-green-500/50' },
+  paused: { bg: 'bg-yellow-500/40', text: 'text-yellow-400', border: 'border-yellow-500/50' },
+  dropped: { bg: 'bg-red-500/40', text: 'text-red-400', border: 'border-red-500/50' },
+  not_started: { bg: 'bg-purple-500/40', text: 'text-purple-400', border: 'border-purple-500/50' },
 };
 
 interface SortableAnimeItemProps {
@@ -92,12 +101,22 @@ export const SortableAnimeItem = forwardRef<HTMLDivElement, SortableAnimeItemPro
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-sm truncate">{anime.title}</h4>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <Badge 
-              variant="outline" 
-              className={cn("text-xs", statusColors[anime.status])}
-            >
-              {statusLabels[anime.status]}
-            </Badge>
+            {(() => {
+              const StatusIcon = statusIcons[anime.status];
+              const colors = statusColors[anime.status];
+              return (
+                <span className={cn(
+                  "inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-bold rounded-full border",
+                  colors.bg, colors.text, colors.border
+                )}>
+                  <StatusIcon className={cn(
+                    "h-3 w-3",
+                    anime.status === 'watching' && "animate-pulse"
+                  )} />
+                  {statusLabels[anime.status]}
+                </span>
+              );
+            })()}
             {anime.rating && (
               <span className="text-xs text-muted-foreground">
                 ★ {anime.rating}

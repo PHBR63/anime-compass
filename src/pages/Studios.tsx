@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useAnimeEntries } from "@/hooks/useAnimeEntries";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,14 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LazyImage } from "@/components/ui/lazy-image";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { 
   Search, 
   Building2, 
@@ -21,7 +30,9 @@ import {
   SortAsc,
   BarChart3,
   Trophy,
-  TrendingUp
+  TrendingUp,
+  Home,
+  List
 } from "lucide-react";
 import { fetchWithRateLimit } from "@/lib/jikanRateLimiter";
 import { jikanCache, cacheKeys, CACHE_TTL } from "@/lib/jikanCache";
@@ -399,7 +410,37 @@ const Studios = () => {
   const isLoading = entriesLoading || studiosLoading;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
+      {/* Breadcrumb */}
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/list" className="flex items-center gap-1">
+                <Home className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Início</span>
+              </Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/list" className="flex items-center gap-1">
+                <List className="h-3.5 w-3.5" />
+                Minha Lista
+              </Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage className="flex items-center gap-1">
+              <Building2 className="h-3.5 w-3.5" />
+              Estúdios
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">

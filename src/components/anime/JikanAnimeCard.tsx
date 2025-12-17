@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Plus, Star, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { JikanAnime } from '@/hooks/useJikanApi';
-import { useAddAnimeEntry, useAnimeEntries } from '@/hooks/useAnimeEntries';
+import { useAnimeEntriesContext } from '@/contexts/AnimeEntriesContext';
 import { AnimeDetailModal } from './AnimeDetailModal';
 import { toast } from 'sonner';
 
@@ -11,20 +11,24 @@ interface JikanAnimeCardProps {
   rank?: number;
 }
 
-// Componente de card para animes da API Jikan com modal de detalhes
-export function JikanAnimeCard({ anime, rank }: JikanAnimeCardProps) {
+/**
+ * Componente de card para animes da API Jikan com modal de detalhes
+ * Memoizado para evitar re-renders desnecessários
+ */
+function JikanAnimeCardComponent({ anime, rank }: JikanAnimeCardProps) {
   const [modalOpen, setModalOpen] = useState(false);
-  const { data: userEntries } = useAnimeEntries();
-  const addEntry = useAddAnimeEntry();
+  
+  // Usa contexto compartilhado ao invés de hook individual
+  const { isInList, addEntry } = useAnimeEntriesContext();
   
   // Verifica se o anime já está na lista do usuário
-  const isInList = userEntries?.some(entry => entry.mal_id === anime.mal_id);
+  const inList = isInList(anime.mal_id);
 
-  // Função para adicionar anime à lista
-  const handleAddToList = (e: React.MouseEvent) => {
+  // Função para adicionar anime à lista (memoizada)
+  const handleAddToList = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     
-    if (isInList) {
+    if (inList) {
       toast.info('Este anime já está na sua lista!');
       return;
     }
@@ -43,13 +47,18 @@ export function JikanAnimeCard({ anime, rank }: JikanAnimeCardProps) {
         toast.error('Erro ao adicionar anime');
       }
     });
-  };
+  }, [inList, addEntry, anime]);
+
+  // Handler para abrir modal (memoizado)
+  const handleOpenModal = useCallback(() => {
+    setModalOpen(true);
+  }, []);
 
   return (
     <>
       <div 
         className="anime-card group cursor-pointer animate-scale-in"
-        onClick={() => setModalOpen(true)}
+        onClick={handleOpenModal}
       >
         <div className="relative aspect-[3/4] overflow-hidden rounded-xl">
           {/* Imagem do anime */}
@@ -82,14 +91,14 @@ export function JikanAnimeCard({ anime, rank }: JikanAnimeCardProps) {
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <Button
               size="sm"
-              variant={isInList ? "secondary" : "default"}
+              variant={inList ? "secondary" : "default"}
               className="gap-1"
               onClick={handleAddToList}
               disabled={addEntry.isPending}
             >
               {addEntry.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
-              ) : isInList ? (
+              ) : inList ? (
                 <>
                   <Check className="h-4 w-4" />
                   Na Lista
@@ -124,3 +133,9 @@ export function JikanAnimeCard({ anime, rank }: JikanAnimeCardProps) {
     </>
   );
 }
+
+// Exporta componente memoizado para evitar re-renders
+export const JikanAnimeCard = React.memo(JikanAnimeCardComponent, (prevProps, nextProps) => {
+  // Só re-renderiza se o anime ou rank mudarem
+  return prevProps.anime.mal_id === nextProps.anime.mal_id && prevProps.rank === nextProps.rank;
+});

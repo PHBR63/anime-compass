@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Heart, Star, MoreVertical, PlayCircle, CheckCircle, PauseCircle, Clock, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -46,18 +46,22 @@ const statusColors: Record<AnimeStatus, { bg: string; text: string; border: stri
   not_started: { bg: 'bg-purple-500/40', text: 'text-purple-400', border: 'border-purple-500/50' },
 };
 
-// Card de anime da lista do usuário com modal de detalhes
-export function AnimeCard({ entry }: AnimeCardProps) {
+/**
+ * Card de anime da lista do usuário com modal de detalhes
+ * Memoizado para evitar re-renders desnecessários
+ */
+function AnimeCardComponent({ entry }: AnimeCardProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const updateEntry = useUpdateAnimeEntry();
   const deleteEntry = useDeleteAnimeEntry();
   
+  // Calcula progresso
   const progress = entry.total_episodes 
     ? ((entry.episodes_watched || 0) / entry.total_episodes) * 100 
     : 0;
 
   // Handler para mudança de status - auto-completa episódios se marcado como completo
-  const handleStatusChange = (status: AnimeStatus) => {
+  const handleStatusChange = useCallback((status: AnimeStatus) => {
     if (status === 'completed') {
       updateEntry.mutate({ 
         id: entry.id, 
@@ -68,18 +72,34 @@ export function AnimeCard({ entry }: AnimeCardProps) {
     } else {
       updateEntry.mutate({ id: entry.id, status });
     }
-  };
+  }, [entry.id, entry.total_episodes, entry.episodes_watched, updateEntry]);
 
-  const handleToggleFavorite = (e: React.MouseEvent) => {
+  // Handler para toggle favorito (memoizado)
+  const handleToggleFavorite = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     updateEntry.mutate({ id: entry.id, is_favorite: !entry.is_favorite });
-  };
+  }, [entry.id, entry.is_favorite, updateEntry]);
+
+  // Handler para deletar (memoizado)
+  const handleDelete = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteEntry.mutate(entry.id);
+  }, [entry.id, deleteEntry]);
+
+  // Handler para abrir modal (memoizado)
+  const handleOpenModal = useCallback(() => {
+    setModalOpen(true);
+  }, []);
+
+  // Componente do ícone de status
+  const StatusIcon = statusIcons[entry.status];
+  const colors = statusColors[entry.status];
 
   return (
     <>
       <div 
         className="anime-card group cursor-pointer touch-manipulation"
-        onClick={() => setModalOpen(true)}
+        onClick={handleOpenModal}
       >
         {/* Image */}
         <div className="relative aspect-[3/4] overflow-hidden rounded-xl">
@@ -128,7 +148,7 @@ export function AnimeCard({ entry }: AnimeCardProps) {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
-                  onClick={(e) => { e.stopPropagation(); deleteEntry.mutate(entry.id); }}
+                  onClick={handleDelete}
                   className="text-destructive py-2.5"
                 >
                   Remover
@@ -139,22 +159,16 @@ export function AnimeCard({ entry }: AnimeCardProps) {
 
           {/* Status badge com ícone */}
           <div className="absolute top-2 md:top-3 left-2 md:left-3">
-            {(() => {
-              const StatusIcon = statusIcons[entry.status];
-              const colors = statusColors[entry.status];
-              return (
-                <span className={cn(
-                  "inline-flex items-center gap-1.5 px-2.5 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-bold rounded-full border backdrop-blur-md shadow-lg",
-                  colors.bg, colors.text, colors.border
-                )}>
-                  <StatusIcon className={cn(
-                    "h-3.5 w-3.5 md:h-4 md:w-4",
-                    entry.status === 'watching' && "animate-pulse"
-                  )} />
-                  {statusLabels[entry.status]}
-                </span>
-              );
-            })()}
+            <span className={cn(
+              "inline-flex items-center gap-1.5 px-2.5 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-bold rounded-full border backdrop-blur-md shadow-lg",
+              colors.bg, colors.text, colors.border
+            )}>
+              <StatusIcon className={cn(
+                "h-3.5 w-3.5 md:h-4 md:w-4",
+                entry.status === 'watching' && "animate-pulse"
+              )} />
+              {statusLabels[entry.status]}
+            </span>
           </div>
           
           {/* Rating */}
@@ -200,3 +214,20 @@ export function AnimeCard({ entry }: AnimeCardProps) {
     </>
   );
 }
+
+// Exporta componente memoizado para evitar re-renders
+export const AnimeCard = React.memo(AnimeCardComponent, (prevProps, nextProps) => {
+  const prev = prevProps.entry;
+  const next = nextProps.entry;
+  
+  // Só re-renderiza se propriedades relevantes mudarem
+  return (
+    prev.id === next.id &&
+    prev.status === next.status &&
+    prev.episodes_watched === next.episodes_watched &&
+    prev.is_favorite === next.is_favorite &&
+    prev.rating === next.rating &&
+    prev.image_url === next.image_url &&
+    prev.title === next.title
+  );
+});

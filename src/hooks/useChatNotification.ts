@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { getNotificationSettings } from '@/components/chat/NotificationSettingsModal';
 
 /**
  * Hook para gerenciar sons de notificação do chat
@@ -27,13 +28,24 @@ export function useChatNotification() {
     };
   }, []);
 
-  // Função para tocar notificação
-  const playNotification = useCallback(() => {
+  // Função para tocar notificação (verifica configurações)
+  const playNotification = useCallback((conversationType?: 'direct' | 'group', messageType?: string) => {
+    const settings = getNotificationSettings();
+    
+    // Verificar se som está habilitado
+    if (!settings.soundEnabled) return;
+    
+    // Verificar filtro de tipo de conversa
+    if (conversationType === 'direct' && !settings.directMessages) return;
+    if (conversationType === 'group' && !settings.groupMessages) return;
+    
+    // Verificar filtro de indicações
+    if (messageType === 'recommendation' && !settings.recommendations) return;
+    
     // Só tocar se a janela não está focada
     if (!isWindowFocused.current && audioRef.current) {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(() => {
-        // Ignorar erro se o browser bloquear autoplay
         console.log('[useChatNotification] Autoplay bloqueado pelo navegador');
       });
     }
@@ -41,6 +53,9 @@ export function useChatNotification() {
 
   // Função para forçar tocar (mesmo com janela focada)
   const playNotificationForce = useCallback(() => {
+    const settings = getNotificationSettings();
+    if (!settings.soundEnabled) return;
+    
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(() => {

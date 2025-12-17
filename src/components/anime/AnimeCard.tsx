@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useUpdateAnimeEntry, useDeleteAnimeEntry } from '@/hooks/useAnimeEntries';
 import { AnimeDetailModal } from './AnimeDetailModal';
 import { AnimeCardImage } from '@/components/ui/lazy-image';
+import { SpotlightCard } from '@/components/animations';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -98,12 +99,15 @@ function AnimeCardComponent({ entry }: AnimeCardProps) {
 
   return (
     <>
-      <div 
+      <SpotlightCard
         className="anime-card group cursor-pointer touch-manipulation"
-        onClick={handleOpenModal}
+        spotlightColor="rgba(139, 92, 246, 0.1)"
+        spotlightSize={250}
+        showBorder={false}
       >
-        {/* Image com lazy loading */}
-        <div className="relative aspect-[3/4] overflow-hidden rounded-xl">
+        <div onClick={handleOpenModal}>
+          {/* Image com lazy loading */}
+          <div className="relative aspect-[3/4] overflow-hidden rounded-xl">
           <AnimeCardImage
             src={entry.image_url || '/placeholder.svg'}
             alt={entry.title}
@@ -202,7 +206,8 @@ function AnimeCardComponent({ entry }: AnimeCardProps) {
             )}
           </div>
         </div>
-      </div>
+        </div>
+      </SpotlightCard>
 
       {/* Modal de detalhes */}
       <AnimeDetailModal

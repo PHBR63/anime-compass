@@ -27,6 +27,7 @@ import { useAnimeEntries } from '@/hooks/useAnimeEntries';
 import { useUserAchievementStats } from '@/hooks/useAchievements';
 import { toast } from 'sonner';
 import { GradientText, CountUp, AnimatedContent } from '@/components/animations';
+import { ParticlesBackground } from '@/components/backgrounds';
 
 /**
  * Página de perfil do usuário
@@ -122,7 +123,16 @@ export default function Profile() {
   }
 
   return (
-    <div className="space-y-8 pt-12 md:pt-0">
+    <div className="space-y-8 pt-12 md:pt-0 relative min-h-screen">
+      {/* Fundo de partículas animadas */}
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+        <ParticlesBackground 
+          particleCount={35} 
+          baseHue={280} 
+          speed={0.25}
+          connectionDistance={100}
+        />
+      </div>
       {/* Cabeçalho do perfil */}
       <AnimatedContent direction="down" duration={0.5}>
         <div className="glass-card p-6 md:p-8">

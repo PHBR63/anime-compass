@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAchievements, type AchievementWithStatus } from '@/hooks/useAchievements';
+import { ParticlesBackground } from '@/components/backgrounds';
 
 // Mapeamento de ícones por código da conquista
 const iconMap: Record<string, React.ElementType> = {
@@ -152,7 +153,16 @@ export default function Achievements() {
   }, {} as Record<string, AchievementWithStatus[]>) || {};
 
   return (
-    <div className="space-y-8 pt-12 md:pt-0">
+    <div className="space-y-8 pt-12 md:pt-0 relative min-h-screen">
+      {/* Fundo de partículas animadas */}
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+        <ParticlesBackground 
+          particleCount={40} 
+          baseHue={45} 
+          speed={0.3}
+          connectionDistance={120}
+        />
+      </div>
       {/* Cabeçalho */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>

@@ -296,6 +296,7 @@ export function useAnimesByGenre(genreId: number, page: number = 1) {
 
 /**
  * Hook para buscar detalhes de um anime específico
+ * Configurado com cache agressivo para evitar muitas requisições
  */
 export function useAnimeDetails(malId: number) {
   return useQuery<JikanResponse<JikanAnime>>({
@@ -306,8 +307,11 @@ export function useAnimeDetails(malId: number) {
       CACHE_TTL.ANIME_DETAILS
     ),
     enabled: malId > 0,
-    staleTime: 1000 * 60 * 60,
-    gcTime: 1000 * 60 * 120,
+    staleTime: 1000 * 60 * 60 * 24, // 24 horas - dados raramente mudam
+    gcTime: 1000 * 60 * 60 * 48, // 48 horas de garbage collection
+    retry: false, // Não fazer retry automático - o rate limiter já faz
+    refetchOnWindowFocus: false, // Não refetch ao focar janela
+    refetchOnMount: false, // Não refetch ao montar se tiver cache
   });
 }
 

@@ -16,9 +16,9 @@ interface ShinyTextProps {
 export const ShinyText = ({
   children,
   className = '',
-  shimmerWidth = 100,
-  speed = 2,
-  color = 'hsl(183, 100%, 70%)',
+  shimmerWidth = 150,
+  speed = 1.5,
+  color = 'hsl(183, 100%, 85%)',
 }: ShinyTextProps) => {
   const animationDuration = 3 / speed;
 
@@ -37,17 +37,18 @@ export const ShinyText = ({
         .shiny-text {
           background: linear-gradient(
             90deg,
-            currentColor 0%,
-            currentColor 40%,
+            hsl(183, 80%, 75%) 0%,
+            hsl(183, 90%, 80%) 20%,
             var(--shimmer-color) 50%,
-            currentColor 60%,
-            currentColor 100%
+            hsl(183, 90%, 80%) 80%,
+            hsl(183, 80%, 75%) 100%
           );
           background-size: calc(100% + var(--shimmer-width)) 100%;
           background-clip: text;
           -webkit-background-clip: text;
           color: transparent;
           animation: shiny-text-shimmer var(--shimmer-duration) ease-in-out infinite;
+          filter: drop-shadow(0 0 8px hsl(183, 100%, 70%));
         }
         
         @keyframes shiny-text-shimmer {

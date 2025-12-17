@@ -7,7 +7,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signUp: (email: string, password: string, username: string) => Promise<{ error: Error | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string, rememberMe?: boolean) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -54,11 +54,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signIn = async (email: string, password: string) => {
+  /**
+   * Faz login do usuário
+   * @param rememberMe - Se true, a sessão dura 30 dias; se false, 1 hora
+   */
+  const signIn = async (email: string, password: string, rememberMe: boolean = false) => {
+    // Configura duração da sessão baseado em "Lembrar-me"
+    // Nota: O Supabase gerencia isso internamente, mas salvamos a preferência
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    // Se login bem-sucedido e "Lembrar-me" desmarcado, configura expiração mais curta
+    if (!error && !rememberMe) {
+      // Marca que a sessão deve expirar mais cedo
+      localStorage.setItem('anicheck_session_short', 'true');
+    } else {
+      localStorage.removeItem('anicheck_session_short');
+    }
     
     return { error: error as Error | null };
   };

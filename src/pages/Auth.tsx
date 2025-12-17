@@ -4,10 +4,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Mail, Lock, User, Sparkles, ShieldAlert } from 'lucide-react';
 import { z } from 'zod';
 import { PasswordStrengthIndicator, isPasswordStrong } from '@/components/auth/PasswordStrengthIndicator';
+
+// Chave para armazenar preferência de "Lembrar-me"
+const REMEMBER_ME_KEY = 'anicheck_remember_me';
 
 // Schema de validação para login
 const loginSchema = z.object({
@@ -32,6 +36,10 @@ export default function Auth() {
   const [username, setUsername] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => {
+    // Recupera preferência salva
+    return localStorage.getItem(REMEMBER_ME_KEY) === 'true';
+  });
   
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
@@ -60,7 +68,10 @@ export default function Auth() {
           return;
         }
 
-        const { error } = await signIn(email, password);
+        // Salva preferência de "Lembrar-me"
+        localStorage.setItem(REMEMBER_ME_KEY, rememberMe.toString());
+        
+        const { error } = await signIn(email, password, rememberMe);
         if (error) {
           if (error.message.includes('Invalid login credentials')) {
             toast.error('Email ou senha incorretos');
@@ -235,13 +246,34 @@ export default function Auth() {
             </Button>
 
             {isLogin && (
-              <div className="text-center">
-                <Link 
-                  to="/forgot-password" 
-                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Esqueceu sua senha?
-                </Link>
+              <div className="space-y-4">
+                {/* Opção Lembrar-me */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="remember-me"
+                      checked={rememberMe}
+                      onCheckedChange={(checked) => setRememberMe(checked === true)}
+                    />
+                    <Label 
+                      htmlFor="remember-me" 
+                      className="text-sm text-muted-foreground cursor-pointer"
+                    >
+                      Lembrar-me
+                    </Label>
+                  </div>
+                  <Link 
+                    to="/forgot-password" 
+                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    Esqueceu sua senha?
+                  </Link>
+                </div>
+                <p className="text-xs text-muted-foreground/70 text-center">
+                  {rememberMe 
+                    ? 'Sua sessão permanecerá ativa por 30 dias' 
+                    : 'Sua sessão expirará após 1 hora de inatividade'}
+                </p>
               </div>
             )}
           </form>

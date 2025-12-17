@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { useRealtimeNotifications } from '@/hooks/useNotifications';
+import { SessionExpiringModal } from '@/components/ui/SessionExpiringModal';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -29,6 +30,9 @@ export function MainLayout({ children }: MainLayoutProps) {
           {children}
         </div>
       </main>
+
+      {/* Modal de aviso de sessão expirando */}
+      <SessionExpiringModal warningThreshold={300} />
     </div>
   );
 }

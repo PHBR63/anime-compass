@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AnimeEntriesProvider } from "@/contexts/AnimeEntriesContext";
+import { AchievementCelebrationProvider } from "@/contexts/AchievementCelebrationContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
 import Index from "./pages/Index";
@@ -52,48 +53,50 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Rotas públicas */}
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/maintenance" element={<Maintenance />} />
-            <Route path="/u/:username" element={<PublicProfilePage />} />
-            <Route path="/shared/list/:listId" element={<PublicListView />} />
-            
-            {/* Rota pública - Landing/Dashboard */}
-            <Route path="/" element={<Index />} />
-            
-            {/* Rotas protegidas com Provider de AnimeEntries */}
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <AnimeEntriesProvider>
-                    <MainLayout>
-                      <Routes>
-                        <Route path="/list" element={<MyList />} />
-                        <Route path="/list/franchises" element={<Franchises />} />
-                        <Route path="/list/studios" element={<Studios />} />
-                        <Route path="/discover" element={<Discover />} />
-                        <Route path="/social" element={<Social />} />
-                        <Route path="/chat" element={<Chat />} />
-                        <Route path="/achievements" element={<Achievements />} />
-                        <Route path="/profile" element={<Profile />} />
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
-                    </MainLayout>
-                  </AnimeEntriesProvider>
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <AchievementCelebrationProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Rotas públicas */}
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/maintenance" element={<Maintenance />} />
+              <Route path="/u/:username" element={<PublicProfilePage />} />
+              <Route path="/shared/list/:listId" element={<PublicListView />} />
+              
+              {/* Rota pública - Landing/Dashboard */}
+              <Route path="/" element={<Index />} />
+              
+              {/* Rotas protegidas com Provider de AnimeEntries */}
+              <Route
+                path="/*"
+                element={
+                  <ProtectedRoute>
+                    <AnimeEntriesProvider>
+                      <MainLayout>
+                        <Routes>
+                          <Route path="/list" element={<MyList />} />
+                          <Route path="/list/franchises" element={<Franchises />} />
+                          <Route path="/list/studios" element={<Studios />} />
+                          <Route path="/discover" element={<Discover />} />
+                          <Route path="/social" element={<Social />} />
+                          <Route path="/chat" element={<Chat />} />
+                          <Route path="/achievements" element={<Achievements />} />
+                          <Route path="/profile" element={<Profile />} />
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </MainLayout>
+                    </AnimeEntriesProvider>
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AchievementCelebrationProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

@@ -6,14 +6,21 @@ interface StarRatingProps {
   onRatingChange?: (rating: number) => void;
   readonly?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  maxStars?: number;
 }
 
-// Componente de avaliação por estrelas (1-5)
-export function StarRating({ rating, onRatingChange, readonly = false, size = 'md' }: StarRatingProps) {
+// Componente de avaliação por estrelas (1-10)
+export function StarRating({ 
+  rating, 
+  onRatingChange, 
+  readonly = false, 
+  size = 'md',
+  maxStars = 10 
+}: StarRatingProps) {
   const sizes = {
-    sm: 'h-4 w-4',
-    md: 'h-5 w-5',
-    lg: 'h-6 w-6',
+    sm: 'h-3 w-3',
+    md: 'h-4 w-4',
+    lg: 'h-5 w-5',
   };
 
   const handleClick = (value: number) => {
@@ -23,9 +30,12 @@ export function StarRating({ rating, onRatingChange, readonly = false, size = 'm
     }
   };
 
+  // Cria array de 1 até maxStars
+  const stars = Array.from({ length: maxStars }, (_, i) => i + 1);
+
   return (
-    <div className="flex items-center gap-1">
-      {[1, 2, 3, 4, 5].map((value) => (
+    <div className="flex items-center gap-0.5">
+      {stars.map((value) => (
         <button
           key={value}
           type="button"

@@ -39,10 +39,10 @@ export default function PublicListView() {
     queryFn: async () => {
       if (!listId) throw new Error('ID da lista não fornecido');
 
-      // Passo 1: Buscar a lista (sem embed de profile, pois não há FK no banco)
+      // Passo 1: Buscar a lista com embed de profile (FK agora aponta para profiles)
       const { data: list, error: listError } = await supabase
         .from('custom_lists')
-        .select('*')
+        .select('*, profiles:user_id(username, display_name, avatar_url)')
         .eq('id', listId)
         .eq('is_public', true)
         .maybeSingle();
@@ -53,24 +53,6 @@ export default function PublicListView() {
       }
       if (!list) throw new Error('Lista não encontrada ou não é pública');
 
-      // Passo 1.1: Buscar dados do autor separadamente
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('username, display_name, avatar_url')
-        .eq('id', list.user_id)
-        .maybeSingle();
-
-      if (profileError) {
-        // Não bloqueia a página: a lista pode ser exibida mesmo sem o perfil
-        console.warn('Não foi possível carregar o perfil do autor:', profileError);
-      }
-
-      const listWithProfile = {
-        ...list,
-        profiles: profile || null,
-      };
-
-
       // Passo 2: Tentar buscar itens com JOIN
       const { data: itemsWithJoin, error: joinError } = await supabase
         .from('list_items')
@@ -80,7 +62,7 @@ export default function PublicListView() {
 
       // Se o JOIN funcionar, retorna direto
       if (!joinError && itemsWithJoin) {
-        return { list: listWithProfile, items: itemsWithJoin };
+        return { list, items: itemsWithJoin };
       }
 
       // Passo 3: Fallback - consultas separadas
@@ -99,7 +81,7 @@ export default function PublicListView() {
       }
 
       if (!itemIds || itemIds.length === 0) {
-        return { list: listWithProfile, items: [] };
+        return { list, items: [] };
       }
 
       // Buscar anime_entries separadamente
@@ -113,7 +95,7 @@ export default function PublicListView() {
         console.warn('Não foi possível carregar detalhes dos animes:', entriesError);
         // Retorna itens sem detalhes dos animes
         return {
-          list: listWithProfile,
+          list,
           items: itemIds.map(item => ({ ...item, anime_entry: null }))
         };
       }
@@ -124,7 +106,7 @@ export default function PublicListView() {
         anime_entry: entries?.find(e => e.id === item.anime_entry_id) || null
       }));
 
-      return { list: listWithProfile, items };
+      return { list, items };
     },
     enabled: !!listId,
     retry: 2,

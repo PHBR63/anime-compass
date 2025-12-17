@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import type { Database } from '@/integrations/supabase/types';
@@ -28,9 +29,91 @@ interface UserStats {
   listCount: number;
 }
 
-// Hook principal para buscar conquistas com progresso
+// Hook principal para buscar conquistas com progresso e atualização em tempo real
 export function useAchievements() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Configura subscription para atualizações em tempo real
+  useEffect(() => {
+    if (!user) return;
+
+    // Canal para monitorar novas conquistas desbloqueadas
+    const userAchievementsChannel = supabase
+      .channel('user-achievements-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_achievements',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          // Invalida o cache para recarregar os dados
+          queryClient.invalidateQueries({ queryKey: ['achievements', user.id] });
+          queryClient.invalidateQueries({ queryKey: ['achievement-stats', user.id] });
+        }
+      )
+      .subscribe();
+
+    // Canal para monitorar mudanças que afetam o progresso (anime_entries, reviews, etc.)
+    const progressChannel = supabase
+      .channel('achievements-progress-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'anime_entries',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['achievements', user.id] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'reviews',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['achievements', user.id] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'friendships',
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['achievements', user.id] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'custom_lists',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['achievements', user.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(userAchievementsChannel);
+      supabase.removeChannel(progressChannel);
+    };
+  }, [user, queryClient]);
 
   return useQuery({
     queryKey: ['achievements', user?.id],

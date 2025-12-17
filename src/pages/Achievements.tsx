@@ -58,58 +58,61 @@ function AchievementCard({ achievement, index }: { achievement: AchievementWithS
   return (
     <div
       className={cn(
-        "glass-card p-6 transition-all duration-300 animate-scale-in",
+        "glass-card p-4 sm:p-5 transition-all duration-300 animate-scale-in h-full",
         achievement.unlocked 
           ? rarityBorder[rarity]
-          : "opacity-60",
+          : "opacity-60 grayscale-[30%]",
       )}
       style={{ animationDelay: `${index * 50}ms` }}
     >
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3">
         {/* Ícone */}
         <div className={cn(
-          "p-3 rounded-xl bg-gradient-to-br shrink-0",
+          "p-2.5 sm:p-3 rounded-xl bg-gradient-to-br shrink-0",
           achievement.unlocked 
             ? rarityColors[rarity]
             : "from-muted to-muted"
         )}>
           {achievement.unlocked ? (
-            <Icon className="h-6 w-6 text-white" />
+            <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
           ) : (
-            <Lock className="h-6 w-6 text-muted-foreground" />
+            <Lock className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
           )}
         </div>
         
         {/* Conteúdo */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h3 className="font-display font-semibold">{achievement.name}</h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-display font-semibold text-sm sm:text-base leading-tight">
+              {achievement.name}
+            </h3>
             {achievement.icon && (
-              <span className="text-lg">{achievement.icon}</span>
+              <span className="text-base sm:text-lg">{achievement.icon}</span>
             )}
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 line-clamp-2">
             {achievement.description}
           </p>
           
           {/* Barra de progresso para conquistas não desbloqueadas */}
           {achievement.progress && !achievement.unlocked && (
-            <div className="mt-3">
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>{achievement.progress.current}</span>
-                <span>{achievement.progress.target}</span>
+            <div className="mt-2 sm:mt-3">
+              <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground mb-1">
+                <span>{achievement.progress.current} / {achievement.progress.target}</span>
+                <span>{Math.round(progressPercent)}%</span>
               </div>
               <Progress 
                 value={progressPercent} 
-                className="h-1.5"
+                className="h-1 sm:h-1.5"
               />
             </div>
           )}
           
           {/* Data de desbloqueio */}
           {achievement.unlocked && achievement.unlocked_at && (
-            <p className="text-xs text-primary mt-2">
-              Desbloqueado em {new Date(achievement.unlocked_at).toLocaleDateString('pt-BR')}
+            <p className="text-[10px] sm:text-xs text-primary mt-2 flex items-center gap-1">
+              <CheckCircle className="h-3 w-3" />
+              {new Date(achievement.unlocked_at).toLocaleDateString('pt-BR')}
             </p>
           )}
         </div>
@@ -215,8 +218,8 @@ export default function Achievements() {
 
       {/* Loading state */}
       {isLoading && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+          {[...Array(8)].map((_, i) => (
             <AchievementSkeleton key={i} />
           ))}
         </div>
@@ -232,7 +235,7 @@ export default function Achievements() {
             </span>
           </h2>
           
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
             {categoryAchievements.map((achievement, index) => (
               <AchievementCard 
                 key={achievement.id} 

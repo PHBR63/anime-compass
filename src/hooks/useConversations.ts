@@ -187,35 +187,54 @@ export function useCreateConversation() {
       participantIds: string[]; 
       name?: string;
     }) => {
-      if (!user) throw new Error('Não autenticado');
+      console.log('[useCreateConversation] Iniciando criação de conversa:', { type, participantIds, name, userId: user?.id });
+      
+      if (!user) {
+        console.error('[useCreateConversation] Usuário não autenticado');
+        throw new Error('Não autenticado');
+      }
 
       // Para chat direto, verificar se já existe
       if (type === 'direct' && participantIds.length === 1) {
         const otherId = participantIds[0];
+        console.log('[useCreateConversation] Verificando conversa direta existente com:', otherId);
         
         // Buscar conversas diretas existentes
-        const { data: myConvs } = await supabase
+        const { data: myConvs, error: myConvsError } = await supabase
           .from('conversation_participants')
           .select('conversation_id')
           .eq('user_id', user.id);
 
+        if (myConvsError) {
+          console.error('[useCreateConversation] Erro ao buscar participações:', myConvsError);
+        }
+
         if (myConvs?.length) {
-          const { data: otherConvs } = await supabase
+          const { data: otherConvs, error: otherConvsError } = await supabase
             .from('conversation_participants')
             .select('conversation_id')
             .eq('user_id', otherId)
             .in('conversation_id', myConvs.map(c => c.conversation_id));
 
+          if (otherConvsError) {
+            console.error('[useCreateConversation] Erro ao buscar conversas do outro:', otherConvsError);
+          }
+
           if (otherConvs?.length) {
             // Verificar se alguma é do tipo 'direct'
-            const { data: directConv } = await supabase
+            const { data: directConv, error: directError } = await supabase
               .from('conversations')
               .select('*')
               .in('id', otherConvs.map(c => c.conversation_id))
               .eq('type', 'direct')
-              .single();
+              .maybeSingle();
+
+            if (directError) {
+              console.error('[useCreateConversation] Erro ao buscar conversa direta:', directError);
+            }
 
             if (directConv) {
+              console.log('[useCreateConversation] Conversa direta existente encontrada:', directConv.id);
               return directConv;
             }
           }
@@ -223,6 +242,7 @@ export function useCreateConversation() {
       }
 
       // Criar nova conversa
+      console.log('[useCreateConversation] Criando nova conversa no banco...');
       const { data: conversation, error: convError } = await supabase
         .from('conversations')
         .insert({
@@ -233,9 +253,20 @@ export function useCreateConversation() {
         .select()
         .single();
 
-      if (convError) throw convError;
+      if (convError) {
+        console.error('[useCreateConversation] Erro ao criar conversa:', {
+          code: convError.code,
+          message: convError.message,
+          details: convError.details,
+          hint: convError.hint,
+        });
+        throw new Error(`Erro ao criar conversa: ${convError.message} (código: ${convError.code})`);
+      }
+
+      console.log('[useCreateConversation] Conversa criada:', conversation.id);
 
       // Adicionar criador como admin
+      console.log('[useCreateConversation] Adicionando criador como admin...');
       const { error: creatorError } = await supabase
         .from('conversation_participants')
         .insert({
@@ -244,7 +275,15 @@ export function useCreateConversation() {
           role: 'admin',
         });
 
-      if (creatorError) throw creatorError;
+      if (creatorError) {
+        console.error('[useCreateConversation] Erro ao adicionar criador:', {
+          code: creatorError.code,
+          message: creatorError.message,
+          details: creatorError.details,
+          hint: creatorError.hint,
+        });
+        throw new Error(`Erro ao adicionar criador: ${creatorError.message} (código: ${creatorError.code})`);
+      }
 
       // Adicionar outros participantes
       const participantsToAdd = participantIds
@@ -256,17 +295,30 @@ export function useCreateConversation() {
         }));
 
       if (participantsToAdd.length) {
+        console.log('[useCreateConversation] Adicionando participantes:', participantsToAdd.length);
         const { error: partError } = await supabase
           .from('conversation_participants')
           .insert(participantsToAdd);
 
-        if (partError) throw partError;
+        if (partError) {
+          console.error('[useCreateConversation] Erro ao adicionar participantes:', {
+            code: partError.code,
+            message: partError.message,
+            details: partError.details,
+            hint: partError.hint,
+          });
+          throw new Error(`Erro ao adicionar participantes: ${partError.message} (código: ${partError.code})`);
+        }
       }
 
+      console.log('[useCreateConversation] Conversa criada com sucesso:', conversation.id);
       return conversation;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+    onError: (error) => {
+      console.error('[useCreateConversation] Mutation error:', error);
     },
   });
 }

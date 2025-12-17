@@ -11,12 +11,15 @@ import {
   ChevronUp,
   Loader2,
   Bell,
-  BellOff
+  BellOff,
+  Settings,
+  Reply
 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ConversationWithDetails } from '@/hooks/useConversations';
@@ -29,7 +32,7 @@ import { useAuth } from '@/hooks/useAuth';
 import ChatInput from './ChatInput';
 import ChatMessage from './ChatMessage';
 import GroupSettingsDrawer from './GroupSettingsDrawer';
-import { Reply } from 'lucide-react';
+import NotificationSettingsModal from './NotificationSettingsModal';
 import { toast } from 'sonner';
 
 interface ChatWindowProps {
@@ -57,6 +60,7 @@ export default function ChatWindow({
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessageWithSender | null>(null);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const prevMessagesLength = useRef(messages.length);
@@ -108,7 +112,8 @@ export default function ChatWindow({
       
       // Se a mensagem não é do usuário atual, tocar notificação
       if (lastMessage && lastMessage.sender_id !== user?.id) {
-        playNotification();
+        const convType = conversation?.type as 'direct' | 'group' | undefined;
+        playNotification(convType, lastMessage.message_type);
         
         // Enviar notificação push se habilitado
         const senderName = lastMessage.sender.display_name || lastMessage.sender.username || 'Alguém';
@@ -257,32 +262,42 @@ export default function ChatWindow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {/* Opção de notificações push */}
+            {/* Configurações de notificações */}
+            <DropdownMenuItem onClick={() => setShowNotificationSettings(true)}>
+              <Settings className="h-4 w-4 mr-2" />
+              Configurações de notificações
+            </DropdownMenuItem>
+            
+            {/* Opção de notificações push rápida */}
             {isSupported && (
               <DropdownMenuItem onClick={handleRequestNotifications}>
                 {pushEnabled ? (
                   <>
                     <Bell className="h-4 w-4 mr-2 text-green-500" />
-                    Notificações ativadas
+                    Push ativado
                   </>
                 ) : permission === 'denied' ? (
                   <>
                     <BellOff className="h-4 w-4 mr-2 text-destructive" />
-                    Notificações bloqueadas
+                    Push bloqueado
                   </>
                 ) : (
                   <>
                     <Bell className="h-4 w-4 mr-2" />
-                    Ativar notificações
+                    Ativar push
                   </>
                 )}
               </DropdownMenuItem>
             )}
+            
             {conversation.type === 'group' && (
-              <DropdownMenuItem onClick={() => setShowGroupSettings(true)}>
-                <Info className="h-4 w-4 mr-2" />
-                Configurações do grupo
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowGroupSettings(true)}>
+                  <Info className="h-4 w-4 mr-2" />
+                  Configurações do grupo
+                </DropdownMenuItem>
+              </>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -408,6 +423,12 @@ export default function ChatWindow({
           isAdmin={isAdmin}
         />
       )}
+
+      {/* Modal de configurações de notificações */}
+      <NotificationSettingsModal
+        open={showNotificationSettings}
+        onOpenChange={setShowNotificationSettings}
+      />
     </div>
   );
 }

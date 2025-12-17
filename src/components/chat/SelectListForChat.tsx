@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -35,16 +35,26 @@ export default function SelectListForChat({
 }: SelectListForChatProps) {
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
   const [customMessage, setCustomMessage] = useState('');
+  const [isReady, setIsReady] = useState(false);
   
   const { data: lists, isLoading } = useCustomLists();
-  const { data: listItems } = useListItems(selectedListId);
+  const { data: listItems, isLoading: loadingItems } = useListItems(selectedListId);
 
   // Lista selecionada
   const selectedList = lists?.find(l => l.id === selectedListId);
 
+  // Aguardar items carregarem quando uma lista é selecionada
+  useEffect(() => {
+    if (selectedListId && !loadingItems && listItems !== undefined) {
+      setIsReady(true);
+    } else {
+      setIsReady(false);
+    }
+  }, [selectedListId, loadingItems, listItems]);
+
   // Buscar imagens de capa da lista (4 primeiros animes)
-  const getCoverImages = (listId: string) => {
-    if (!listItems || selectedListId !== listId) return [];
+  const getCoverImages = () => {
+    if (!listItems) return [];
     return listItems
       .slice(0, 4)
       .map(item => item.anime_entry?.image_url)
@@ -53,9 +63,9 @@ export default function SelectListForChat({
 
   // Handler para compartilhar
   const handleShare = () => {
-    if (!selectedList) return;
+    if (!selectedList || !isReady) return;
     
-    const coverImages = getCoverImages(selectedList.id);
+    const coverImages = getCoverImages();
     
     onSelect({
       id: selectedList.id,
@@ -70,6 +80,7 @@ export default function SelectListForChat({
     // Reset state
     setSelectedListId(null);
     setCustomMessage('');
+    setIsReady(false);
     onOpenChange(false);
   };
 
@@ -77,8 +88,18 @@ export default function SelectListForChat({
   const handleCancel = () => {
     setSelectedListId(null);
     setCustomMessage('');
+    setIsReady(false);
     onOpenChange(false);
   };
+
+  // Reset quando modal fecha
+  useEffect(() => {
+    if (!open) {
+      setSelectedListId(null);
+      setCustomMessage('');
+      setIsReady(false);
+    }
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -102,27 +123,36 @@ export default function SelectListForChat({
         ) : selectedListId ? (
           // Preview da lista selecionada
           <div className="space-y-4">
-            <ListPreviewCard
-              list={selectedList!}
-              coverImages={getCoverImages(selectedListId)}
-              itemCount={listItems?.length || 0}
-            />
-            
-            <Input
-              placeholder="Adicionar mensagem (opcional)"
-              value={customMessage}
-              onChange={(e) => setCustomMessage(e.target.value)}
-            />
-            
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setSelectedListId(null)}>
-                Voltar
-              </Button>
-              <Button className="flex-1" onClick={handleShare}>
-                <Send className="h-4 w-4 mr-2" />
-                Enviar
-              </Button>
-            </div>
+            {loadingItems ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-sm text-muted-foreground">Carregando lista...</span>
+              </div>
+            ) : (
+              <>
+                <ListPreviewCard
+                  list={selectedList!}
+                  coverImages={getCoverImages()}
+                  itemCount={listItems?.length || 0}
+                />
+                
+                <Input
+                  placeholder="Adicionar mensagem (opcional)"
+                  value={customMessage}
+                  onChange={(e) => setCustomMessage(e.target.value)}
+                />
+                
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" onClick={() => setSelectedListId(null)}>
+                    Voltar
+                  </Button>
+                  <Button className="flex-1" onClick={handleShare} disabled={!isReady}>
+                    <Send className="h-4 w-4 mr-2" />
+                    Enviar
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         ) : (
           // Lista de listas para escolher
@@ -139,13 +169,13 @@ export default function SelectListForChat({
           </ScrollArea>
         )}
 
-        {!selectedListId && lists?.length && (
+        {!selectedListId && lists?.length ? (
           <div className="flex justify-end">
             <Button variant="ghost" onClick={handleCancel}>
               Cancelar
             </Button>
           </div>
-        )}
+        ) : null}
       </DialogContent>
     </Dialog>
   );

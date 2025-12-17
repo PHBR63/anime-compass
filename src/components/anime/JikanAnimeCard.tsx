@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { JikanAnime } from '@/hooks/useJikanApi';
 import { useAnimeEntriesContext } from '@/contexts/AnimeEntriesContext';
 import { AnimeDetailModal } from './AnimeDetailModal';
+import { AnimeCardImage } from '@/components/ui/lazy-image';
 import { toast } from 'sonner';
 
 interface JikanAnimeCardProps {
@@ -13,7 +14,7 @@ interface JikanAnimeCardProps {
 
 /**
  * Componente de card para animes da API Jikan com modal de detalhes
- * Memoizado para evitar re-renders desnecessários
+ * Memoizado com lazy loading de imagens
  */
 function JikanAnimeCardComponent({ anime, rank }: JikanAnimeCardProps) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -61,16 +62,15 @@ function JikanAnimeCardComponent({ anime, rank }: JikanAnimeCardProps) {
         onClick={handleOpenModal}
       >
         <div className="relative aspect-[3/4] overflow-hidden rounded-xl">
-          {/* Imagem do anime */}
-          <img
+          {/* Imagem do anime com lazy loading */}
+          <AnimeCardImage
             src={anime.images.jpg.large_image_url || anime.images.jpg.image_url}
             alt={anime.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-            loading="lazy"
+            showHoverEffect={true}
           />
           
           {/* Gradiente de overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent pointer-events-none" />
           
           {/* Badge de ranking */}
           {rank && (
@@ -136,6 +136,5 @@ function JikanAnimeCardComponent({ anime, rank }: JikanAnimeCardProps) {
 
 // Exporta componente memoizado para evitar re-renders
 export const JikanAnimeCard = React.memo(JikanAnimeCardComponent, (prevProps, nextProps) => {
-  // Só re-renderiza se o anime ou rank mudarem
   return prevProps.anime.mal_id === nextProps.anime.mal_id && prevProps.rank === nextProps.rank;
 });

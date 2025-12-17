@@ -9,7 +9,9 @@ import {
   Info,
   X,
   ChevronUp,
-  Loader2
+  Loader2,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -21,12 +23,14 @@ import { ConversationWithDetails } from '@/hooks/useConversations';
 import { ChatMessageWithSender, useDeleteMessage, useLoadMoreMessages } from '@/hooks/useChatMessages';
 import { useChatPresence } from '@/hooks/useChatPresence';
 import { useChatNotification } from '@/hooks/useChatNotification';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useReadReceipts, isMessageRead } from '@/hooks/useReadReceipts';
 import { useAuth } from '@/hooks/useAuth';
 import ChatInput from './ChatInput';
 import ChatMessage from './ChatMessage';
 import GroupSettingsDrawer from './GroupSettingsDrawer';
 import { Reply } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ChatWindowProps {
   conversation: ConversationWithDetails | null;
@@ -64,9 +68,22 @@ export default function ChatWindow({
   // Hook de notificação de som
   const { playNotification } = useChatNotification();
 
+  // Hook de notificações push do navegador
+  const { isEnabled: pushEnabled, isSupported, permission, requestPermission, notifyNewMessage } = usePushNotifications();
+
   // Hook de confirmação de leitura
   const { data: readReceipts } = useReadReceipts(conversation?.id || null);
   const typingUsers = getTypingUsers();
+
+  // Solicitar permissão para notificações
+  const handleRequestNotifications = async () => {
+    const granted = await requestPermission();
+    if (granted) {
+      toast.success('Notificações ativadas!');
+    } else {
+      toast.error('Permissão de notificações negada');
+    }
+  };
 
   // Texto do indicador de digitando
   const getTypingUsersText = () => {
@@ -90,6 +107,16 @@ export default function ChatWindow({
       // Se a mensagem não é do usuário atual, tocar notificação
       if (lastMessage && lastMessage.sender_id !== user?.id) {
         playNotification();
+        
+        // Enviar notificação push se habilitado
+        const senderName = lastMessage.sender.display_name || lastMessage.sender.username || 'Alguém';
+        const messageContent = lastMessage.message_type === 'anime_card' 
+          ? '📺 Enviou um card de anime'
+          : lastMessage.message_type === 'recommendation'
+          ? '🎬 Enviou uma indicação'
+          : lastMessage.content || 'Nova mensagem';
+        
+        notifyNewMessage(senderName, messageContent, conversation?.id);
       }
       
       // Scroll para baixo
@@ -99,7 +126,7 @@ export default function ChatWindow({
     }
     
     prevMessagesLength.current = messages.length;
-  }, [messages, user?.id, playNotification]);
+  }, [messages, user?.id, playNotification, notifyNewMessage, conversation?.id]);
 
   // Carregar mais mensagens antigas
   const handleLoadMore = async () => {
@@ -228,6 +255,27 @@ export default function ChatWindow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            {/* Opção de notificações push */}
+            {isSupported && (
+              <DropdownMenuItem onClick={handleRequestNotifications}>
+                {pushEnabled ? (
+                  <>
+                    <Bell className="h-4 w-4 mr-2 text-green-500" />
+                    Notificações ativadas
+                  </>
+                ) : permission === 'denied' ? (
+                  <>
+                    <BellOff className="h-4 w-4 mr-2 text-destructive" />
+                    Notificações bloqueadas
+                  </>
+                ) : (
+                  <>
+                    <Bell className="h-4 w-4 mr-2" />
+                    Ativar notificações
+                  </>
+                )}
+              </DropdownMenuItem>
+            )}
             {conversation.type === 'group' && (
               <DropdownMenuItem onClick={() => setShowGroupSettings(true)}>
                 <Info className="h-4 w-4 mr-2" />

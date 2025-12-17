@@ -25,6 +25,9 @@ export interface MessageReaction {
 export function useMessageReactions(messageId: string) {
   const { user } = useAuth();
 
+  // Evita consultas inválidas quando a mensagem ainda é otimista (id temporário)
+  const isTempId = messageId?.startsWith('temp-');
+
   return useQuery({
     queryKey: ['messageReactions', messageId],
     queryFn: async () => {
@@ -37,7 +40,7 @@ export function useMessageReactions(messageId: string) {
 
       // Agrupar por tipo de reação
       const reactionMap = new Map<ReactionType, { count: number; has_reacted: boolean }>();
-      
+
       data?.forEach(r => {
         const type = r.reaction_type as ReactionType;
         const existing = reactionMap.get(type) || { count: 0, has_reacted: false };
@@ -52,7 +55,7 @@ export function useMessageReactions(messageId: string) {
         ...data,
       })) as MessageReaction[];
     },
-    enabled: !!messageId && !!user,
+    enabled: !!messageId && !!user && !isTempId,
   });
 }
 
@@ -62,23 +65,30 @@ export function useToggleReaction() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ 
-      messageId, 
-      reactionType 
-    }: { 
-      messageId: string; 
+    mutationFn: async ({
+      messageId,
+      reactionType,
+    }: {
+      messageId: string;
       reactionType: ReactionType;
     }) => {
       if (!user) throw new Error('Não autenticado');
 
+      // Evita tentar reagir em mensagens ainda não persistidas (id temporário)
+      if (messageId.startsWith('temp-')) {
+        throw new Error('Mensagem ainda está sendo enviada');
+      }
+
       // Verificar se já existe
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError } = await supabase
         .from('chat_message_reactions')
         .select('id')
         .eq('message_id', messageId)
         .eq('user_id', user.id)
         .eq('reaction_type', reactionType)
-        .single();
+        .maybeSingle();
+
+      if (existingError) throw existingError;
 
       if (existing) {
         // Remover reação
@@ -88,20 +98,20 @@ export function useToggleReaction() {
           .eq('id', existing.id);
 
         if (error) throw error;
-        return { action: 'removed' };
-      } else {
-        // Adicionar reação
-        const { error } = await supabase
-          .from('chat_message_reactions')
-          .insert({
-            message_id: messageId,
-            user_id: user.id,
-            reaction_type: reactionType,
-          });
-
-        if (error) throw error;
-        return { action: 'added' };
+        return { action: 'removed' as const };
       }
+
+      // Adicionar reação
+      const { error } = await supabase
+        .from('chat_message_reactions')
+        .insert({
+          message_id: messageId,
+          user_id: user.id,
+          reaction_type: reactionType,
+        });
+
+      if (error) throw error;
+      return { action: 'added' as const };
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['messageReactions', variables.messageId] });

@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
@@ -12,10 +13,37 @@ interface ParticipantReadStatus {
 
 /**
  * Hook para buscar status de leitura dos participantes de uma conversa
- * Usado para mostrar confirmação de leitura nas mensagens
+ * Usa realtime para atualizar instantaneamente quando alguém lê uma mensagem
  */
 export function useReadReceipts(conversationId: string | null) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Configurar realtime para atualizações de last_read_at
+  useEffect(() => {
+    if (!conversationId || !user) return;
+
+    const channel = supabase
+      .channel(`read-receipts-${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'conversation_participants',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        () => {
+          // Invalidar query quando alguém atualiza last_read_at
+          queryClient.invalidateQueries({ queryKey: ['readReceipts', conversationId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId, user, queryClient]);
 
   return useQuery({
     queryKey: ['readReceipts', conversationId],
@@ -49,7 +77,7 @@ export function useReadReceipts(conversationId: string | null) {
       })) as ParticipantReadStatus[];
     },
     enabled: !!conversationId && !!user,
-    refetchInterval: 5000, // Atualizar a cada 5 segundos
+    staleTime: 30000, // Dados válidos por 30 segundos (realtime cuida das atualizações)
   });
 }
 

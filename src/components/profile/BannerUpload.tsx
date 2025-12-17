@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Camera, Loader2, ImageIcon } from 'lucide-react';
+import { BannerCropModal } from './BannerCropModal';
 
 interface BannerUploadProps {
   userId: string;
@@ -10,15 +11,19 @@ interface BannerUploadProps {
   onBannerUpdated: (url: string) => void;
 }
 
-// Componente para upload de banner do perfil
+// Componente para upload de banner do perfil com editor de crop
 export function BannerUpload({ userId, currentBannerUrl, onBannerUpdated }: BannerUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Abre o seletor de arquivo
   const handleClick = () => {
     fileInputRef.current?.click();
   };
 
+  // Processa a seleção do arquivo e abre o modal de crop
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -35,17 +40,35 @@ export function BannerUpload({ userId, currentBannerUrl, onBannerUpdated }: Bann
       return;
     }
 
+    // Converte o arquivo para data URL e abre o modal de crop
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedImage(reader.result as string);
+      setCropModalOpen(true);
+    };
+    reader.readAsDataURL(file);
+
+    // Limpa o input para permitir selecionar o mesmo arquivo novamente
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Faz upload da imagem recortada
+  const handleCropComplete = async (croppedBlob: Blob) => {
     setIsUploading(true);
 
     try {
       // Gerar nome único para o arquivo
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${userId}/banner-${Date.now()}.${fileExt}`;
+      const fileName = `${userId}/banner-${Date.now()}.jpg`;
 
       // Upload para o storage
       const { error: uploadError } = await supabase.storage
-        .from('avatars') // Usando o mesmo bucket para banners
-        .upload(fileName, file, { upsert: true });
+        .from('avatars')
+        .upload(fileName, croppedBlob, { 
+          upsert: true,
+          contentType: 'image/jpeg'
+        });
 
       if (uploadError) throw uploadError;
 
@@ -69,63 +92,78 @@ export function BannerUpload({ userId, currentBannerUrl, onBannerUpdated }: Bann
       toast.error('Erro ao fazer upload do banner');
     } finally {
       setIsUploading(false);
-      // Limpar input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      setSelectedImage(null);
     }
   };
 
+  // Fecha o modal de crop
+  const handleCropModalClose = () => {
+    setCropModalOpen(false);
+    setSelectedImage(null);
+  };
+
   return (
-    <div className="relative w-full h-40 md:h-56 overflow-hidden group">
-      {/* Banner Image ou Placeholder com gradiente */}
-      {currentBannerUrl ? (
-        <img 
-          src={currentBannerUrl}
-          alt="Banner do perfil"
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-      ) : (
-        <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/10 to-secondary/20 flex items-center justify-center">
-          <div className="text-center">
-            <ImageIcon className="h-12 w-12 text-muted-foreground/40 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground/60">Adicione um banner</p>
+    <>
+      <div className="relative w-full h-40 md:h-56 overflow-hidden group">
+        {/* Banner Image ou Placeholder com gradiente */}
+        {currentBannerUrl ? (
+          <img 
+            src={currentBannerUrl}
+            alt="Banner do perfil"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/10 to-secondary/20 flex items-center justify-center">
+            <div className="text-center">
+              <ImageIcon className="h-12 w-12 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground/60">Adicione um banner</p>
+            </div>
           </div>
+        )}
+
+        {/* Gradiente inferior para melhor legibilidade */}
+        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+
+        {/* Overlay com botão de edição */}
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleClick}
+            disabled={isUploading}
+            className="gap-2 shadow-lg"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Enviando...
+              </>
+            ) : (
+              <>
+                <Camera className="h-4 w-4" />
+                {currentBannerUrl ? 'Alterar Banner' : 'Adicionar Banner'}
+              </>
+            )}
+          </Button>
         </div>
-      )}
-
-      {/* Gradiente inferior para melhor legibilidade */}
-      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
-
-      {/* Overlay com botão de edição */}
-      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-          className="hidden"
-        />
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleClick}
-          disabled={isUploading}
-          className="gap-2 shadow-lg"
-        >
-          {isUploading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Enviando...
-            </>
-          ) : (
-            <>
-              <Camera className="h-4 w-4" />
-              {currentBannerUrl ? 'Alterar Banner' : 'Adicionar Banner'}
-            </>
-          )}
-        </Button>
       </div>
-    </div>
+
+      {/* Modal de crop para banner */}
+      {selectedImage && (
+        <BannerCropModal
+          open={cropModalOpen}
+          onClose={handleCropModalClose}
+          imageSrc={selectedImage}
+          onCropComplete={handleCropComplete}
+        />
+      )}
+    </>
   );
 }

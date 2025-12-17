@@ -145,11 +145,13 @@ export default function Profile() {
         <div className="glass-card overflow-hidden">
           {/* Banner */}
           {user && (
-            <BannerUpload
-              userId={user.id}
-              currentBannerUrl={profile?.banner_url || null}
-              onBannerUpdated={handleBannerUpdated}
-            />
+            <div data-tour="banner">
+              <BannerUpload
+                userId={user.id}
+                currentBannerUrl={profile?.banner_url || null}
+                onBannerUpdated={handleBannerUpdated}
+              />
+            </div>
           )}
           
           {/* Informações do perfil */}
@@ -157,7 +159,7 @@ export default function Profile() {
             <div className="flex flex-col md:flex-row items-center md:items-end gap-4 md:gap-6">
               {/* Avatar com upload - posicionado sobre o banner */}
               {user && (
-                <div className="ring-4 ring-background rounded-full">
+                <div className="ring-4 ring-background rounded-full" data-tour="avatar">
                   <AvatarUpload
                     userId={user.id}
                     currentAvatarUrl={profile?.avatar_url || null}
@@ -206,6 +208,7 @@ export default function Profile() {
                   size="icon" 
                   onClick={() => setIsEditModalOpen(true)}
                   title="Editar perfil"
+                  data-tour="edit-profile"
                 >
                   <Settings className="h-4 w-4" />
                 </Button>

@@ -1,6 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+/**
+ * Edge Function: get-recommendations
+ * Retorna recomendações personalizadas de animes baseadas nos gêneros favoritos do usuário
+ * OTIMIZADO: Implementa rate limiting com retry e delays adequados
+ */
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -8,11 +14,47 @@ const corsHeaders = {
 
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
 
+// Delay entre requisições para respeitar rate limit da Jikan (3 req/s)
+const DELAY_BETWEEN_REQUESTS = 400; // 400ms = 2.5 req/s (margem de segurança)
+
 // Ratings e tipos a serem filtrados (conteúdo adulto e músicas)
 const EXCLUDED_RATINGS = ["Rx - Hentai"];
 const EXCLUDED_TYPES = ["Music", "CM", "PV"];
 
-// Função para filtrar animes indesejados
+/**
+ * Função para criar delay
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Busca com retry e tratamento de rate limit
+ */
+async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url);
+      
+      if (response.status === 429) {
+        console.log(`[Jikan] Rate limited, aguardando 2s antes de retry ${i + 1}/${retries}`);
+        await delay(2000);
+        continue;
+      }
+      
+      return response;
+    } catch (error) {
+      console.warn(`[Jikan] Erro na requisição (tentativa ${i + 1}):`, error);
+      if (i === retries - 1) throw error;
+      await delay(1000);
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+
+/**
+ * Função para filtrar animes indesejados
+ */
 const filterAnimes = (animes: any[]): any[] => {
   return animes.filter(anime => {
     if (anime.rating && EXCLUDED_RATINGS.includes(anime.rating)) {
@@ -25,8 +67,9 @@ const filterAnimes = (animes: any[]): any[] => {
   });
 };
 
-// Edge function para gerar recomendações personalizadas baseadas nos gêneros do usuário
+// Edge function principal
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -66,7 +109,7 @@ serve(async (req) => {
       .order("rating", { ascending: false, nullsFirst: false });
 
     if (animesError) {
-      console.error("Erro ao buscar animes:", animesError);
+      console.error("[Recommendations] Erro ao buscar animes:", animesError);
       throw new Error("Erro ao buscar animes do usuário");
     }
 
@@ -75,6 +118,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           recommendations: [],
+          topGenres: [],
           message: "Adicione animes à sua lista para receber recomendações personalizadas!"
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -84,23 +128,22 @@ serve(async (req) => {
     // IDs dos animes que o usuário já tem na lista
     const userMalIds = new Set(userAnimes.map(a => a.mal_id));
 
-    // Buscar detalhes dos animes favoritos do usuário para extrair gêneros
     // Pegar os top 5 com melhor nota ou os primeiros 5
     const topAnimes = userAnimes
       .filter(a => a.rating && Number(a.rating) >= 4)
       .slice(0, 5);
     
-    const animesToAnalyze = topAnimes.length > 0 ? topAnimes : userAnimes.slice(0, 5);
+    // Limita análise a 3 animes para reduzir requisições
+    const animesToAnalyze = (topAnimes.length > 0 ? topAnimes : userAnimes.slice(0, 5)).slice(0, 3);
     
-    // Buscar gêneros de cada anime
+    // Buscar gêneros de cada anime (SEQUENCIAL com delays)
     const genreCounts: Record<number, { name: string; count: number }> = {};
     
     for (const anime of animesToAnalyze) {
       try {
-        // Aguardar um pouco para respeitar rate limit da API Jikan
-        await new Promise(resolve => setTimeout(resolve, 350));
+        await delay(DELAY_BETWEEN_REQUESTS);
         
-        const response = await fetch(`${JIKAN_BASE_URL}/anime/${anime.mal_id}`);
+        const response = await fetchWithRetry(`${JIKAN_BASE_URL}/anime/${anime.mal_id}`);
         if (response.ok) {
           const data = await response.json();
           const genres = data.data?.genres || [];
@@ -114,7 +157,7 @@ serve(async (req) => {
           }
         }
       } catch (e) {
-        console.warn(`Erro ao buscar anime ${anime.mal_id}:`, e);
+        console.warn(`[Recommendations] Erro ao buscar anime ${anime.mal_id}:`, e);
       }
     }
 
@@ -124,49 +167,41 @@ serve(async (req) => {
       .slice(0, 3)
       .map(([id, data]) => ({ id: Number(id), name: data.name }));
 
-    console.log("Top gêneros do usuário:", topGenres);
+    console.log("[Recommendations] Top gêneros do usuário:", topGenres);
 
-    if (topGenres.length === 0) {
-      return new Response(
-        JSON.stringify({ 
-          recommendations: [],
-          topGenres: [],
-          message: "Não foi possível identificar seus gêneros favoritos"
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Se não conseguiu identificar gêneros, usar gêneros populares
+    const genresToSearch = topGenres.length > 0 
+      ? topGenres 
+      : [{ id: 1, name: 'Action' }, { id: 2, name: 'Adventure' }, { id: 8, name: 'Drama' }];
 
-    // Buscar recomendações baseadas nos gêneros favoritos
+    // Buscar recomendações baseadas nos gêneros (SEQUENCIAL)
     const recommendations: any[] = [];
     const seenIds = new Set<number>();
 
-    for (const genre of topGenres) {
+    for (const genre of genresToSearch) {
       try {
-        await new Promise(resolve => setTimeout(resolve, 350));
+        await delay(DELAY_BETWEEN_REQUESTS);
         
-        const response = await fetch(
-          `${JIKAN_BASE_URL}/anime?genres=${genre.id}&order_by=score&sort=desc&limit=10&sfw=true`
+        const response = await fetchWithRetry(
+          `${JIKAN_BASE_URL}/anime?genres=${genre.id}&order_by=score&sort=desc&limit=8&sfw=true`
         );
         
         if (response.ok) {
           const data = await response.json();
-          // Aplicar filtro para remover conteúdo adulto e músicas
           const animes = filterAnimes(data.data || []);
           
           for (const anime of animes) {
-            // Não recomendar animes que o usuário já tem
             if (!userMalIds.has(anime.mal_id) && !seenIds.has(anime.mal_id)) {
               seenIds.add(anime.mal_id);
               recommendations.push({
                 ...anime,
-                recommendedBecause: genre.name
+                recommendedBecause: `Baseado no seu interesse em ${genre.name}`
               });
             }
           }
         }
       } catch (e) {
-        console.warn(`Erro ao buscar recomendações para ${genre.name}:`, e);
+        console.warn(`[Recommendations] Erro ao buscar recomendações para ${genre.name}:`, e);
       }
     }
 
@@ -175,19 +210,19 @@ serve(async (req) => {
       .sort((a, b) => (b.score || 0) - (a.score || 0))
       .slice(0, 12);
 
-    console.log(`Retornando ${finalRecommendations.length} recomendações`);
+    console.log(`[Recommendations] Retornando ${finalRecommendations.length} recomendações`);
 
     return new Response(
       JSON.stringify({ 
         recommendations: finalRecommendations,
-        topGenres,
+        topGenres: genresToSearch,
         analyzedAnimes: animesToAnalyze.length
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
-    console.error("Erro na função de recomendações:", error);
+    console.error("[Recommendations] Erro:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Erro desconhecido" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

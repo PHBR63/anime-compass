@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { AnimeEntriesProvider } from "@/contexts/AnimeEntriesContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
 import Index from "./pages/Index";
@@ -16,7 +17,30 @@ import Auth from "./pages/Auth";
 import PublicListView from "./pages/PublicListView";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+/**
+ * QueryClient com configurações otimizadas para performance
+ */
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Tempo padrão antes de considerar dados "stale"
+      staleTime: 1000 * 60 * 5, // 5 minutos
+      // Tempo que dados ficam em cache após não serem mais usados
+      gcTime: 1000 * 60 * 30, // 30 minutos
+      // Não refetch automaticamente em focus/reconexão para reduzir requisições
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      // Retry apenas 1 vez em caso de erro
+      retry: 1,
+      // Retry delay exponencial
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    },
+    mutations: {
+      // Retry apenas 1 vez para mutations
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -33,21 +57,23 @@ const App = () => (
             {/* Rota pública - Landing/Dashboard */}
             <Route path="/" element={<Index />} />
             
-            {/* Rotas protegidas */}
+            {/* Rotas protegidas com Provider de AnimeEntries */}
             <Route
               path="/*"
               element={
                 <ProtectedRoute>
-                  <MainLayout>
-                    <Routes>
-                      <Route path="/list" element={<MyList />} />
-                      <Route path="/discover" element={<Discover />} />
-                      <Route path="/social" element={<Social />} />
-                      <Route path="/achievements" element={<Achievements />} />
-                      <Route path="/profile" element={<Profile />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </MainLayout>
+                  <AnimeEntriesProvider>
+                    <MainLayout>
+                      <Routes>
+                        <Route path="/list" element={<MyList />} />
+                        <Route path="/discover" element={<Discover />} />
+                        <Route path="/social" element={<Social />} />
+                        <Route path="/achievements" element={<Achievements />} />
+                        <Route path="/profile" element={<Profile />} />
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </MainLayout>
+                  </AnimeEntriesProvider>
                 </ProtectedRoute>
               }
             />

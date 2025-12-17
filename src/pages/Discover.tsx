@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Search, TrendingUp, Sparkles, Filter, Tv, Loader2, Star, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,10 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { AnimeDetailModal } from '@/components/anime/AnimeDetailModal';
 
-// Página de descoberta de animes com scroll infinito
+/**
+ * Página de descoberta de animes com scroll infinito
+ * Otimizada com memoização para evitar re-cálculos desnecessários
+ */
 export default function Discover() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -67,8 +70,8 @@ export default function Discover() {
     isLoading: loadingGenre
   } = useInfiniteAnimesByGenre(selectedGenre || 0);
 
-  // Função para remover duplicatas por mal_id
-  const removeDuplicates = (animes: JikanAnime[]): JikanAnime[] => {
+  // Função memoizada para remover duplicatas por mal_id
+  const removeDuplicates = useCallback((animes: JikanAnime[]): JikanAnime[] => {
     const seen = new Set<number>();
     return animes.filter((anime) => {
       if (seen.has(anime.mal_id)) {
@@ -77,20 +80,35 @@ export default function Discover() {
       seen.add(anime.mal_id);
       return true;
     });
-  };
+  }, []);
 
-  // Flatten dos dados paginados e remoção de duplicatas
-  const topAnimes = removeDuplicates(topAnimesData?.pages.flatMap(page => page.data) || []);
-  const seasonAnimes = removeDuplicates(seasonAnimesData?.pages.flatMap(page => page.data) || []);
-  const searchAnimes = removeDuplicates(searchData?.pages.flatMap(page => page.data) || []);
-  const genreAnimes = removeDuplicates(genreData?.pages.flatMap(page => page.data) || []);
+  // Flatten dos dados paginados e remoção de duplicatas - MEMOIZADO
+  const topAnimes = useMemo(() => 
+    removeDuplicates(topAnimesData?.pages.flatMap(page => page.data) || []),
+    [topAnimesData, removeDuplicates]
+  );
+  
+  const seasonAnimes = useMemo(() => 
+    removeDuplicates(seasonAnimesData?.pages.flatMap(page => page.data) || []),
+    [seasonAnimesData, removeDuplicates]
+  );
+  
+  const searchAnimes = useMemo(() => 
+    removeDuplicates(searchData?.pages.flatMap(page => page.data) || []),
+    [searchData, removeDuplicates]
+  );
+  
+  const genreAnimes = useMemo(() => 
+    removeDuplicates(genreData?.pages.flatMap(page => page.data) || []),
+    [genreData, removeDuplicates]
+  );
 
-  // Verifica estados
-  const isSearching = debouncedQuery.length >= 2;
-  const isFilteringByGenre = selectedGenre !== null;
+  // Verifica estados - MEMOIZADO
+  const isSearching = useMemo(() => debouncedQuery.length >= 2, [debouncedQuery]);
+  const isFilteringByGenre = useMemo(() => selectedGenre !== null, [selectedGenre]);
 
-  // Determina qual função de carregar mais usar
-  const getLoadMoreConfig = useCallback(() => {
+  // Determina qual função de carregar mais usar - MEMOIZADO
+  const loadMoreConfig = useMemo(() => {
     if (isSearching) {
       return { fetch: fetchNextSearch, hasNext: hasNextSearch, isFetching: isFetchingSearch };
     }
@@ -111,12 +129,10 @@ export default function Discover() {
 
   // Observer para scroll infinito
   useEffect(() => {
-    const config = getLoadMoreConfig();
-    
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && config.hasNext && !config.isFetching) {
-          config.fetch();
+        if (entries[0].isIntersecting && loadMoreConfig.hasNext && !loadMoreConfig.isFetching) {
+          loadMoreConfig.fetch();
         }
       },
       { threshold: 0.1 }
@@ -127,10 +143,10 @@ export default function Discover() {
     }
 
     return () => observer.disconnect();
-  }, [getLoadMoreConfig]);
+  }, [loadMoreConfig]);
 
-  // Funções de controle
-  const handleGenreClick = (genreId: number) => {
+  // Funções de controle - MEMOIZADAS
+  const handleGenreClick = useCallback((genreId: number) => {
     if (selectedGenre === genreId) {
       setSelectedGenre(null);
     } else {
@@ -138,16 +154,28 @@ export default function Discover() {
       setSearchQuery('');
       setDebouncedQuery('');
     }
-  };
+  }, [selectedGenre]);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSelectedGenre(null);
     setSearchQuery('');
     setDebouncedQuery('');
-  };
+  }, []);
 
-  // Skeleton de loading
-  const LoadingSkeleton = ({ count = 12 }: { count?: number }) => (
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
+
+  const handleSelectAnime = useCallback((anime: JikanAnime) => {
+    setSelectedAnime(anime);
+  }, []);
+
+  const handleCloseModal = useCallback((open: boolean) => {
+    if (!open) setSelectedAnime(null);
+  }, []);
+
+  // Skeleton de loading - MEMOIZADO
+  const LoadingSkeleton = useMemo(() => ({ count = 12 }: { count?: number }) => (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="space-y-2">
@@ -157,22 +185,21 @@ export default function Discover() {
         </div>
       ))}
     </div>
-  );
+  ), []);
 
   // Botão de carregar mais
-  const LoadMoreButton = () => {
-    const config = getLoadMoreConfig();
-    if (!config.hasNext) return null;
+  const LoadMoreButton = useCallback(() => {
+    if (!loadMoreConfig.hasNext) return null;
     
     return (
       <div ref={loadMoreRef} className="flex justify-center py-8">
         <Button
           variant="outline"
-          onClick={() => config.fetch()}
-          disabled={config.isFetching}
+          onClick={() => loadMoreConfig.fetch()}
+          disabled={loadMoreConfig.isFetching}
           className="gap-2"
         >
-          {config.isFetching ? (
+          {loadMoreConfig.isFetching ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               Carregando...
@@ -186,7 +213,10 @@ export default function Discover() {
         </Button>
       </div>
     );
-  };
+  }, [loadMoreConfig]);
+
+  // Destaques memoizados
+  const highlightAnimes = useMemo(() => seasonAnimes.slice(0, 3), [seasonAnimes]);
 
   return (
     <div className="space-y-8 pt-12 md:pt-0 pb-8">
@@ -207,7 +237,7 @@ export default function Discover() {
           <Input
             placeholder="Buscar por título..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             className="pl-12 h-14 text-lg bg-secondary/50 border-border/50 rounded-xl"
           />
           {loadingSearch && debouncedQuery && (
@@ -259,7 +289,7 @@ export default function Discover() {
           </div>
           
           {loadingSearch ? (
-            <LoadingSkeleton />
+            <LoadingSkeleton count={12} />
           ) : searchAnimes.length > 0 ? (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -293,7 +323,7 @@ export default function Discover() {
           </div>
           
           {loadingGenre ? (
-            <LoadingSkeleton />
+            <LoadingSkeleton count={12} />
           ) : genreAnimes.length > 0 ? (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -348,7 +378,7 @@ export default function Discover() {
               </div>
               
               {loadingSeason ? (
-                <LoadingSkeleton />
+                <LoadingSkeleton count={12} />
               ) : (
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -373,7 +403,7 @@ export default function Discover() {
               </div>
               
               {loadingTop ? (
-                <LoadingSkeleton />
+                <LoadingSkeleton count={12} />
               ) : (
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -392,7 +422,7 @@ export default function Discover() {
           )}
 
           {/* Destaques da temporada */}
-          {activeTab === 'season' && seasonAnimes.length > 6 && (
+          {activeTab === 'season' && highlightAnimes.length > 0 && (
             <section>
               <div className="flex items-center gap-2 mb-6">
                 <Sparkles className="h-5 w-5 text-warning" />
@@ -400,12 +430,12 @@ export default function Discover() {
               </div>
               
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {seasonAnimes.slice(0, 3).map((anime, index) => (
+                {highlightAnimes.map((anime, index) => (
                   <div
                     key={`highlight-${anime.mal_id}`}
                     className="glass-card p-4 flex gap-4 hover:border-primary/30 transition-colors cursor-pointer animate-slide-up"
                     style={{ animationDelay: `${index * 100}ms` }}
-                    onClick={() => setSelectedAnime(anime)}
+                    onClick={() => handleSelectAnime(anime)}
                   >
                     <img
                       src={anime.images.jpg.image_url}
@@ -444,7 +474,7 @@ export default function Discover() {
       {selectedAnime && (
         <AnimeDetailModal
           open={!!selectedAnime}
-          onOpenChange={(open) => !open && setSelectedAnime(null)}
+          onOpenChange={handleCloseModal}
           jikanAnime={selectedAnime}
         />
       )}

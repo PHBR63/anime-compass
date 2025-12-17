@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -211,4 +211,4 @@ function ChatInput({
   );
 }
 
-export default memo(ChatInput);
+export default ChatInput;

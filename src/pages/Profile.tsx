@@ -20,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AvatarUpload } from '@/components/profile/AvatarUpload';
 import { BannerUpload } from '@/components/profile/BannerUpload';
 import { EditProfileModal } from '@/components/profile/EditProfileModal';
+import { FavoriteGenresStudios } from '@/components/profile/FavoriteGenresStudios';
 import { SessionExpiredCard, isSessionExpiredError } from '@/components/ui/SessionExpiredCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
@@ -299,9 +300,12 @@ export default function Profile() {
         </div>
       </AnimatedContent>
 
+      {/* Gêneros e Estúdios Favoritos */}
+      <FavoriteGenresStudios />
+
       {/* Favoritos */}
       {!entriesLoading && favoriteEntries.length > 0 && (
-        <AnimatedContent direction="up" delay={0.5} duration={0.5}>
+        <AnimatedContent direction="up" delay={0.7} duration={0.5}>
           <div className="glass-card p-6">
             <h2 className="font-display text-lg font-semibold flex items-center gap-2 mb-4">
               <Heart className="h-5 w-5 text-destructive fill-destructive" />

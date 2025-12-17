@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AvatarUpload } from '@/components/profile/AvatarUpload';
+import { BannerUpload } from '@/components/profile/BannerUpload';
 import { EditProfileModal } from '@/components/profile/EditProfileModal';
 import { SessionExpiredCard, isSessionExpiredError } from '@/components/ui/SessionExpiredCard';
 import { useAuth } from '@/hooks/useAuth';
@@ -59,6 +60,11 @@ export default function Profile() {
 
   // Manipula a atualização do avatar
   const handleAvatarUpdated = () => {
+    refetchProfile();
+  };
+
+  // Manipula a atualização do banner
+  const handleBannerUpdated = () => {
     refetchProfile();
   };
 
@@ -133,90 +139,112 @@ export default function Profile() {
           connectionDistance={100}
         />
       </div>
-      {/* Cabeçalho do perfil */}
+      {/* Cabeçalho do perfil com Banner */}
       <AnimatedContent direction="down" duration={0.5}>
-        <div className="glass-card p-6 md:p-8">
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-            {/* Avatar com upload */}
-            {user && (
-              <AvatarUpload
-                userId={user.id}
-                currentAvatarUrl={profile?.avatar_url || null}
-                displayName={profile?.display_name || null}
-                onAvatarUpdated={handleAvatarUpdated}
-              />
-            )}
-            
-            {/* Informações do perfil */}
-            <div className="flex-1 text-center md:text-left">
-              <div className="flex items-center justify-center md:justify-start gap-2">
-                <h1 className="font-display text-2xl md:text-3xl font-bold">
-                  <GradientText animate speed={0.5}>
-                    {profile?.display_name || 'Usuário'}
-                  </GradientText>
-                </h1>
-                <span title={profile?.is_public ? "Perfil público" : "Perfil privado"}>
-                  {profile?.is_public ? (
-                    <Globe className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <Lock className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </span>
-              </div>
-              
-              <p className="text-muted-foreground mt-1">
-                {profile?.username ? `@${profile.username}` : 'Sem username'} 
-                {memberSince && ` • Membro desde ${memberSince}`}
-              </p>
-              
-              {profile?.bio && (
-                <p className="text-sm text-muted-foreground mt-2 max-w-md">
-                  {profile.bio}
-                </p>
+        <div className="glass-card overflow-hidden">
+          {/* Banner */}
+          {user && (
+            <BannerUpload
+              userId={user.id}
+              currentBannerUrl={profile?.banner_url || null}
+              onBannerUpdated={handleBannerUpdated}
+            />
+          )}
+          
+          {/* Informações do perfil */}
+          <div className="p-6 md:p-8 -mt-12 md:-mt-16 relative">
+            <div className="flex flex-col md:flex-row items-center md:items-end gap-4 md:gap-6">
+              {/* Avatar com upload - posicionado sobre o banner */}
+              {user && (
+                <div className="ring-4 ring-background rounded-full">
+                  <AvatarUpload
+                    userId={user.id}
+                    currentAvatarUrl={profile?.avatar_url || null}
+                    displayName={profile?.display_name || null}
+                    onAvatarUpdated={handleAvatarUpdated}
+                  />
+                </div>
               )}
               
-              {/* Estatísticas rápidas com CountUp */}
-              <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-gradient">
-                    {statsLoading ? '-' : (
-                      <CountUp end={stats?.totalAnimes || 0} duration={1.5} />
+              {/* Informações textuais */}
+              <div className="flex-1 text-center md:text-left mt-2 md:mt-0">
+                <div className="flex items-center justify-center md:justify-start gap-2">
+                  <h1 className="font-display text-2xl md:text-3xl font-bold">
+                    <GradientText animate speed={0.5}>
+                      {profile?.display_name || 'Usuário'}
+                    </GradientText>
+                  </h1>
+                  <span title={profile?.is_public ? "Perfil público" : "Perfil privado"}>
+                    {profile?.is_public ? (
+                      <Globe className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Lock className="h-4 w-4 text-muted-foreground" />
                     )}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Animes</p>
+                  </span>
                 </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-gradient">
-                    {statsLoading ? '-' : (
-                      <CountUp end={stats?.time.totalHours || 0} duration={1.5} />
-                    )}
+                
+                <p className="text-muted-foreground mt-1">
+                  {profile?.username ? `@${profile.username}` : 'Sem username'} 
+                  {memberSince && ` • Membro desde ${memberSince}`}
+                </p>
+                
+                {profile?.bio && (
+                  <p className="text-sm text-muted-foreground mt-2 max-w-md">
+                    {profile.bio}
                   </p>
-                  <p className="text-xs text-muted-foreground">Horas</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-gradient">
-                    {statsLoading ? '-' : (
-                      <CountUp end={achievementStats?.unlocked || 0} duration={1.5} />
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Conquistas</p>
-                </div>
+                )}
+              </div>
+              
+              {/* Botões de ação */}
+              <div className="flex gap-2 mt-2 md:mt-0">
+                <Button variant="outline" size="icon" onClick={handleShare} title="Compartilhar perfil">
+                  <Share2 className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => setIsEditModalOpen(true)}
+                  title="Editar perfil"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
               </div>
             </div>
             
-            {/* Botões de ação */}
-            <div className="flex gap-2">
-              <Button variant="outline" size="icon" onClick={handleShare} title="Compartilhar perfil">
-                <Share2 className="h-4 w-4" />
-              </Button>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={() => setIsEditModalOpen(true)}
-                title="Editar perfil"
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
+            {/* Estatísticas rápidas com CountUp */}
+            <div className="flex flex-wrap justify-center md:justify-start gap-6 mt-6 pt-6 border-t border-border/50">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-gradient">
+                  {statsLoading ? '-' : (
+                    <CountUp end={stats?.totalAnimes || 0} duration={1.5} />
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">Animes</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-gradient">
+                  {statsLoading ? '-' : (
+                    <CountUp end={stats?.time.totalHours || 0} duration={1.5} />
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">Horas</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-gradient">
+                  {statsLoading ? '-' : (
+                    <CountUp end={stats?.completedAnimes || 0} duration={1.5} />
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">Completos</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-gradient">
+                  {statsLoading ? '-' : (
+                    <CountUp end={achievementStats?.unlocked || 0} duration={1.5} />
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">Conquistas</p>
+              </div>
             </div>
           </div>
         </div>

@@ -227,7 +227,7 @@ export default function ConversationList({
                       {/* Badge de não lidas */}
                       {conv.unread_count > 0 && (
                         <Badge 
-                          className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs"
+                          className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs animate-pulse bg-destructive text-destructive-foreground"
                         >
                           {conv.unread_count > 99 ? '99+' : conv.unread_count}
                         </Badge>

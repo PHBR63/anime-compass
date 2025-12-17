@@ -221,15 +221,21 @@ export function HelpProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Mostra modal de boas-vindas para novos usuários
+  // Rotas públicas onde o modal de boas-vindas NÃO deve aparecer
+  const publicRoutes = ['/shared/list/', '/u/', '/auth', '/forgot-password', '/reset-password', '/maintenance'];
+  
+  // Verifica se está em rota pública
+  const isPublicRoute = publicRoutes.some(route => currentPath.startsWith(route));
+
+  // Mostra modal de boas-vindas para novos usuários (apenas em rotas protegidas)
   useEffect(() => {
-    if (!hasSeenWelcome && helpEnabled) {
+    if (!hasSeenWelcome && helpEnabled && !isPublicRoute) {
       const timer = setTimeout(() => {
         setShowWelcomeModal(true);
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [hasSeenWelcome, helpEnabled]);
+  }, [hasSeenWelcome, helpEnabled, isPublicRoute]);
 
   // Persiste preferências
   useEffect(() => {

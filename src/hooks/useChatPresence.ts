@@ -1,12 +1,19 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
 // Interface para status de presença do usuário
 interface UserPresence {
-  oderId: string;
+  userId: string;
+  displayName: string;
   online_at: string;
   typing_in?: string; // ID da conversa onde está digitando
+}
+
+// Interface para usuário digitando com nome
+interface TypingUser {
+  userId: string;
+  displayName: string;
 }
 
 /**
@@ -16,29 +23,34 @@ interface UserPresence {
 export function useChatPresence(conversationId: string | null) {
   const { user } = useAuth();
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-  const [typingUsers, setTypingUsers] = useState<Map<string, string>>(new Map()); // oderId -> displayName
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
     if (!conversationId || !user) return;
 
     // Criar canal de presença para a conversa
     const channel = supabase.channel(`presence-${conversationId}`);
+    channelRef.current = channel;
 
     // Escutar eventos de presença
     channel
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
         const online = new Set<string>();
-        const typing = new Map<string, string>();
+        const typing: TypingUser[] = [];
 
         // Processar estado de todos os usuários
         Object.values(state).forEach((presences) => {
           presences.forEach((presence: any) => {
-            if (presence.oderId) {
-              online.add(presence.oderId);
-              // Se está digitando nesta conversa
-              if (presence.typing_in === conversationId) {
-                typing.set(presence.oderId, presence.oderId);
+            if (presence.userId) {
+              online.add(presence.userId);
+              // Se está digitando nesta conversa e não é o usuário atual
+              if (presence.typing_in === conversationId && presence.userId !== user.id) {
+                typing.push({
+                  userId: presence.userId,
+                  displayName: presence.displayName || 'Alguém',
+                });
               }
             }
           });
@@ -47,34 +59,40 @@ export function useChatPresence(conversationId: string | null) {
         setOnlineUsers(online);
         setTypingUsers(typing);
       })
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+      .on('presence', { event: 'join' }, ({ newPresences }) => {
         newPresences.forEach((presence: any) => {
-          if (presence.oderId) {
-            setOnlineUsers(prev => new Set([...prev, presence.oderId]));
+          if (presence.userId) {
+            setOnlineUsers(prev => new Set([...prev, presence.userId]));
           }
         });
       })
-      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+      .on('presence', { event: 'leave' }, ({ leftPresences }) => {
         leftPresences.forEach((presence: any) => {
-          if (presence.oderId) {
+          if (presence.userId) {
             setOnlineUsers(prev => {
               const newSet = new Set(prev);
-              newSet.delete(presence.oderId);
+              newSet.delete(presence.userId);
               return newSet;
             });
-            setTypingUsers(prev => {
-              const newMap = new Map(prev);
-              newMap.delete(presence.oderId);
-              return newMap;
-            });
+            setTypingUsers(prev => prev.filter(t => t.userId !== presence.userId));
           }
         });
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
+          // Buscar nome do usuário atual
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('display_name, username')
+            .eq('id', user.id)
+            .single();
+
+          const displayName = profile?.display_name || profile?.username || 'Usuário';
+
           // Rastrear presença do usuário atual
           await channel.track({
-            oderId: user.id,
+            userId: user.id,
+            displayName,
             online_at: new Date().toISOString(),
           });
         }
@@ -82,17 +100,26 @@ export function useChatPresence(conversationId: string | null) {
 
     return () => {
       supabase.removeChannel(channel);
+      channelRef.current = null;
     };
   }, [conversationId, user]);
 
   // Função para indicar que está digitando
   const setTyping = useCallback(async (isTyping: boolean) => {
-    if (!conversationId || !user) return;
+    if (!conversationId || !user || !channelRef.current) return;
 
-    const channel = supabase.channel(`presence-${conversationId}`);
-    
-    await channel.track({
-      oderId: user.id,
+    // Buscar nome do usuário atual
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('display_name, username')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const displayName = profile?.display_name || profile?.username || 'Usuário';
+
+    await channelRef.current.track({
+      userId: user.id,
+      displayName,
       online_at: new Date().toISOString(),
       typing_in: isTyping ? conversationId : undefined,
     });
@@ -103,9 +130,10 @@ export function useChatPresence(conversationId: string | null) {
     typingUsers,
     setTyping,
     isUserOnline: (userId: string) => onlineUsers.has(userId),
-    getTypingUserIds: () => Array.from(typingUsers.keys()).filter(id => id !== user?.id),
+    getTypingUsers: () => typingUsers.filter(t => t.userId !== user?.id),
   };
 }
+
 
 /**
  * Hook global para rastrear presença do usuário no app
@@ -127,8 +155,8 @@ export function useGlobalPresence() {
 
         Object.values(state).forEach((presences: any[]) => {
           presences.forEach((presence: any) => {
-            if (presence.oderId) {
-              online.add(presence.oderId);
+            if (presence.userId) {
+              online.add(presence.userId);
             }
           });
         });
@@ -138,7 +166,7 @@ export function useGlobalPresence() {
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({
-            oderId: user.id,
+            userId: user.id,
             online_at: new Date().toISOString(),
           });
         }

@@ -53,6 +53,30 @@ export type Database = {
         }
         Relationships: []
       }
+      activity_reactions: {
+        Row: {
+          anime_entry_id: string
+          created_at: string | null
+          id: string
+          reaction_type: string
+          user_id: string
+        }
+        Insert: {
+          anime_entry_id: string
+          created_at?: string | null
+          id?: string
+          reaction_type?: string
+          user_id: string
+        }
+        Update: {
+          anime_entry_id?: string
+          created_at?: string | null
+          id?: string
+          reaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       anime_entries: {
         Row: {
           completed_at: string | null
@@ -107,6 +131,45 @@ export type Database = {
           total_episodes?: number | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      anime_recommendations: {
+        Row: {
+          anime_image: string | null
+          anime_title: string
+          created_at: string | null
+          from_user_id: string
+          id: string
+          mal_id: number
+          message: string | null
+          status: string | null
+          to_user_id: string
+          watched_at: string | null
+        }
+        Insert: {
+          anime_image?: string | null
+          anime_title: string
+          created_at?: string | null
+          from_user_id: string
+          id?: string
+          mal_id: number
+          message?: string | null
+          status?: string | null
+          to_user_id: string
+          watched_at?: string | null
+        }
+        Update: {
+          anime_image?: string | null
+          anime_title?: string
+          created_at?: string | null
+          from_user_id?: string
+          id?: string
+          mal_id?: number
+          message?: string | null
+          status?: string | null
+          to_user_id?: string
+          watched_at?: string | null
         }
         Relationships: []
       }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useConversations, useMarkConversationAsRead } from '@/hooks/useConversations';
-import { useChatMessages, useSendMessage, useSendAnimeCard } from '@/hooks/useChatMessages';
+import { useChatMessages, useSendMessage, useSendAnimeCard, useSendListCard } from '@/hooks/useChatMessages';
 import { useSendRecommendation } from '@/hooks/useAnimeRecommendations';
 import ConversationList from '@/components/chat/ConversationList';
 import ChatWindow from '@/components/chat/ChatWindow';
@@ -25,6 +25,7 @@ export default function Chat() {
   const sendMessage = useSendMessage();
   const sendAnimeCard = useSendAnimeCard();
   const sendRecommendation = useSendRecommendation();
+  const sendListCard = useSendListCard();
 
   // Conversa selecionada
   const selectedConversation = conversations?.find(c => c.id === selectedConversationId) || null;
@@ -117,6 +118,17 @@ export default function Chat() {
     }
   };
 
+  // Enviar card de lista
+  const handleSendList = (list: any, message?: string) => {
+    if (selectedConversationId) {
+      sendListCard.mutate({
+        conversationId: selectedConversationId,
+        list,
+        message,
+      });
+    }
+  };
+
   // Callback quando nova conversa é criada
   const handleConversationCreated = (conversationId: string) => {
     setSelectedConversationId(conversationId);
@@ -146,6 +158,7 @@ export default function Chat() {
             onSendMessage={handleSendMessage}
             onSendAnime={handleSendAnime}
             onSendRecommendation={handleSendRecommendation}
+            onSendList={handleSendList}
           />
         )}
 
@@ -180,6 +193,7 @@ export default function Chat() {
         onSendMessage={handleSendMessage}
         onSendAnime={handleSendAnime}
         onSendRecommendation={handleSendRecommendation}
+        onSendList={handleSendList}
       />
 
       <NewChatModal

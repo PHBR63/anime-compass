@@ -40,6 +40,7 @@ interface ChatWindowProps {
   onSendMessage: (content: string, replyTo?: string) => void;
   onSendAnime: (anime: any) => void;
   onSendRecommendation: (anime: any, message?: string) => void;
+  onSendList?: (list: any, message?: string) => void;
 }
 
 // Componente principal da janela de chat
@@ -51,6 +52,7 @@ export default function ChatWindow({
   onSendMessage,
   onSendAnime,
   onSendRecommendation,
+  onSendList,
 }: ChatWindowProps) {
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -391,6 +393,7 @@ export default function ChatWindow({
         onSendMessage={replyingTo ? handleSendWithReply : onSendMessage}
         onSendAnime={onSendAnime}
         onSendRecommendation={onSendRecommendation}
+        onSendList={onSendList}
         conversationId={conversation.id}
         recipientId={conversation.type === 'direct' ? conversation.other_participant?.user_id : undefined}
         onTypingChange={handleTypingChange}

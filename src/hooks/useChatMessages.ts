@@ -9,7 +9,7 @@ export interface ChatMessageWithSender {
   conversation_id: string;
   sender_id: string;
   content: string | null;
-  message_type: 'text' | 'anime_card' | 'recommendation' | 'image' | 'system';
+  message_type: 'text' | 'anime_card' | 'recommendation' | 'image' | 'system' | 'list_card';
   metadata: {
     mal_id?: number;
     title?: string;
@@ -17,6 +17,14 @@ export interface ChatMessageWithSender {
     recommendation_id?: string;
     episodes?: number;
     score?: number;
+    // Campos para list_card
+    list_id?: string;
+    list_name?: string;
+    list_description?: string;
+    list_is_public?: boolean;
+    list_item_count?: number;
+    list_cover_images?: string[];
+    list_owner_id?: string;
   };
   reply_to: string | null;
   is_deleted: boolean;
@@ -181,7 +189,7 @@ export function useSendMessage() {
     }: {
       conversationId: string;
       content?: string;
-      messageType?: 'text' | 'anime_card' | 'recommendation' | 'image' | 'system';
+      messageType?: 'text' | 'anime_card' | 'recommendation' | 'image' | 'system' | 'list_card';
       metadata?: Record<string, any>;
       replyTo?: string;
     }) => {
@@ -224,7 +232,7 @@ export function useSendMessage() {
         conversation_id: variables.conversationId,
         sender_id: user.id,
         content: variables.content || null,
-        message_type: (variables.messageType || 'text') as 'text' | 'anime_card' | 'recommendation' | 'image' | 'system',
+        message_type: (variables.messageType || 'text') as 'text' | 'anime_card' | 'recommendation' | 'image' | 'system' | 'list_card',
         metadata: variables.metadata || {},
         reply_to: variables.replyTo || null,
         is_deleted: false,
@@ -342,6 +350,46 @@ export function useSendRecommendationInChat() {
           mal_id: anime.mal_id,
           title: anime.title,
           image_url: anime.image_url,
+        },
+      });
+    },
+  });
+}
+
+// Hook para enviar card de lista no chat
+export function useSendListCard() {
+  const sendMessage = useSendMessage();
+
+  return useMutation({
+    mutationFn: async ({
+      conversationId,
+      list,
+      message,
+    }: {
+      conversationId: string;
+      list: {
+        id: string;
+        name: string;
+        description: string | null;
+        is_public: boolean;
+        item_count: number;
+        cover_images: string[];
+        owner_id: string;
+      };
+      message?: string;
+    }) => {
+      return sendMessage.mutateAsync({
+        conversationId,
+        content: message || `Confira minha lista: ${list.name}`,
+        messageType: 'list_card',
+        metadata: {
+          list_id: list.id,
+          list_name: list.name,
+          list_description: list.description || undefined,
+          list_is_public: list.is_public,
+          list_item_count: list.item_count,
+          list_cover_images: list.cover_images,
+          list_owner_id: list.owner_id,
         },
       });
     },

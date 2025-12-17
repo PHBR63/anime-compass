@@ -1,5 +1,11 @@
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CountUp } from '@/components/animations';
+
+/**
+ * Card de estatística do dashboard
+ * Otimizado com animação CountUp para números
+ */
 
 interface StatCardProps {
   label: string;
@@ -12,11 +18,10 @@ interface StatCardProps {
   className?: string;
 }
 
-/**
- * Card de estatística do dashboard
- * Otimizado para diferentes tamanhos de tela
- */
 export function StatCard({ label, value, icon: Icon, trend, className }: StatCardProps) {
+  // Verifica se o valor é numérico para usar CountUp
+  const isNumeric = typeof value === 'number';
+  
   return (
     <div className={cn("stat-card animate-fade-in p-4 md:p-6", className)}>
       <div className="flex items-center justify-between">
@@ -27,7 +32,17 @@ export function StatCard({ label, value, icon: Icon, trend, className }: StatCar
       </div>
       
       <div className="flex items-end justify-between mt-1.5 md:mt-2">
-        <span className="stat-value text-xl md:text-3xl">{value}</span>
+        <span className="stat-value text-xl md:text-3xl">
+          {isNumeric ? (
+            <CountUp 
+              end={value as number} 
+              duration={1.5} 
+              separator="."
+            />
+          ) : (
+            value
+          )}
+        </span>
         
         {trend && (
           <span className={cn(

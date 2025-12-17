@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Play, Sparkles, Tv, Clock, Trophy, Film } from 'lucide-react';
 import { useGlobalStats, formatNumber } from '@/hooks/useGlobalStats';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SplitText, AnimatedContent } from '@/components/animations';
+import { SplitText, AnimatedContent, ShinyText, CountUp } from '@/components/animations';
 
 /**
  * Seção Hero da landing page
@@ -51,11 +51,13 @@ export const HeroSection = () => {
       </div>
 
       <div className="container mx-auto text-center">
-        {/* Badge com AnimatedContent */}
+        {/* Badge com AnimatedContent e ShinyText */}
         <AnimatedContent direction="down" delay={0} duration={0.5}>
           <div className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-primary/10 border border-primary/20 mb-6 md:mb-8">
             <Sparkles className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" />
-            <span className="text-xs md:text-sm text-primary font-medium">Organize sua jornada anime</span>
+            <ShinyText className="text-xs md:text-sm text-primary font-medium">
+              Organize sua jornada anime
+            </ShinyText>
           </div>
         </AnimatedContent>
 

@@ -16,6 +16,7 @@ import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import PublicListView from "./pages/PublicListView";
 import PublicProfilePage from "./pages/PublicProfilePage";
+import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 
 /**
@@ -70,6 +71,7 @@ const App = () => (
                         <Route path="/list" element={<MyList />} />
                         <Route path="/discover" element={<Discover />} />
                         <Route path="/social" element={<Social />} />
+                        <Route path="/chat" element={<Chat />} />
                         <Route path="/achievements" element={<Achievements />} />
                         <Route path="/profile" element={<Profile />} />
                         <Route path="*" element={<NotFound />} />

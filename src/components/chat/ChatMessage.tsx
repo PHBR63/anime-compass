@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { 
   DropdownMenu,
   DropdownMenuContent, 
@@ -13,9 +15,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { MoreVertical, Trash2, Reply, Star, ExternalLink, SmilePlus, Check, CheckCheck } from 'lucide-react';
+import { MoreVertical, Trash2, Reply, Star, ExternalLink, SmilePlus, Check, CheckCheck, Globe, Lock, List } from 'lucide-react';
 import { ChatMessageWithSender } from '@/hooks/useChatMessages';
 import { useMessageReactions, useToggleReaction, REACTION_TYPES, ReactionType } from '@/hooks/useChatReactions';
+import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -42,7 +45,9 @@ export default function ChatMessage({
 }: ChatMessageProps) {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const { data: reactions } = useMessageReactions(message.id);
+  const { user } = useAuth();
   const toggleReaction = useToggleReaction();
+  const navigate = useNavigate();
 
   // Formatar hora da mensagem
   const time = format(new Date(message.created_at), 'HH:mm', { locale: ptBR });
@@ -69,6 +74,8 @@ export default function ChatMessage({
         return renderAnimeCard();
       case 'recommendation':
         return renderRecommendation();
+      case 'list_card':
+        return renderListCard();
       case 'system':
         return renderSystemMessage();
       default:
@@ -178,6 +185,104 @@ export default function ChatMessage({
       </p>
     </div>
   );
+
+  // Card de lista compartilhada
+  const renderListCard = () => {
+    const { list_id, list_name, list_description, list_is_public, list_item_count, list_cover_images, list_owner_id } = message.metadata;
+    
+    // Verificar se pode ver a lista
+    const canViewList = list_is_public || list_owner_id === user?.id;
+    
+    // Navegar para a lista
+    const handleViewList = () => {
+      if (canViewList && list_id) {
+        navigate(`/lists/${list_id}`);
+      }
+    };
+    
+    return (
+      <Card className="overflow-hidden max-w-xs border-secondary/30 bg-secondary/5">
+        {/* Header */}
+        <div className="p-2 bg-secondary/10 border-b border-secondary/20">
+          <p className="text-xs font-medium flex items-center gap-1">
+            <List className="h-3 w-3 text-secondary-foreground" />
+            Lista Compartilhada
+          </p>
+        </div>
+        
+        {/* Collage de imagens */}
+        {list_cover_images && list_cover_images.length > 0 ? (
+          <div className="grid grid-cols-2 h-24">
+            {list_cover_images.slice(0, 4).map((img, i) => (
+              <img
+                key={i}
+                src={img}
+                alt=""
+                className="w-full h-12 object-cover"
+              />
+            ))}
+            {Array.from({ length: Math.max(0, 4 - list_cover_images.length) }).map((_, i) => (
+              <div key={`empty-${i}`} className="bg-muted h-12" />
+            ))}
+          </div>
+        ) : (
+          <div className="h-24 bg-muted flex items-center justify-center">
+            <List className="h-8 w-8 text-muted-foreground/30" />
+          </div>
+        )}
+        
+        {/* Conteúdo */}
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2 mb-1">
+            <h4 className="font-medium text-sm truncate flex-1">
+              {list_name}
+            </h4>
+            <Badge variant="secondary" className="text-[10px] shrink-0">
+              {list_is_public ? (
+                <Globe className="h-2.5 w-2.5 mr-1" />
+              ) : (
+                <Lock className="h-2.5 w-2.5 mr-1" />
+              )}
+              {list_is_public ? 'Pública' : 'Privada'}
+            </Badge>
+          </div>
+          
+          <p className="text-xs text-muted-foreground mb-1">
+            {list_item_count} {list_item_count === 1 ? 'anime' : 'animes'}
+          </p>
+          
+          {list_description && (
+            <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+              {list_description}
+            </p>
+          )}
+          
+          {/* Mensagem personalizada */}
+          {message.content && !message.content.startsWith('Confira minha lista:') && (
+            <p className="text-xs text-muted-foreground italic mb-2">
+              "{message.content}"
+            </p>
+          )}
+          
+          {canViewList ? (
+            <Button
+              variant="link"
+              size="sm"
+              className="p-0 h-auto text-xs"
+              onClick={handleViewList}
+            >
+              <ExternalLink className="h-3 w-3 mr-1" />
+              Ver lista
+            </Button>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">
+              Lista privada
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
 
   // Renderizar reações
   const renderReactions = () => {

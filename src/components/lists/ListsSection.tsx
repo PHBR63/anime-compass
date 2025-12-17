@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Plus, ChevronRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -13,10 +14,29 @@ import type { CustomList } from '@/hooks/useCustomLists';
  * Seção de listas personalizadas na página MyList
  */
 export function ListsSection() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedList, setSelectedList] = useState<CustomList | null>(null);
 
   const { data: lists, isLoading } = useCustomLists();
+
+  // Abrir automaticamente uma lista quando vier de outra tela (ex: card do chat)
+  useEffect(() => {
+    const openListId = (location.state as any)?.openListId as string | undefined;
+    if (!openListId) return;
+    if (!lists?.length) return;
+    if (selectedList) return;
+
+    const found = lists.find(l => l.id === openListId);
+    if (found) {
+      setSelectedList(found);
+    }
+
+    // Limpa o state para não reabrir em refresh/navegações futuras
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [lists, selectedList, location.state, location.pathname, navigate]);
+
 
   // Se uma lista está selecionada, mostrar a view de detalhes
   if (selectedList) {

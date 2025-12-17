@@ -189,17 +189,27 @@ export default function ChatMessage({
   // Card de lista compartilhada
   const renderListCard = () => {
     const { list_id, list_name, list_description, list_is_public, list_item_count, list_cover_images, list_owner_id } = message.metadata;
-    
+
     // Verificar se pode ver a lista
     const canViewList = list_is_public || list_owner_id === user?.id;
-    
-    // Navegar para a lista
+
+    /**
+     * Navegar para a lista:
+     * - Lista pública: abre a página pública (/shared/list/:id)
+     * - Lista privada do próprio usuário: vai para /list e abre a lista automaticamente
+     */
     const handleViewList = () => {
-      if (canViewList && list_id) {
-        navigate(`/lists/${list_id}`);
+      if (!canViewList || !list_id) return;
+
+      if (list_is_public) {
+        navigate(`/shared/list/${list_id}`);
+        return;
       }
+
+      // Lista privada (somente dono)
+      navigate('/list', { state: { openListId: list_id } });
     };
-    
+
     return (
       <Card className="overflow-hidden max-w-xs border-secondary/30 bg-secondary/5">
         {/* Header */}

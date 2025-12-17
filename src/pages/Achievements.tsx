@@ -1,11 +1,14 @@
-import { Trophy, Lock, Star, Film, Clock, Heart, Zap, Users, BookOpen, List, CheckCircle, Award, Medal, Crown, Sparkles, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import { Trophy, Lock, Star, Film, Clock, Heart, Zap, Users, BookOpen, List, CheckCircle, Award, Medal, Crown, Sparkles, RefreshCw, Loader2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAchievements, type AchievementWithStatus } from '@/hooks/useAchievements';
 import { ParticlesBackground } from '@/components/backgrounds';
-
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 // Mapeamento de ícones por código da conquista
 const iconMap: Record<string, React.ElementType> = {
   first_anime: Star,
@@ -139,11 +142,44 @@ function AchievementSkeleton() {
 
 export default function Achievements() {
   const { data: achievements, isLoading, refetch } = useAchievements();
+  const { user } = useAuth();
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Calcular estatísticas
   const unlockedCount = achievements?.filter(a => a.unlocked).length || 0;
   const totalCount = achievements?.length || 0;
   const progressPercent = totalCount > 0 ? (unlockedCount / totalCount) * 100 : 0;
+
+  // Função para sincronizar conquistas pendentes
+  const syncAchievements = async () => {
+    if (!user) return;
+    
+    setIsSyncing(true);
+    try {
+      const { error } = await supabase.rpc('check_and_unlock_achievements', {
+        p_user_id: user.id
+      });
+      
+      if (error) throw error;
+      
+      // Recarrega os dados após sincronização
+      await refetch();
+      
+      toast({
+        title: "Conquistas sincronizadas!",
+        description: "Suas conquistas foram verificadas e atualizadas.",
+      });
+    } catch (error) {
+      console.error('Erro ao sincronizar conquistas:', error);
+      toast({
+        title: "Erro ao sincronizar",
+        description: "Não foi possível verificar suas conquistas.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Agrupar conquistas por categoria
   const groupedAchievements = achievements?.reduce((acc, achievement) => {
@@ -177,7 +213,21 @@ export default function Achievements() {
           </p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <Button
+            variant="outline"
+            onClick={syncAchievements}
+            disabled={isSyncing || isLoading || !user}
+            className="gap-2"
+          >
+            {isSyncing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4" />
+            )}
+            <span className="hidden sm:inline">Sincronizar</span>
+          </Button>
+          
           <Button
             variant="outline"
             size="icon"
@@ -187,15 +237,15 @@ export default function Achievements() {
             <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
           </Button>
           
-          <div className="glass-card px-6 py-3 flex items-center gap-3">
-            <Trophy className="h-6 w-6 text-warning" />
+          <div className="glass-card px-4 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-3">
+            <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-warning" />
             <div>
               {isLoading ? (
-                <Skeleton className="h-7 w-10" />
+                <Skeleton className="h-6 sm:h-7 w-10" />
               ) : (
-                <p className="text-2xl font-bold text-gradient">{unlockedCount}</p>
+                <p className="text-xl sm:text-2xl font-bold text-gradient">{unlockedCount}</p>
               )}
-              <p className="text-xs text-muted-foreground">de {totalCount}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">de {totalCount}</p>
             </div>
           </div>
         </div>

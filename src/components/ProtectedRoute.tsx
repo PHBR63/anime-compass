@@ -1,13 +1,22 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useSessionCheck } from '@/hooks/useSessionCheck';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
+/**
+ * Componente que protege rotas autenticadas.
+ * Redireciona para /auth se não houver usuário logado.
+ * Verifica automaticamente se a sessão expirou.
+ */
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   const location = useLocation();
+
+  // Verifica sessão automaticamente e redireciona se expirar
+  useSessionCheck();
 
   if (loading) {
     return (

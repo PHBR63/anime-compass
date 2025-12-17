@@ -5,7 +5,8 @@ import {
   Star, 
   TrendingUp,
   Sparkles,
-  Plus
+  Plus,
+  LayoutDashboard
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -13,14 +14,15 @@ import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { DetailedStatsCard } from '@/components/dashboard/DetailedStatsCard';
 import { AnimeCard } from '@/components/anime/AnimeCard';
 import { RecommendationsSection } from '@/components/anime/RecommendationsSection';
+import { SessionExpiredCard, isSessionExpiredError } from '@/components/ui/SessionExpiredCard';
 import { Button } from '@/components/ui/button';
 import { useAnimeEntries, useUserStats } from '@/hooks/useAnimeEntries';
 import { useProfile } from '@/hooks/useProfile';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
-  const { data: entries, isLoading: entriesLoading } = useAnimeEntries('watching');
-  const { data: stats, isLoading: statsLoading } = useUserStats();
+  const { data: entries, isLoading: entriesLoading, error: entriesError } = useAnimeEntries('watching');
+  const { data: stats, isLoading: statsLoading, error: statsError } = useUserStats();
   const { data: profile } = useProfile();
   
   // Formata tempo total baseado em episódios assistidos
@@ -33,6 +35,19 @@ export default function Dashboard() {
   };
 
   const isLoading = entriesLoading || statsLoading;
+
+  // Verifica se há erro de sessão expirada
+  if (isSessionExpiredError(entriesError) || isSessionExpiredError(statsError)) {
+    return (
+      <div className="space-y-6 md:space-y-8 pt-14 md:pt-0">
+        <SessionExpiredCard 
+          title="Dashboard"
+          icon={<LayoutDashboard className="h-5 w-5 text-primary" />}
+          message="Sua sessão expirou. Faça login novamente para acessar seu dashboard."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 md:space-y-8 pt-14 md:pt-0">

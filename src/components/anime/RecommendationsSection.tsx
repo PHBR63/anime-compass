@@ -1,19 +1,18 @@
 import { useState } from 'react';
-import { Sparkles, Star, Plus, Check, Loader2, RefreshCw, LogIn } from 'lucide-react';
+import { Sparkles, Star, Plus, Check, Loader2, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SessionExpiredCard, isSessionExpiredError } from '@/components/ui/SessionExpiredCard';
 import { useRecommendations, RecommendedAnime } from '@/hooks/useRecommendations';
 import { useAddAnimeEntry, useAnimeEntries } from '@/hooks/useAnimeEntries';
 import { AnimeDetailModal } from './AnimeDetailModal';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 
 // Seção de recomendações personalizadas baseadas nos gêneros do usuário
 export function RecommendationsSection() {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const { data, isLoading, error, refetch, isFetching } = useRecommendations();
   const { data: userEntries } = useAnimeEntries();
   const addEntry = useAddAnimeEntry();
@@ -52,34 +51,14 @@ export function RecommendationsSection() {
     toast.info('Atualizando recomendações...');
   };
 
-  // Verifica se é erro de sessão expirada
-  const isSessionError = error?.message?.includes('Sessão expirada') || 
-                         error?.message?.includes('login novamente') ||
-                         error?.message?.includes('401');
-
   // Exibe card de sessão expirada
-  if (error && isSessionError) {
+  if (isSessionExpiredError(error)) {
     return (
-      <section className="glass-card p-4 md:p-6 rounded-xl border border-destructive/20 bg-destructive/5">
-        <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="h-4 w-4 md:h-5 md:w-5 text-warning" />
-          <h2 className="font-display text-lg md:text-xl font-semibold">Recomendações Para Você</h2>
-        </div>
-        <div className="flex flex-col items-center gap-4 py-6 md:py-8">
-          <div className="text-center">
-            <p className="text-muted-foreground text-sm md:text-base mb-2">
-              Sua sessão expirou. Faça login novamente para ver suas recomendações personalizadas.
-            </p>
-          </div>
-          <Button 
-            onClick={() => navigate('/auth')}
-            className="gap-2"
-          >
-            <LogIn className="h-4 w-4" />
-            Fazer login novamente
-          </Button>
-        </div>
-      </section>
+      <SessionExpiredCard
+        title="Recomendações Para Você"
+        icon={<Sparkles className="h-4 w-4 md:h-5 md:w-5 text-warning" />}
+        message="Sua sessão expirou. Faça login novamente para ver suas recomendações personalizadas."
+      />
     );
   }
 

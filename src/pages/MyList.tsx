@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Grid, List as ListIcon, Plus, Edit, X } from 'lucide-react';
+import { Search, Grid, List as ListIcon, Plus, Edit, X, ListChecks } from 'lucide-react';
 import { SelectableAnimeGrid } from '@/components/anime/SelectableAnimeGrid';
 import { AnimeListItem } from '@/components/anime/AnimeListItem';
 import { BulkActionsBar } from '@/components/anime/BulkActionsBar';
 import { StatusFilter } from '@/components/anime/StatusFilter';
 import { AdvancedFilters, FilterOptions, SortOptions, SortOption } from '@/components/anime/AdvancedFilters';
 import { ListsSection } from '@/components/lists/ListsSection';
+import { SessionExpiredCard, isSessionExpiredError } from '@/components/ui/SessionExpiredCard';
 import { useAnimeEntries } from '@/hooks/useAnimeEntries';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -38,7 +39,7 @@ export default function MyList() {
   const [filters, setFilters] = useState<FilterOptions>(defaultFilters);
   const [sort, setSort] = useState<SortOptions>(defaultSort);
   
-  const { data: entries, isLoading } = useAnimeEntries();
+  const { data: entries, isLoading, error } = useAnimeEntries();
 
   // Filtrar e ordenar entradas
   const filteredEntries = useMemo(() => {
@@ -161,6 +162,19 @@ export default function MyList() {
       setIsSelectionMode(true);
     }
   };
+
+  // Verifica se há erro de sessão expirada
+  if (isSessionExpiredError(error)) {
+    return (
+      <div className="space-y-6 pt-12 md:pt-0 pb-24">
+        <SessionExpiredCard 
+          title="Minha Lista"
+          icon={<ListChecks className="h-5 w-5 text-primary" />}
+          message="Sua sessão expirou. Faça login novamente para acessar sua lista de animes."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pt-12 md:pt-0 pb-24">

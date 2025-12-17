@@ -15,6 +15,7 @@ import Achievements from "./pages/Achievements";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import PublicListView from "./pages/PublicListView";
+import PublicProfilePage from "./pages/PublicProfilePage";
 import NotFound from "./pages/NotFound";
 
 /**
@@ -52,6 +53,7 @@ const App = () => (
           <Routes>
             {/* Rotas públicas */}
             <Route path="/auth" element={<Auth />} />
+            <Route path="/u/:username" element={<PublicProfilePage />} />
             <Route path="/shared/list/:listId" element={<PublicListView />} />
             
             {/* Rota pública - Landing/Dashboard */}

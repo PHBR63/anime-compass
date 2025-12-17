@@ -2,6 +2,7 @@ import { FindFriendsModal } from '@/components/social/FindFriendsModal';
 import { PendingRequests } from '@/components/social/PendingRequests';
 import { FriendsList } from '@/components/social/FriendsList';
 import { ActivityFeed } from '@/components/social/ActivityFeed';
+import { ReceivedRecommendations } from '@/components/social/ReceivedRecommendations';
 
 // Página social com sistema completo de amizades e feed de atividades
 export default function Social() {
@@ -23,6 +24,9 @@ export default function Social() {
 
       {/* Pedidos pendentes */}
       <PendingRequests />
+
+      {/* Recomendações recebidas */}
+      <ReceivedRecommendations />
 
       {/* Grid principal */}
       <div className="grid lg:grid-cols-3 gap-6">

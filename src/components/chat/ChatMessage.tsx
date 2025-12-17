@@ -196,7 +196,7 @@ export default function ChatMessage({
     /**
      * Navegar para a lista:
      * - Lista pública: abre a página pública (/shared/list/:id)
-     * - Lista privada do próprio usuário: vai para /list e abre a lista automaticamente
+     * - Lista privada do próprio usuário: vai para a rota protegida /list/:id
      */
     const handleViewList = () => {
       if (!canViewList || !list_id) return;
@@ -206,8 +206,8 @@ export default function ChatMessage({
         return;
       }
 
-      // Lista privada (somente dono)
-      navigate('/list', { state: { openListId: list_id } });
+      // Lista privada (somente dono) - usa rota protegida
+      navigate(`/list/${list_id}`);
     };
 
     return (

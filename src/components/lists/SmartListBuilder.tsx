@@ -276,7 +276,8 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
     }
   };
 
-  const hasFilters = selectedStatuses.length > 0 || minRating > 0 || onlyFavorites || franchiseCriteria;
+  // Considera que há filtros ativos se há animes disponíveis ou se algum critério específico foi definido
+  const hasFilters = filteredEntries.length > 0 || selectedStatuses.length > 0 || minRating > 0 || onlyFavorites || franchiseCriteria || selectedTypes.size < 4;
 
   return (
     <div className="space-y-4">

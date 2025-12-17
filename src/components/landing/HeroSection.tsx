@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Play, Sparkles, Tv, Clock, Trophy, Film } from 'lucide-react';
 import { useGlobalStats, formatNumber } from '@/hooks/useGlobalStats';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SplitText, AnimatedContent, ShinyText, CountUp } from '@/components/animations';
+import { SplitText, AnimatedContent, ShinyText, MagneticButton, SpotlightCard } from '@/components/animations';
 
 /**
  * Seção Hero da landing page
@@ -95,18 +95,22 @@ export const HeroSection = () => {
         {/* CTAs com AnimatedContent */}
         <AnimatedContent direction="up" delay={0.9} duration={0.5}>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4">
-            <Button size="lg" variant="glow" asChild className="w-full sm:w-auto">
-              <Link to="/auth" className="gap-2">
-                <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
-                Começar Grátis
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
-              <Link to="/auth" className="gap-2">
-                <Play className="w-4 h-4 md:w-5 md:h-5" />
-                Fazer Login
-              </Link>
-            </Button>
+            <MagneticButton strength={0.4} radius={120}>
+              <Button size="lg" variant="glow" asChild className="w-full sm:w-auto">
+                <Link to="/auth" className="gap-2">
+                  <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
+                  Começar Grátis
+                </Link>
+              </Button>
+            </MagneticButton>
+            <MagneticButton strength={0.4} radius={120}>
+              <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
+                <Link to="/auth" className="gap-2">
+                  <Play className="w-4 h-4 md:w-5 md:h-5" />
+                  Fazer Login
+                </Link>
+              </Button>
+            </MagneticButton>
           </div>
         </AnimatedContent>
 
@@ -117,32 +121,38 @@ export const HeroSection = () => {
               {/* Glow effect */}
               <div className="absolute -inset-2 md:-inset-4 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 rounded-xl md:rounded-2xl blur-xl md:blur-2xl" />
               
-              {/* Card preview com estatísticas reais */}
-              <div className="relative bg-card/80 backdrop-blur-xl border border-border/50 rounded-xl md:rounded-2xl p-4 md:p-6 shadow-2xl">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
-                  {statsConfig.map((stat, i) => {
-                    const Icon = stat.icon;
-                    return (
-                      <div 
-                        key={i} 
-                        className="bg-background/50 rounded-lg md:rounded-xl p-3 md:p-4 text-center group hover:bg-background/70 transition-colors"
-                      >
-                        <div className="flex items-center justify-center mb-1 md:mb-2">
-                          <Icon className="w-4 h-4 md:w-5 md:h-5 text-primary/60 group-hover:text-primary transition-colors" />
+              {/* Card preview com estatísticas reais e SpotlightCard */}
+              <SpotlightCard 
+                className="bg-card/80 backdrop-blur-xl border border-border/50 shadow-2xl"
+                spotlightColor="rgba(139, 92, 246, 0.12)"
+                spotlightSize={350}
+              >
+                <div className="p-4 md:p-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+                    {statsConfig.map((stat, i) => {
+                      const Icon = stat.icon;
+                      return (
+                        <div 
+                          key={i} 
+                          className="bg-background/50 rounded-lg md:rounded-xl p-3 md:p-4 text-center group hover:bg-background/70 transition-colors"
+                        >
+                          <div className="flex items-center justify-center mb-1 md:mb-2">
+                            <Icon className="w-4 h-4 md:w-5 md:h-5 text-primary/60 group-hover:text-primary transition-colors" />
+                          </div>
+                          {isLoading ? (
+                            <Skeleton className="h-7 md:h-9 w-16 md:w-20 mx-auto mb-1" />
+                          ) : (
+                            <p className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">
+                              {formatNumber(stat.value)}
+                            </p>
+                          )}
+                          <p className="text-xs md:text-sm text-muted-foreground">{stat.label}</p>
                         </div>
-                        {isLoading ? (
-                          <Skeleton className="h-7 md:h-9 w-16 md:w-20 mx-auto mb-1" />
-                        ) : (
-                          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">
-                            {formatNumber(stat.value)}
-                          </p>
-                        )}
-                        <p className="text-xs md:text-sm text-muted-foreground">{stat.label}</p>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              </SpotlightCard>
             </div>
           </div>
         </AnimatedContent>

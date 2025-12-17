@@ -13,5 +13,9 @@ export { CountUp } from './CountUp';
 export { AnimatedContent } from './AnimatedContent';
 export { AnimatedList } from './AnimatedList';
 
+// Animações interativas
+export { MagneticButton } from './MagneticButton';
+export { SpotlightCard } from './SpotlightCard';
+
 // Re-exporta backgrounds para conveniência
 export { AuroraBackground, BeamsBackground, FloatingLines } from '../backgrounds';

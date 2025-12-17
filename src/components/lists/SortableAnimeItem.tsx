@@ -106,7 +106,7 @@ export const SortableAnimeItem = forwardRef<HTMLDivElement, SortableAnimeItemPro
               const colors = statusColors[anime.status];
               return (
                 <span className={cn(
-                  "inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-bold rounded-full border",
+                  "inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-bold rounded-full border shadow-md",
                   colors.bg, colors.text, colors.border
                 )}>
                   <StatusIcon className={cn(

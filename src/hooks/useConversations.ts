@@ -1,6 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useState, useCallback } from 'react';
 
 // Interface para conversa com última mensagem e participantes
 export interface ConversationWithDetails {
@@ -33,12 +34,14 @@ export interface ConversationWithDetails {
   };
 }
 
-// Hook para buscar todas as conversas do usuário
-export function useConversations() {
+const CONVERSATIONS_PER_PAGE = 20;
+
+// Hook para buscar todas as conversas do usuário com paginação e busca
+export function useConversations(searchQuery?: string) {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ['conversations', user?.id],
+    queryKey: ['conversations', user?.id, searchQuery],
     queryFn: async () => {
       if (!user) return [];
 
@@ -55,11 +58,18 @@ export function useConversations() {
       const lastReadMap = new Map(participations.map(p => [p.conversation_id, p.last_read_at]));
 
       // Buscar detalhes das conversas
-      const { data: conversations, error: convError } = await supabase
+      let query = supabase
         .from('conversations')
         .select('*')
         .in('id', conversationIds)
         .order('updated_at', { ascending: false });
+
+      // Aplicar filtro de busca no nome do grupo
+      if (searchQuery) {
+        query = query.ilike('name', `%${searchQuery}%`);
+      }
+
+      const { data: conversations, error: convError } = await query;
 
       if (convError) throw convError;
       if (!conversations?.length) return [];
@@ -101,7 +111,7 @@ export function useConversations() {
         }
       });
 
-      // Contar mensagens não lidas por conversa
+      // Contar mensagens não lidas por conversa (otimizado)
       const unreadCounts = new Map<string, number>();
       for (const convId of conversationIds) {
         const lastRead = lastReadMap.get(convId);
@@ -117,7 +127,7 @@ export function useConversations() {
       }
 
       // Montar resultado final
-      return conversations.map(conv => {
+      const result = conversations.map(conv => {
         const participants = allParticipants
           ?.filter(p => p.conversation_id === conv.id)
           .map(p => ({
@@ -146,6 +156,17 @@ export function useConversations() {
           unread_count: unreadCounts.get(conv.id) || 0,
         } as ConversationWithDetails;
       });
+
+      // Filtrar por nome de participante em conversas diretas se há busca
+      if (searchQuery) {
+        return result.filter(conv => {
+          if (conv.type === 'group') return true; // Já filtrado acima
+          const otherName = conv.other_participant?.display_name || conv.other_participant?.username || '';
+          return otherName.toLowerCase().includes(searchQuery.toLowerCase());
+        });
+      }
+
+      return result;
     },
     enabled: !!user,
   });

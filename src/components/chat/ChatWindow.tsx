@@ -7,8 +7,6 @@ import {
   ArrowLeft, 
   Users, 
   Info,
-  Trash2,
-  Reply,
   X
 } from 'lucide-react';
 import {
@@ -19,12 +17,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ConversationWithDetails } from '@/hooks/useConversations';
 import { ChatMessageWithSender, useDeleteMessage } from '@/hooks/useChatMessages';
+import { useChatPresence } from '@/hooks/useChatPresence';
 import { useAuth } from '@/hooks/useAuth';
 import ChatInput from './ChatInput';
 import ChatMessage from './ChatMessage';
 import GroupSettingsDrawer from './GroupSettingsDrawer';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { Reply } from 'lucide-react';
 
 interface ChatWindowProps {
   conversation: ConversationWithDetails | null;
@@ -51,6 +49,28 @@ export default function ChatWindow({
   const [showGroupSettings, setShowGroupSettings] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessageWithSender | null>(null);
   const deleteMessage = useDeleteMessage();
+  
+  // Hook de presença para status online e digitando
+  const { isUserOnline, getTypingUserIds, setTyping } = useChatPresence(conversation?.id || null);
+
+  // IDs dos usuários que estão digitando (exceto o usuário atual)
+  const typingUserIds = getTypingUserIds();
+
+  // Obter nomes dos usuários que estão digitando
+  const getTypingUsersText = () => {
+    if (!conversation || typingUserIds.length === 0) return null;
+    
+    const typingParticipants = conversation.participants
+      .filter(p => typingUserIds.includes(p.user_id))
+      .map(p => p.display_name || p.username || 'Alguém');
+    
+    if (typingParticipants.length === 0) return null;
+    if (typingParticipants.length === 1) return `${typingParticipants[0]} está digitando...`;
+    if (typingParticipants.length === 2) return `${typingParticipants.join(' e ')} estão digitando...`;
+    return `${typingParticipants.slice(0, 2).join(', ')} e outros estão digitando...`;
+  };
+
+  const typingText = getTypingUsersText();
 
   // Auto-scroll para última mensagem
   useEffect(() => {
@@ -89,6 +109,11 @@ export default function ChatWindow({
     return conversationName.substring(0, 2).toUpperCase();
   };
 
+  // Verificar se o outro usuário está online (para chats diretos)
+  const otherUserOnline = conversation.type === 'direct' && 
+    conversation.other_participant && 
+    isUserOnline(conversation.other_participant.user_id);
+
   // Agrupar mensagens por data
   const groupedMessages = messages.reduce((groups, message) => {
     const date = new Date(message.created_at).toLocaleDateString('pt-BR');
@@ -114,6 +139,11 @@ export default function ChatWindow({
     setReplyingTo(null);
   };
 
+  // Callback para indicar digitando
+  const handleTypingChange = (isTyping: boolean) => {
+    setTyping(isTyping);
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-background">
       {/* Header */}
@@ -126,21 +156,33 @@ export default function ChatWindow({
         )}
 
         {/* Avatar */}
-        <Avatar className="h-10 w-10">
-          <AvatarImage src={conversationAvatar || undefined} />
-          <AvatarFallback className={conversation.type === 'group' ? 'bg-primary/20' : ''}>
-            {conversation.type === 'group' ? <Users className="h-4 w-4" /> : getInitials()}
-          </AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={conversationAvatar || undefined} />
+            <AvatarFallback className={conversation.type === 'group' ? 'bg-primary/20' : ''}>
+              {conversation.type === 'group' ? <Users className="h-4 w-4" /> : getInitials()}
+            </AvatarFallback>
+          </Avatar>
+          {/* Indicador online */}
+          {otherUserOnline && (
+            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
+          )}
+        </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
           <h3 className="font-medium truncate">{conversationName}</h3>
-          {conversation.type === 'group' && (
-            <p className="text-xs text-muted-foreground">
-              {conversation.participants.length} membros
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground">
+            {typingText ? (
+              <span className="text-primary animate-pulse">{typingText}</span>
+            ) : conversation.type === 'group' ? (
+              `${conversation.participants.length} membros`
+            ) : otherUserOnline ? (
+              <span className="text-green-500">Online</span>
+            ) : (
+              'Offline'
+            )}
+          </p>
         </div>
 
         {/* Menu de opções */}
@@ -235,6 +277,7 @@ export default function ChatWindow({
         onSendRecommendation={onSendRecommendation}
         conversationId={conversation.id}
         recipientId={conversation.type === 'direct' ? conversation.other_participant?.user_id : undefined}
+        onTypingChange={handleTypingChange}
       />
 
       {/* Drawer de configurações do grupo */}

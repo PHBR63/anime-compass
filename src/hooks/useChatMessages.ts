@@ -34,7 +34,9 @@ export interface ChatMessageWithSender {
   };
 }
 
-// Hook para buscar mensagens de uma conversa
+const MESSAGES_PER_PAGE = 50;
+
+// Hook para buscar mensagens de uma conversa com paginação
 export function useChatMessages(conversationId: string | null) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -44,18 +46,22 @@ export function useChatMessages(conversationId: string | null) {
     queryFn: async () => {
       if (!conversationId || !user) return [];
 
-      // Buscar mensagens
+      // Buscar mensagens (últimas 50 por padrão)
       const { data: messages, error } = await supabase
         .from('chat_messages')
         .select('*')
         .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false })
+        .limit(MESSAGES_PER_PAGE);
 
       if (error) throw error;
       if (!messages?.length) return [];
 
+      // Inverter para ordem cronológica
+      const orderedMessages = messages.reverse();
+
       // Buscar perfis dos remetentes
-      const senderIds = [...new Set(messages.map(m => m.sender_id))];
+      const senderIds = [...new Set(orderedMessages.map(m => m.sender_id))];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, username, display_name, avatar_url')
@@ -64,7 +70,7 @@ export function useChatMessages(conversationId: string | null) {
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
       // Buscar mensagens respondidas
-      const replyIds = messages.filter(m => m.reply_to).map(m => m.reply_to);
+      const replyIds = orderedMessages.filter(m => m.reply_to).map(m => m.reply_to);
       let repliedMessages = new Map();
       
       if (replyIds.length) {
@@ -83,7 +89,7 @@ export function useChatMessages(conversationId: string | null) {
       }
 
       // Montar resultado
-      return messages.map(msg => ({
+      return orderedMessages.map(msg => ({
         ...msg,
         metadata: msg.metadata || {},
         sender: profileMap.get(msg.sender_id) || {
@@ -126,6 +132,38 @@ export function useChatMessages(conversationId: string | null) {
   }, [conversationId, user, queryClient]);
 
   return query;
+}
+
+// Hook para carregar mais mensagens antigas
+export function useLoadMoreMessages(conversationId: string | null) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (beforeDate: string) => {
+      if (!conversationId || !user) return [];
+
+      const { data: messages, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .lt('created_at', beforeDate)
+        .order('created_at', { ascending: false })
+        .limit(MESSAGES_PER_PAGE);
+
+      if (error) throw error;
+      return messages?.reverse() || [];
+    },
+    onSuccess: (newMessages) => {
+      if (!conversationId || newMessages.length === 0) return;
+
+      // Adicionar mensagens antigas ao cache existente
+      queryClient.setQueryData(['chatMessages', conversationId], (oldData: ChatMessageWithSender[] | undefined) => {
+        if (!oldData) return newMessages;
+        return [...newMessages, ...oldData];
+      });
+    },
+  });
 }
 
 // Hook para enviar mensagem

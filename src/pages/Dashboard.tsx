@@ -89,20 +89,19 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Estatísticas Detalhadas e Atividade Recente */}
-      <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
-        {isLoading ? (
-          <>
-            <Skeleton className="h-80 rounded-xl" />
-            <Skeleton className="h-80 rounded-xl" />
-          </>
-        ) : (
-          <>
-            <DetailedStatsCard />
-            <RecentActivity />
-          </>
-        )}
-      </div>
+      {/* Estatísticas Detalhadas - Largura total */}
+      {isLoading ? (
+        <Skeleton className="h-80 rounded-xl" />
+      ) : (
+        <DetailedStatsCard />
+      )}
+
+      {/* Atividade Recente */}
+      {isLoading ? (
+        <Skeleton className="h-80 rounded-xl" />
+      ) : (
+        <RecentActivity />
+      )}
 
       {/* Recomendações Personalizadas */}
       <RecommendationsSection />

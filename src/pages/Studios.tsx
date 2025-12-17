@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAnimeEntries } from "@/hooks/useAnimeEntries";
 import { useQuery } from "@tanstack/react-query";
@@ -32,10 +32,14 @@ import {
   Trophy,
   TrendingUp,
   Home,
-  List
+  List,
+  Loader2
 } from "lucide-react";
 import { fetchWithRateLimit } from "@/lib/jikanRateLimiter";
 import { jikanCache, cacheKeys, CACHE_TTL } from "@/lib/jikanCache";
+
+// Quantidade de estúdios por página
+const STUDIOS_PER_PAGE = 10;
 
 // Interface para dados do estúdio
 interface StudioData {
@@ -79,7 +83,7 @@ const fetchAnimeDetails = async (malId: number) => {
   return result.data;
 };
 
-// Componente para exibir um estúdio
+// Componente para exibir um estúdio (memoizado para performance)
 const StudioCard = ({ studio, isExpanded, onToggle }: { 
   studio: StudioData; 
   isExpanded: boolean;
@@ -246,6 +250,7 @@ const StudioCard = ({ studio, isExpanded, onToggle }: {
 
 /**
  * Página de Estúdios - Exibe todos os animes do usuário agrupados por estúdio de produção
+ * Com carregamento progressivo e paginação infinita para melhor performance
  */
 const Studios = () => {
   const { data: entries, isLoading: entriesLoading } = useAnimeEntries();
@@ -253,6 +258,9 @@ const Studios = () => {
   const [sortBy, setSortBy] = useState<"name" | "count" | "rating" | "completion">("count");
   const [filterStatus, setFilterStatus] = useState<"all" | "completed" | "watching" | "partial">("all");
   const [expandedStudios, setExpandedStudios] = useState<Set<string>>(new Set());
+  const [visibleCount, setVisibleCount] = useState(STUDIOS_PER_PAGE);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   // Gerar chave estável para a query (evita loop infinito)
   const entriesKey = useMemo(() => 
@@ -260,16 +268,18 @@ const Studios = () => {
     [entries]
   );
 
-  // Buscar informações dos estúdios para cada anime
+  // Buscar informações dos estúdios para cada anime com progresso
   const { data: studioData, isLoading: studiosLoading } = useQuery({
     queryKey: ['studios', entriesKey],
     queryFn: async () => {
       if (!entries || entries.length === 0) return [];
 
       const studioMap = new Map<string, StudioData>();
+      const totalEntries = entries.length;
+      let processedCount = 0;
       
-      // Processar em lotes para evitar rate limiting
-      const batchSize = 3;
+      // Processar em lotes menores para melhor responsividade
+      const batchSize = 2;
       for (let i = 0; i < entries.length; i += batchSize) {
         const batch = entries.slice(i, i + batchSize);
         
@@ -318,9 +328,13 @@ const Studios = () => {
           }
         }));
         
-        // Delay entre lotes para evitar rate limiting
+        // Atualizar progresso
+        processedCount += batch.length;
+        setLoadProgress(Math.round((processedCount / totalEntries) * 100));
+        
+        // Delay menor entre lotes para melhor UX
         if (i + batchSize < entries.length) {
-          await new Promise(resolve => setTimeout(resolve, 400));
+          await new Promise(resolve => setTimeout(resolve, 300));
         }
       }
       
@@ -332,6 +346,7 @@ const Studios = () => {
         }
       });
       
+      setLoadProgress(100);
       return Array.from(studioMap.values());
     },
     enabled: !!entries && entries.length > 0,
@@ -383,7 +398,36 @@ const Studios = () => {
     return filtered;
   }, [studioData, searchTerm, sortBy, filterStatus]);
 
-  const toggleStudio = (studioName: string) => {
+  // Estúdios visíveis (paginados)
+  const visibleStudios = useMemo(() => 
+    filteredStudios.slice(0, visibleCount),
+    [filteredStudios, visibleCount]
+  );
+
+  // Resetar paginação quando filtros mudam
+  useEffect(() => {
+    setVisibleCount(STUDIOS_PER_PAGE);
+  }, [searchTerm, sortBy, filterStatus]);
+
+  // Intersection Observer para infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && visibleCount < filteredStudios.length) {
+          setVisibleCount(prev => Math.min(prev + STUDIOS_PER_PAGE, filteredStudios.length));
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [visibleCount, filteredStudios.length]);
+
+  const toggleStudio = useCallback((studioName: string) => {
     setExpandedStudios(prev => {
       const newSet = new Set(prev);
       if (newSet.has(studioName)) {
@@ -393,7 +437,7 @@ const Studios = () => {
       }
       return newSet;
     });
-  };
+  }, []);
 
   const stats = useMemo(() => {
     if (!studioData) return { totalStudios: 0, topStudio: null, avgPerStudio: 0 };
@@ -414,6 +458,7 @@ const Studios = () => {
   }, [studioData]);
 
   const isLoading = entriesLoading || studiosLoading;
+  const hasMore = visibleCount < filteredStudios.length;
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -564,10 +609,10 @@ const Studios = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setExpandedStudios(new Set(filteredStudios.map(s => s.name)))}
+            onClick={() => setExpandedStudios(new Set(visibleStudios.map(s => s.name)))}
           >
             <ChevronDown className="h-4 w-4 mr-1" />
-            Expandir Todos
+            Expandir Visíveis
           </Button>
           <Button
             variant="outline"
@@ -580,9 +625,25 @@ const Studios = () => {
         </div>
       )}
 
-      {/* Loading state */}
+      {/* Loading state com progresso */}
       {isLoading && (
         <div className="space-y-4">
+          {/* Barra de progresso do carregamento */}
+          {loadProgress > 0 && loadProgress < 100 && (
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                  <span className="text-sm font-medium">
+                    Carregando dados dos estúdios... {loadProgress}%
+                  </span>
+                </div>
+                <Progress value={loadProgress} className="h-2" />
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Skeletons */}
           {[1, 2, 3].map((i) => (
             <Card key={i} className="animate-pulse">
               <CardHeader>
@@ -615,16 +676,48 @@ const Studios = () => {
       )}
 
       {!isLoading && filteredStudios.length > 0 && (
-        <div className="space-y-4">
-          {filteredStudios.map((studio) => (
-            <StudioCard
-              key={studio.name}
-              studio={studio}
-              isExpanded={expandedStudios.has(studio.name)}
-              onToggle={() => toggleStudio(studio.name)}
-            />
-          ))}
-        </div>
+        <>
+          {/* Contador de resultados */}
+          <p className="text-sm text-muted-foreground">
+            Mostrando {visibleStudios.length} de {filteredStudios.length} estúdios
+          </p>
+          
+          <div className="space-y-4">
+            {visibleStudios.map((studio) => (
+              <StudioCard
+                key={studio.name}
+                studio={studio}
+                isExpanded={expandedStudios.has(studio.name)}
+                onToggle={() => toggleStudio(studio.name)}
+              />
+            ))}
+          </div>
+
+          {/* Trigger para carregar mais (infinite scroll) */}
+          {hasMore && (
+            <div 
+              ref={loadMoreRef} 
+              className="flex justify-center py-4"
+            >
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Carregando mais...</span>
+              </div>
+            </div>
+          )}
+
+          {/* Botão manual para carregar mais (fallback) */}
+          {hasMore && (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                onClick={() => setVisibleCount(prev => Math.min(prev + STUDIOS_PER_PAGE, filteredStudios.length))}
+              >
+                Carregar mais ({filteredStudios.length - visibleCount} restantes)
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

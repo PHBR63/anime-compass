@@ -19,6 +19,8 @@ import PublicProfilePage from "./pages/PublicProfilePage";
 import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 import Maintenance from "./pages/Maintenance";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 /**
  * QueryClient com configurações otimizadas para performance
@@ -55,6 +57,8 @@ const App = () => (
           <Routes>
             {/* Rotas públicas */}
             <Route path="/auth" element={<Auth />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/maintenance" element={<Maintenance />} />
             <Route path="/u/:username" element={<PublicProfilePage />} />
             <Route path="/shared/list/:listId" element={<PublicListView />} />

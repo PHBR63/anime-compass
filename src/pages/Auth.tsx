@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -223,6 +223,17 @@ export default function Auth() {
                 isLogin ? 'Entrar' : 'Criar Conta'
               )}
             </Button>
+
+            {isLogin && (
+              <div className="text-center">
+                <Link 
+                  to="/forgot-password" 
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Esqueceu sua senha?
+                </Link>
+              </div>
+            )}
           </form>
 
           <div className="mt-6 text-center">

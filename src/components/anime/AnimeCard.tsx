@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Heart, Star, MoreVertical } from 'lucide-react';
+import { Heart, Star, MoreVertical, PlayCircle, CheckCircle, PauseCircle, Clock, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useUpdateAnimeEntry, useDeleteAnimeEntry } from '@/hooks/useAnimeEntries';
@@ -28,12 +28,22 @@ const statusLabels: Record<AnimeStatus, string> = {
   not_started: 'Planejado',
 };
 
-const statusColors: Record<AnimeStatus, string> = {
-  watching: 'bg-primary/20 text-primary border-primary/30',
-  completed: 'bg-green-500/20 text-green-400 border-green-500/30',
-  paused: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  dropped: 'bg-destructive/20 text-destructive border-destructive/30',
-  not_started: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+// Ícones para cada status
+const statusIcons: Record<AnimeStatus, typeof PlayCircle> = {
+  watching: PlayCircle,
+  completed: CheckCircle,
+  paused: PauseCircle,
+  dropped: XCircle,
+  not_started: Clock,
+};
+
+// Cores vibrantes para melhor visibilidade
+const statusColors: Record<AnimeStatus, { bg: string; text: string; border: string }> = {
+  watching: { bg: 'bg-primary/40', text: 'text-primary', border: 'border-primary/50' },
+  completed: { bg: 'bg-green-500/40', text: 'text-green-400', border: 'border-green-500/50' },
+  paused: { bg: 'bg-yellow-500/40', text: 'text-yellow-400', border: 'border-yellow-500/50' },
+  dropped: { bg: 'bg-red-500/40', text: 'text-red-400', border: 'border-red-500/50' },
+  not_started: { bg: 'bg-purple-500/40', text: 'text-purple-400', border: 'border-purple-500/50' },
 };
 
 // Card de anime da lista do usuário com modal de detalhes
@@ -127,14 +137,24 @@ export function AnimeCard({ entry }: AnimeCardProps) {
             </DropdownMenu>
           </div>
 
-          {/* Status badge */}
+          {/* Status badge com ícone */}
           <div className="absolute top-2 md:top-3 left-2 md:left-3">
-            <span className={cn(
-              "inline-flex items-center gap-1 px-2 md:px-2.5 py-0.5 md:py-1 text-[10px] md:text-xs font-semibold rounded-full border backdrop-blur-sm",
-              statusColors[entry.status]
-            )}>
-              {statusLabels[entry.status]}
-            </span>
+            {(() => {
+              const StatusIcon = statusIcons[entry.status];
+              const colors = statusColors[entry.status];
+              return (
+                <span className={cn(
+                  "inline-flex items-center gap-1.5 px-2.5 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-bold rounded-full border backdrop-blur-md shadow-lg",
+                  colors.bg, colors.text, colors.border
+                )}>
+                  <StatusIcon className={cn(
+                    "h-3.5 w-3.5 md:h-4 md:w-4",
+                    entry.status === 'watching' && "animate-pulse"
+                  )} />
+                  {statusLabels[entry.status]}
+                </span>
+              );
+            })()}
           </div>
           
           {/* Rating */}

@@ -131,13 +131,27 @@ export default function PublicListView() {
 
   // Error state
   if (error || !listData) {
+    // Extrai detalhes do erro para facilitar debug (sem expor informações sensíveis)
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="glass-card p-8 text-center max-w-md">
+        <div className="glass-card p-8 text-center max-w-md w-full">
           <h1 className="text-2xl font-bold mb-2">Lista não encontrada</h1>
-          <p className="text-muted-foreground mb-6">
+          <p className="text-muted-foreground mb-4">
             Esta lista não existe, foi removida ou não é pública.
           </p>
+
+          {/* Detalhes do erro (ajuda a diagnosticar RLS/permite identificar regressões) */}
+          <div className="text-left bg-muted/30 border border-border/50 rounded-lg p-3 mb-6">
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Detalhe:</span> {errorMessage}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-1 break-all">
+              <span className="font-medium text-foreground">ID:</span> {listId || '—'}
+            </p>
+          </div>
+
           <Link to="/">
             <Button>
               <ArrowLeft className="h-4 w-4 mr-2" />

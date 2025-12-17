@@ -166,15 +166,17 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
           </Button>
 
           {/* Info da lista */}
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-4">
+            {/* Título e badge */}
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <h1 className="font-display text-2xl md:text-3xl font-bold">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="font-display text-xl sm:text-2xl md:text-3xl font-bold">
                   {list.name}
                 </h1>
                 <Badge 
                   variant="outline" 
                   className={cn(
+                    "shrink-0",
                     list.is_public 
                       ? "bg-green-500/20 text-green-400 border-green-500/30" 
                       : ""
@@ -189,7 +191,7 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
               </div>
               
               {list.description && (
-                <p className="text-muted-foreground max-w-xl">
+                <p className="text-muted-foreground text-sm sm:text-base max-w-xl">
                   {list.description}
                 </p>
               )}
@@ -199,8 +201,8 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
               </p>
             </div>
 
-            {/* Ações */}
-            <div className="flex gap-2">
+            {/* Ações - responsivo */}
+            <div className="flex flex-wrap items-center gap-2">
               {/* Toggle de visualização */}
               <div className="flex items-center gap-1 p-1 rounded-lg bg-secondary/50">
                 <Button
@@ -221,13 +223,14 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
                   <GripVertical className="h-4 w-4" />
                 </Button>
               </div>
+              
               {/* Botão compartilhar (apenas para listas públicas) */}
               {list.is_public && (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Share2 className="h-4 w-4 mr-2" />
-                      Compartilhar
+                    <Button variant="outline" size="sm" className="h-8">
+                      <Share2 className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Compartilhar</span>
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-80" align="end">
@@ -261,14 +264,14 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
                 </Popover>
               )}
               
-              <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar
+              <Button variant="outline" size="sm" className="h-8" onClick={() => setShowAddModal(true)}>
+                <Plus className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Adicionar</span>
               </Button>
               
-              <Button variant="outline" size="sm" onClick={() => setShowEditModal(true)}>
-                <Pencil className="h-4 w-4 mr-2" />
-                Editar
+              <Button variant="outline" size="sm" className="h-8" onClick={() => setShowEditModal(true)}>
+                <Pencil className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Editar</span>
               </Button>
             </div>
           </div>

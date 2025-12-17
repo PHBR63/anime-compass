@@ -1,10 +1,18 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ListDetailView } from '@/components/lists/ListDetailView';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { ArrowLeft, AlertCircle, Home, List } from 'lucide-react';
 import type { CustomList } from '@/hooks/useCustomLists';
 
 /**
@@ -42,6 +50,7 @@ export default function ListDetailPage() {
   if (isLoading) {
     return (
       <div className="space-y-6 p-4">
+        <Skeleton className="h-6 w-48" />
         <Skeleton className="h-40 w-full rounded-xl" />
         <div className="space-y-2">
           <Skeleton className="h-8 w-48" />
@@ -75,5 +84,38 @@ export default function ListDetailPage() {
     );
   }
 
-  return <ListDetailView list={list} onBack={handleBack} />;
+  return (
+    <div className="space-y-4">
+      {/* Breadcrumb para navegação */}
+      <Breadcrumb className="px-4 pt-4">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/list" className="flex items-center gap-1">
+                <Home className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Início</span>
+              </Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/list" className="flex items-center gap-1">
+                <List className="h-3.5 w-3.5" />
+                Minhas Listas
+              </Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage className="max-w-[150px] sm:max-w-[250px] truncate">
+              {list.name}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      <ListDetailView list={list} onBack={handleBack} />
+    </div>
+  );
 }

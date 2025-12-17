@@ -3,9 +3,15 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Star, Clock, CheckCircle, PauseCircle, PlayCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AnimatedList } from '@/components/animations';
 import type { Database } from '@/integrations/supabase/types';
 
 type AnimeStatus = Database['public']['Enums']['anime_status'];
+
+/**
+ * Componente RecentActivity - Exibe atividade recente do usuário
+ * Lista animada com os últimos animes atualizados
+ */
 
 const statusIcons: Record<AnimeStatus, typeof PlayCircle> = {
   watching: PlayCircle,
@@ -63,17 +69,21 @@ export function RecentActivity() {
           Nenhuma atividade recente
         </p>
       ) : (
-        <div className="space-y-3 md:space-y-4">
-          {recentEntries.map((entry, index) => {
+        <AnimatedList 
+          className="space-y-3 md:space-y-4"
+          staggerDelay={0.1}
+          duration={0.4}
+          direction="left"
+          distance={30}
+        >
+          {recentEntries.map((entry) => {
             const StatusIcon = statusIcons[entry.status];
             return (
               <div 
                 key={entry.id}
                 className={cn(
-                  "flex items-center gap-3 md:gap-4 p-2 md:p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors",
-                  "animate-slide-up"
+                  "flex items-center gap-3 md:gap-4 p-2 md:p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors"
                 )}
-                style={{ animationDelay: `${index * 100}ms` }}
               >
                 <img
                   src={entry.image_url || '/placeholder.svg'}
@@ -112,7 +122,7 @@ export function RecentActivity() {
               </div>
             );
           })}
-        </div>
+        </AnimatedList>
       )}
     </div>
   );

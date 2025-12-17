@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { StatusChart } from '@/components/dashboard/StatusChart';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { DetailedStatsCard } from '@/components/dashboard/DetailedStatsCard';
 import { AnimeCard } from '@/components/anime/AnimeCard';
@@ -24,21 +23,14 @@ export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useUserStats();
   const { data: profile } = useProfile();
   
+  // Formata tempo total baseado em episódios assistidos
   const formatTime = (episodes: number) => {
-    const minutes = episodes * 24; // Average anime episode duration
+    const minutes = episodes * 24; // Duração média de episódio de anime
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
     if (days > 0) return `${days}d ${hours % 24}h`;
     return `${hours}h`;
   };
-
-  const statusChartData = stats ? [
-    { name: 'Assistindo', value: stats.watching, color: 'hsl(var(--primary))' },
-    { name: 'Completo', value: stats.completed, color: 'hsl(var(--accent))' },
-    { name: 'Pausado', value: stats.paused, color: 'hsl(var(--muted))' },
-    { name: 'Abandonado', value: stats.dropped, color: 'hsl(var(--destructive))' },
-    { name: 'Planejado', value: stats.notStarted, color: 'hsl(var(--secondary))' },
-  ].filter(d => d.value > 0) : [];
 
   const isLoading = entriesLoading || statsLoading;
 
@@ -97,7 +89,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Charts and Activity */}
+      {/* Estatísticas Detalhadas e Atividade Recente */}
       <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
         {isLoading ? (
           <>
@@ -106,14 +98,11 @@ export default function Dashboard() {
           </>
         ) : (
           <>
-            <StatusChart data={statusChartData} />
+            <DetailedStatsCard />
             <RecentActivity />
           </>
         )}
       </div>
-
-      {/* Estatísticas Detalhadas */}
-      <DetailedStatsCard />
 
       {/* Recomendações Personalizadas */}
       <RecommendationsSection />

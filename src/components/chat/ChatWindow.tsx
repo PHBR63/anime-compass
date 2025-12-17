@@ -21,6 +21,7 @@ import { ConversationWithDetails } from '@/hooks/useConversations';
 import { ChatMessageWithSender, useDeleteMessage, useLoadMoreMessages } from '@/hooks/useChatMessages';
 import { useChatPresence } from '@/hooks/useChatPresence';
 import { useChatNotification } from '@/hooks/useChatNotification';
+import { useReadReceipts, isMessageRead } from '@/hooks/useReadReceipts';
 import { useAuth } from '@/hooks/useAuth';
 import ChatInput from './ChatInput';
 import ChatMessage from './ChatMessage';
@@ -63,7 +64,8 @@ export default function ChatWindow({
   // Hook de notificação de som
   const { playNotification } = useChatNotification();
 
-  // Usuários que estão digitando (com nomes)
+  // Hook de confirmação de leitura
+  const { data: readReceipts } = useReadReceipts(conversation?.id || null);
   const typingUsers = getTypingUsers();
 
   // Texto do indicador de digitando
@@ -290,6 +292,11 @@ export default function ChatWindow({
                   index === 0 || 
                   dateMessages[index - 1]?.sender_id !== message.sender_id
                 );
+                
+                // Verificar se a mensagem foi lida (somente para mensagens próprias)
+                const messageIsRead = isOwn && readReceipts 
+                  ? isMessageRead(message.created_at, readReceipts) 
+                  : false;
 
                 return (
                   <ChatMessage
@@ -300,6 +307,7 @@ export default function ChatWindow({
                     showSenderName={conversation.type === 'group' && !isOwn && showAvatar}
                     onDelete={isOwn ? () => handleDeleteMessage(message.id) : undefined}
                     onReply={() => handleReply(message)}
+                    isRead={messageIsRead}
                   />
                 );
               })}

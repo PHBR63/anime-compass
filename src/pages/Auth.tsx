@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Mail, Lock, User, Sparkles, ShieldAlert } from 'lucide-react';
 import { z } from 'zod';
+import { PasswordStrengthIndicator, isPasswordStrong } from '@/components/auth/PasswordStrengthIndicator';
 
 // Schema de validação para login
 const loginSchema = z.object({
@@ -74,6 +75,13 @@ export default function Auth() {
         const validation = signupSchema.safeParse({ email, password, confirmPassword, username });
         if (!validation.success) {
           toast.error(validation.error.errors[0].message);
+          setIsLoading(false);
+          return;
+        }
+
+        // Verifica força da senha antes de criar conta
+        if (!isPasswordStrong(password)) {
+          toast.error('Senha muito fraca. Atenda aos requisitos mínimos.');
           setIsLoading(false);
           return;
         }
@@ -189,6 +197,8 @@ export default function Auth() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {/* Indicador de força da senha apenas no cadastro */}
+              {!isLogin && <PasswordStrengthIndicator password={password} />}
             </div>
 
             {!isLogin && (

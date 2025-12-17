@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Lock, Sparkles, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import { z } from 'zod';
+import { PasswordStrengthIndicator, isPasswordStrong } from '@/components/auth/PasswordStrengthIndicator';
 
 // Schema de validação para nova senha
 const passwordSchema = z.object({
@@ -69,6 +70,13 @@ export default function ResetPassword() {
       const validation = passwordSchema.safeParse({ password, confirmPassword });
       if (!validation.success) {
         toast.error(validation.error.errors[0].message);
+        setIsLoading(false);
+        return;
+      }
+
+      // Verifica força da senha
+      if (!isPasswordStrong(password)) {
+        toast.error('Senha muito fraca. Atenda aos requisitos mínimos.');
         setIsLoading(false);
         return;
       }
@@ -199,6 +207,8 @@ export default function ResetPassword() {
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
+                  {/* Indicador de força da senha */}
+                  <PasswordStrengthIndicator password={password} />
                 </div>
 
                 <div className="space-y-2">

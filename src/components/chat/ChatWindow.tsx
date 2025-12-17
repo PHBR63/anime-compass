@@ -7,7 +7,9 @@ import {
   ArrowLeft, 
   Users, 
   Info,
-  X
+  X,
+  ChevronUp,
+  Loader2
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -16,8 +18,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ConversationWithDetails } from '@/hooks/useConversations';
-import { ChatMessageWithSender, useDeleteMessage } from '@/hooks/useChatMessages';
+import { ChatMessageWithSender, useDeleteMessage, useLoadMoreMessages } from '@/hooks/useChatMessages';
 import { useChatPresence } from '@/hooks/useChatPresence';
+import { useChatNotification } from '@/hooks/useChatNotification';
 import { useAuth } from '@/hooks/useAuth';
 import ChatInput from './ChatInput';
 import ChatMessage from './ChatMessage';
@@ -48,36 +51,66 @@ export default function ChatWindow({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessageWithSender | null>(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const prevMessagesLength = useRef(messages.length);
+  
   const deleteMessage = useDeleteMessage();
+  const loadMoreMessages = useLoadMoreMessages(conversation?.id || null);
   
   // Hook de presença para status online e digitando
-  const { isUserOnline, getTypingUserIds, setTyping } = useChatPresence(conversation?.id || null);
+  const { isUserOnline, getTypingUsers, setTyping } = useChatPresence(conversation?.id || null);
+  
+  // Hook de notificação de som
+  const { playNotification } = useChatNotification();
 
-  // IDs dos usuários que estão digitando (exceto o usuário atual)
-  const typingUserIds = getTypingUserIds();
+  // Usuários que estão digitando (com nomes)
+  const typingUsers = getTypingUsers();
 
-  // Obter nomes dos usuários que estão digitando
+  // Texto do indicador de digitando
   const getTypingUsersText = () => {
-    if (!conversation || typingUserIds.length === 0) return null;
+    if (typingUsers.length === 0) return null;
     
-    const typingParticipants = conversation.participants
-      .filter(p => typingUserIds.includes(p.user_id))
-      .map(p => p.display_name || p.username || 'Alguém');
+    const names = typingUsers.map(t => t.displayName);
     
-    if (typingParticipants.length === 0) return null;
-    if (typingParticipants.length === 1) return `${typingParticipants[0]} está digitando...`;
-    if (typingParticipants.length === 2) return `${typingParticipants.join(' e ')} estão digitando...`;
-    return `${typingParticipants.slice(0, 2).join(', ')} e outros estão digitando...`;
+    if (names.length === 1) return `${names[0]} está digitando...`;
+    if (names.length === 2) return `${names.join(' e ')} estão digitando...`;
+    return `${names.slice(0, 2).join(', ')} e outros estão digitando...`;
   };
 
   const typingText = getTypingUsersText();
 
-  // Auto-scroll para última mensagem
+  // Auto-scroll para última mensagem (somente quando novas mensagens chegam)
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    // Verificar se chegou nova mensagem
+    if (messages.length > prevMessagesLength.current) {
+      const lastMessage = messages[messages.length - 1];
+      
+      // Se a mensagem não é do usuário atual, tocar notificação
+      if (lastMessage && lastMessage.sender_id !== user?.id) {
+        playNotification();
+      }
+      
+      // Scroll para baixo
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
     }
-  }, [messages]);
+    
+    prevMessagesLength.current = messages.length;
+  }, [messages, user?.id, playNotification]);
+
+  // Carregar mais mensagens antigas
+  const handleLoadMore = async () => {
+    if (!messages.length || loadMoreMessages.isPending) return;
+    
+    const oldestMessage = messages[0];
+    const result = await loadMoreMessages.mutateAsync(oldestMessage.created_at);
+    
+    // Se retornou menos que 50 mensagens, não há mais
+    if (result.length < 50) {
+      setHasMoreMessages(false);
+    }
+  };
 
   // Se não há conversa selecionada
   if (!conversation) {
@@ -215,7 +248,33 @@ export default function ChatWindow({
             <p className="text-sm">Envie uma mensagem para iniciar a conversa!</p>
           </div>
         ) : (
-          Object.entries(groupedMessages).map(([date, dateMessages]) => (
+          <>
+            {/* Botão carregar mais mensagens antigas */}
+            {hasMoreMessages && messages.length >= 50 && (
+              <div className="flex justify-center mb-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLoadMore}
+                  disabled={loadMoreMessages.isPending}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  {loadMoreMessages.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Carregando...
+                    </>
+                  ) : (
+                    <>
+                      <ChevronUp className="h-4 w-4 mr-2" />
+                      Carregar mensagens anteriores
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {Object.entries(groupedMessages).map(([date, dateMessages]) => (
             <div key={date}>
               {/* Separador de data */}
               <div className="flex items-center gap-4 my-4">
@@ -245,7 +304,8 @@ export default function ChatWindow({
                 );
               })}
             </div>
-          ))
+          ))}
+          </>
         )}
       </ScrollArea>
 

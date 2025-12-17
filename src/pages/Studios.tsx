@@ -252,15 +252,41 @@ const StudioCard = ({ studio, isExpanded, onToggle }: {
  * Página de Estúdios - Exibe todos os animes do usuário agrupados por estúdio de produção
  * Com carregamento progressivo e paginação infinita para melhor performance
  */
+// Chaves do localStorage para persistência
+const STORAGE_KEYS = {
+  sortBy: 'studios-sortBy',
+  filterStatus: 'studios-filterStatus',
+};
+
 const Studios = () => {
   const { data: entries, isLoading: entriesLoading } = useAnimeEntries();
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<"name" | "count" | "rating" | "completion">("count");
-  const [filterStatus, setFilterStatus] = useState<"all" | "completed" | "watching" | "partial">("all");
+  
+  // Carregar preferências do localStorage com valores padrão
+  const [sortBy, setSortBy] = useState<"name" | "count" | "rating" | "completion">(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.sortBy);
+    return (saved as "name" | "count" | "rating" | "completion") || "count";
+  });
+  
+  const [filterStatus, setFilterStatus] = useState<"all" | "completed" | "watching" | "partial">(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.filterStatus);
+    return (saved as "all" | "completed" | "watching" | "partial") || "all";
+  });
+  
   const [expandedStudios, setExpandedStudios] = useState<Set<string>>(new Set());
   const [visibleCount, setVisibleCount] = useState(STUDIOS_PER_PAGE);
   const [loadProgress, setLoadProgress] = useState(0);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Salvar sortBy no localStorage quando mudar
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.sortBy, sortBy);
+  }, [sortBy]);
+
+  // Salvar filterStatus no localStorage quando mudar
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.filterStatus, filterStatus);
+  }, [filterStatus]);
 
   // Gerar chave estável para a query (evita loop infinito)
   const entriesKey = useMemo(() => 

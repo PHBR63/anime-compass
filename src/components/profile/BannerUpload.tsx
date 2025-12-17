@@ -77,22 +77,28 @@ export function BannerUpload({ userId, currentBannerUrl, onBannerUpdated }: Bann
   };
 
   return (
-    <div className="relative w-full h-32 md:h-48 rounded-xl overflow-hidden group">
-      {/* Banner Image ou Placeholder */}
+    <div className="relative w-full h-40 md:h-56 overflow-hidden group">
+      {/* Banner Image ou Placeholder com gradiente */}
       {currentBannerUrl ? (
         <img 
           src={currentBannerUrl}
           alt="Banner do perfil"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
       ) : (
-        <div className="w-full h-full bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 flex items-center justify-center">
-          <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
+        <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/10 to-secondary/20 flex items-center justify-center">
+          <div className="text-center">
+            <ImageIcon className="h-12 w-12 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground/60">Adicione um banner</p>
+          </div>
         </div>
       )}
 
+      {/* Gradiente inferior para melhor legibilidade */}
+      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+
       {/* Overlay com botão de edição */}
-      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
         <input
           ref={fileInputRef}
           type="file"
@@ -105,7 +111,7 @@ export function BannerUpload({ userId, currentBannerUrl, onBannerUpdated }: Bann
           size="sm"
           onClick={handleClick}
           disabled={isUploading}
-          className="gap-2"
+          className="gap-2 shadow-lg"
         >
           {isUploading ? (
             <>

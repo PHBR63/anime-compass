@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { usePublicProfileById } from '@/hooks/usePublicProfile';
 import { useFriendAnimeCount } from '@/hooks/useFriendships';
+import { useCreateConversation } from '@/hooks/useConversations';
 import { 
   User, 
   Tv, 
@@ -24,10 +25,12 @@ import {
   ExternalLink,
   Heart,
   Play,
-  CheckCircle2
+  CheckCircle2,
+  MessageCircle
 } from 'lucide-react';
 import { ListComparisonModal } from './ListComparisonModal';
 import { RecommendAnimeModal } from './RecommendAnimeModal';
+import { toast } from 'sonner';
 
 interface FriendProfileDrawerProps {
   open: boolean;
@@ -48,6 +51,22 @@ export function FriendProfileDrawer({
   const { data: animeCount } = useFriendAnimeCount(friendId);
   const [showComparison, setShowComparison] = useState(false);
   const [showRecommend, setShowRecommend] = useState(false);
+  const createConversation = useCreateConversation();
+
+  // Iniciar conversa com amigo
+  const handleStartChat = async () => {
+    try {
+      const conversation = await createConversation.mutateAsync({
+        type: 'direct',
+        participantIds: [friendId],
+      });
+      
+      onOpenChange(false);
+      navigate(`/chat?conversation=${conversation.id}`);
+    } catch (error) {
+      toast.error('Erro ao iniciar conversa');
+    }
+  };
 
   const getInitials = (name: string) => {
     return name
@@ -140,22 +159,31 @@ export function FriendProfileDrawer({
                     </div>
                   </div>
 
-                  {/* Ações */}
-                  <div className="flex gap-2">
+                  {/* Ações Principais */}
+                  <div className="grid grid-cols-3 gap-2">
                     <Button 
                       variant="outline" 
-                      className="flex-1"
+                      className="flex-col h-auto py-3"
                       onClick={() => setShowComparison(true)}
                     >
-                      <GitCompare className="mr-2 h-4 w-4" />
-                      Comparar Listas
+                      <GitCompare className="h-5 w-5 mb-1" />
+                      <span className="text-xs">Comparar</span>
                     </Button>
                     <Button 
-                      className="flex-1"
+                      variant="outline"
+                      className="flex-col h-auto py-3"
                       onClick={() => setShowRecommend(true)}
                     >
-                      <Heart className="mr-2 h-4 w-4" />
-                      Indicar Anime
+                      <Heart className="h-5 w-5 mb-1" />
+                      <span className="text-xs">Indicar</span>
+                    </Button>
+                    <Button 
+                      className="flex-col h-auto py-3"
+                      onClick={handleStartChat}
+                      disabled={createConversation.isPending}
+                    >
+                      <MessageCircle className="h-5 w-5 mb-1" />
+                      <span className="text-xs">Mensagem</span>
                     </Button>
                   </div>
 

@@ -389,6 +389,48 @@ export function useMarkConversationAsRead() {
 // Hook para contar total de mensagens não lidas
 export function useUnreadMessagesCount() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Configurar realtime para atualizar contador instantaneamente
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('unread-messages-count')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+        },
+        (payload) => {
+          // Se a mensagem não é do usuário atual, atualizar contador
+          if (payload.new.sender_id !== user.id) {
+            queryClient.invalidateQueries({ queryKey: ['unreadMessagesCount'] });
+            queryClient.invalidateQueries({ queryKey: ['conversations'] });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'conversation_participants',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          // Quando last_read_at é atualizado, atualizar contador
+          queryClient.invalidateQueries({ queryKey: ['unreadMessagesCount'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, queryClient]);
 
   return useQuery({
     queryKey: ['unreadMessagesCount', user?.id],
@@ -418,7 +460,7 @@ export function useUnreadMessagesCount() {
       return total;
     },
     enabled: !!user,
-    refetchInterval: 30000, // Atualizar a cada 30 segundos
+    refetchInterval: 60000, // Backup: atualizar a cada 60 segundos
   });
 }
 

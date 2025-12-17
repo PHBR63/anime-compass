@@ -139,7 +139,7 @@ export function Sidebar() {
                   {/* Badge de não lidas para Chat */}
                   {showBadge && (
                     <Badge 
-                      className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 text-xs"
+                      className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 text-xs animate-pulse bg-destructive text-destructive-foreground"
                       variant="default"
                     >
                       {unreadMessages > 99 ? '99+' : unreadMessages}

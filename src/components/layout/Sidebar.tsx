@@ -93,9 +93,13 @@ export function Sidebar() {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex items-center gap-3 px-6 py-6 border-b border-border/50">
-            <div className="relative">
-              <img src={logo} alt="AniCheck Logo" className="h-8 w-8" />
-              <div className="absolute inset-0 blur-lg bg-primary/30" />
+            <div className="relative group">
+              <img 
+                src={logo} 
+                alt="AniCheck Logo" 
+                className="h-8 w-8 transition-transform duration-500 ease-in-out group-hover:scale-110 group-hover:rotate-12 animate-pulse-glow" 
+              />
+              <div className="absolute inset-0 blur-lg bg-primary/30 animate-pulse" />
             </div>
             <span className="font-display text-2xl font-bold text-gradient">
               AniCheck

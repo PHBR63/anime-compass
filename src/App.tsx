@@ -18,6 +18,7 @@ import PublicListView from "./pages/PublicListView";
 import PublicProfilePage from "./pages/PublicProfilePage";
 import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
+import Maintenance from "./pages/Maintenance";
 
 /**
  * QueryClient com configurações otimizadas para performance
@@ -54,6 +55,7 @@ const App = () => (
           <Routes>
             {/* Rotas públicas */}
             <Route path="/auth" element={<Auth />} />
+            <Route path="/maintenance" element={<Maintenance />} />
             <Route path="/u/:username" element={<PublicProfilePage />} />
             <Route path="/shared/list/:listId" element={<PublicListView />} />
             

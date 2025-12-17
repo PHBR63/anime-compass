@@ -1,0 +1,251 @@
+import { useEffect, useRef, useState } from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  MoreVertical, 
+  ArrowLeft, 
+  Users, 
+  Info,
+  Trash2,
+  Reply,
+  X
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ConversationWithDetails } from '@/hooks/useConversations';
+import { ChatMessageWithSender, useDeleteMessage } from '@/hooks/useChatMessages';
+import { useAuth } from '@/hooks/useAuth';
+import ChatInput from './ChatInput';
+import ChatMessage from './ChatMessage';
+import GroupSettingsDrawer from './GroupSettingsDrawer';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+interface ChatWindowProps {
+  conversation: ConversationWithDetails | null;
+  messages: ChatMessageWithSender[];
+  isLoading?: boolean;
+  onBack?: () => void;
+  onSendMessage: (content: string, replyTo?: string) => void;
+  onSendAnime: (anime: any) => void;
+  onSendRecommendation: (anime: any, message?: string) => void;
+}
+
+// Componente principal da janela de chat
+export default function ChatWindow({
+  conversation,
+  messages,
+  isLoading,
+  onBack,
+  onSendMessage,
+  onSendAnime,
+  onSendRecommendation,
+}: ChatWindowProps) {
+  const { user } = useAuth();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<ChatMessageWithSender | null>(null);
+  const deleteMessage = useDeleteMessage();
+
+  // Auto-scroll para última mensagem
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  // Se não há conversa selecionada
+  if (!conversation) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Users className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
+          <h3 className="text-lg font-medium text-muted-foreground">
+            Selecione uma conversa
+          </h3>
+          <p className="text-sm text-muted-foreground/70">
+            Ou inicie uma nova conversa com um amigo
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Nome e avatar da conversa
+  const conversationName = conversation.type === 'group' 
+    ? conversation.name || 'Grupo sem nome'
+    : conversation.other_participant?.display_name || conversation.other_participant?.username || 'Usuário';
+
+  const conversationAvatar = conversation.type === 'group'
+    ? conversation.avatar_url
+    : conversation.other_participant?.avatar_url;
+
+  const getInitials = () => {
+    return conversationName.substring(0, 2).toUpperCase();
+  };
+
+  // Agrupar mensagens por data
+  const groupedMessages = messages.reduce((groups, message) => {
+    const date = new Date(message.created_at).toLocaleDateString('pt-BR');
+    if (!groups[date]) groups[date] = [];
+    groups[date].push(message);
+    return groups;
+  }, {} as Record<string, ChatMessageWithSender[]>);
+
+  // Verificar se é admin do grupo
+  const isAdmin = conversation.type === 'group' && 
+    conversation.participants.find(p => p.user_id === user?.id)?.role === 'admin';
+
+  const handleDeleteMessage = (messageId: string) => {
+    deleteMessage.mutate({ messageId, conversationId: conversation.id });
+  };
+
+  const handleReply = (message: ChatMessageWithSender) => {
+    setReplyingTo(message);
+  };
+
+  const handleSendWithReply = (content: string) => {
+    onSendMessage(content, replyingTo?.id);
+    setReplyingTo(null);
+  };
+
+  return (
+    <div className="flex-1 flex flex-col bg-background">
+      {/* Header */}
+      <div className="p-4 border-b border-border flex items-center gap-3">
+        {/* Botão voltar (mobile) */}
+        {onBack && (
+          <Button variant="ghost" size="icon" onClick={onBack} className="md:hidden">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        )}
+
+        {/* Avatar */}
+        <Avatar className="h-10 w-10">
+          <AvatarImage src={conversationAvatar || undefined} />
+          <AvatarFallback className={conversation.type === 'group' ? 'bg-primary/20' : ''}>
+            {conversation.type === 'group' ? <Users className="h-4 w-4" /> : getInitials()}
+          </AvatarFallback>
+        </Avatar>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium truncate">{conversationName}</h3>
+          {conversation.type === 'group' && (
+            <p className="text-xs text-muted-foreground">
+              {conversation.participants.length} membros
+            </p>
+          )}
+        </div>
+
+        {/* Menu de opções */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreVertical className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {conversation.type === 'group' && (
+              <DropdownMenuItem onClick={() => setShowGroupSettings(true)}>
+                <Info className="h-4 w-4 mr-2" />
+                Configurações do grupo
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Área de mensagens */}
+      <ScrollArea ref={scrollRef} className="flex-1 p-4">
+        {isLoading ? (
+          <div className="text-center text-muted-foreground py-8">
+            Carregando mensagens...
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8">
+            <p>Nenhuma mensagem ainda.</p>
+            <p className="text-sm">Envie uma mensagem para iniciar a conversa!</p>
+          </div>
+        ) : (
+          Object.entries(groupedMessages).map(([date, dateMessages]) => (
+            <div key={date}>
+              {/* Separador de data */}
+              <div className="flex items-center gap-4 my-4">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-xs text-muted-foreground px-2">{date}</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              {/* Mensagens do dia */}
+              {dateMessages.map((message, index) => {
+                const isOwn = message.sender_id === user?.id;
+                const showAvatar = !isOwn && (
+                  index === 0 || 
+                  dateMessages[index - 1]?.sender_id !== message.sender_id
+                );
+
+                return (
+                  <ChatMessage
+                    key={message.id}
+                    message={message}
+                    isOwn={isOwn}
+                    showAvatar={showAvatar}
+                    showSenderName={conversation.type === 'group' && !isOwn && showAvatar}
+                    onDelete={isOwn ? () => handleDeleteMessage(message.id) : undefined}
+                    onReply={() => handleReply(message)}
+                  />
+                );
+              })}
+            </div>
+          ))
+        )}
+      </ScrollArea>
+
+      {/* Reply preview */}
+      {replyingTo && (
+        <div className="px-4 py-2 border-t border-border bg-muted/30 flex items-center gap-2">
+          <Reply className="h-4 w-4 text-muted-foreground" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-muted-foreground">
+              Respondendo a {replyingTo.sender.display_name || replyingTo.sender.username}
+            </p>
+            <p className="text-sm truncate">
+              {replyingTo.message_type === 'anime_card' 
+                ? '📺 Card de anime'
+                : replyingTo.content || 'Mensagem'
+              }
+            </p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => setReplyingTo(null)}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Input de mensagem */}
+      <ChatInput
+        onSendMessage={replyingTo ? handleSendWithReply : onSendMessage}
+        onSendAnime={onSendAnime}
+        onSendRecommendation={onSendRecommendation}
+        conversationId={conversation.id}
+        recipientId={conversation.type === 'direct' ? conversation.other_participant?.user_id : undefined}
+      />
+
+      {/* Drawer de configurações do grupo */}
+      {conversation.type === 'group' && (
+        <GroupSettingsDrawer
+          open={showGroupSettings}
+          onOpenChange={setShowGroupSettings}
+          conversation={conversation}
+          isAdmin={isAdmin}
+        />
+      )}
+    </div>
+  );
+}

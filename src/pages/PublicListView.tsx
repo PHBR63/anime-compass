@@ -33,13 +33,13 @@ const statusColors: Record<AnimeStatus, string> = {
 export default function PublicListView() {
   const { listId } = useParams<{ listId: string }>();
 
-  // Buscar dados da lista pública
+  // Buscar dados da lista pública com fallback robusto
   const { data: listData, isLoading, error } = useQuery({
     queryKey: ['public-list', listId],
     queryFn: async () => {
       if (!listId) throw new Error('ID da lista não fornecido');
 
-      // Buscar a lista
+      // Passo 1: Buscar a lista
       const { data: list, error: listError } = await supabase
         .from('custom_lists')
         .select('*, profiles:user_id(username, display_name, avatar_url)')
@@ -47,21 +47,70 @@ export default function PublicListView() {
         .eq('is_public', true)
         .maybeSingle();
 
-      if (listError) throw listError;
+      if (listError) {
+        console.error('Erro ao buscar lista:', listError);
+        throw listError;
+      }
       if (!list) throw new Error('Lista não encontrada ou não é pública');
 
-      // Buscar itens da lista
-      const { data: items, error: itemsError } = await supabase
+      // Passo 2: Tentar buscar itens com JOIN
+      const { data: itemsWithJoin, error: joinError } = await supabase
         .from('list_items')
         .select('*, anime_entry:anime_entries(*)')
         .eq('list_id', listId)
         .order('position', { ascending: true });
 
-      if (itemsError) throw itemsError;
+      // Se o JOIN funcionar, retorna direto
+      if (!joinError && itemsWithJoin) {
+        return { list, items: itemsWithJoin };
+      }
+
+      // Passo 3: Fallback - consultas separadas
+      console.warn('JOIN falhou, usando fallback com consultas separadas:', joinError);
+      
+      // Buscar apenas IDs dos itens
+      const { data: itemIds, error: itemsError } = await supabase
+        .from('list_items')
+        .select('id, anime_entry_id, position')
+        .eq('list_id', listId)
+        .order('position', { ascending: true });
+
+      if (itemsError) {
+        console.error('Erro ao buscar itens:', itemsError);
+        throw itemsError;
+      }
+
+      if (!itemIds || itemIds.length === 0) {
+        return { list, items: [] };
+      }
+
+      // Buscar anime_entries separadamente
+      const entryIds = itemIds.map(i => i.anime_entry_id);
+      const { data: entries, error: entriesError } = await supabase
+        .from('anime_entries')
+        .select('*')
+        .in('id', entryIds);
+
+      if (entriesError) {
+        console.warn('Não foi possível carregar detalhes dos animes:', entriesError);
+        // Retorna itens sem detalhes dos animes
+        return { 
+          list, 
+          items: itemIds.map(item => ({ ...item, anime_entry: null })) 
+        };
+      }
+
+      // Combinar items com entries
+      const items = itemIds.map(item => ({
+        ...item,
+        anime_entry: entries?.find(e => e.id === item.anime_entry_id) || null
+      }));
 
       return { list, items };
     },
     enabled: !!listId,
+    retry: 2,
+    staleTime: 30000, // Cache por 30 segundos
   });
 
   // Loading state

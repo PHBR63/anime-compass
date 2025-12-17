@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { Users, UserMinus, Loader2, Eye } from 'lucide-react';
+import { Users, UserMinus, Loader2, Eye, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useFriends, useRemoveFriend } from '@/hooks/useFriendships';
+import { useGlobalPresence } from '@/hooks/useChatPresence';
+import { useCreateConversation } from '@/hooks/useConversations';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,15 +20,19 @@ import {
 } from '@/components/ui/alert-dialog';
 import { FriendProfileDrawer } from './FriendProfileDrawer';
 
-// Componente para exibir lista de amigos
+// Componente para exibir lista de amigos com status online e chat rápido
 export function FriendsList() {
   const { data: friends, isLoading } = useFriends();
   const removeFriend = useRemoveFriend();
+  const { isUserOnline } = useGlobalPresence();
+  const createConversation = useCreateConversation();
+  const navigate = useNavigate();
   const [selectedFriend, setSelectedFriend] = useState<{
     id: string;
     name: string;
   } | null>(null);
 
+  // Função para remover amigo
   const handleRemoveFriend = (friendshipId: string, friendName: string) => {
     removeFriend.mutate(friendshipId, {
       onSuccess: () => {
@@ -33,6 +40,30 @@ export function FriendsList() {
       },
     });
   };
+
+  // Função para iniciar chat rápido
+  const handleQuickChat = (friendId: string) => {
+    createConversation.mutate(
+      { type: 'direct', participantIds: [friendId] },
+      {
+        onSuccess: (conversation) => {
+          navigate(`/chat?conversation=${conversation.id}`);
+        },
+        onError: () => {
+          toast.error('Erro ao iniciar conversa');
+        },
+      }
+    );
+  };
+
+  // Ordenar amigos: online primeiro
+  const sortedFriends = friends?.slice().sort((a, b) => {
+    const aOnline = isUserOnline(a.friend.id);
+    const bOnline = isUserOnline(b.friend.id);
+    if (aOnline && !bOnline) return -1;
+    if (!aOnline && bOnline) return 1;
+    return 0;
+  });
 
   if (isLoading) {
     return (
@@ -62,84 +93,122 @@ export function FriendsList() {
             Você ainda não tem amigos. Encontre novos amigos!
           </p>
         ) : (
-          <div className="space-y-3">
-            {friends?.map((friendship, index) => (
-              <div
-                key={friendship.id}
-                className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors animate-slide-up"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <Avatar 
-                  className="cursor-pointer"
-                  onClick={() => setSelectedFriend({
-                    id: friendship.friend.id,
-                    name: friendship.friend.display_name || friendship.friend.username || 'Usuário'
-                  })}
+          <div className="space-y-2">
+            {sortedFriends?.map((friendship, index) => {
+              const isOnline = isUserOnline(friendship.friend.id);
+              
+              return (
+                <div
+                  key={friendship.id}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors animate-slide-up"
+                  style={{ animationDelay: `${index * 30}ms` }}
                 >
-                  <AvatarImage src={friendship.friend.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary/20 text-primary">
-                    {(friendship.friend.display_name || friendship.friend.username || 'U').charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div 
-                  className="flex-1 min-w-0 cursor-pointer"
-                  onClick={() => setSelectedFriend({
-                    id: friendship.friend.id,
-                    name: friendship.friend.display_name || friendship.friend.username || 'Usuário'
-                  })}
-                >
-                  <p className="font-medium truncate">
-                    {friendship.friend.display_name || friendship.friend.username || 'Usuário'}
-                  </p>
-                  {friendship.friend.username && (
-                    <p className="text-xs text-muted-foreground">
-                      @{friendship.friend.username}
-                    </p>
-                  )}
-                </div>
+                  {/* Avatar com indicador de online */}
+                  <div className="relative">
+                    <Avatar 
+                      className="cursor-pointer h-10 w-10"
+                      onClick={() => setSelectedFriend({
+                        id: friendship.friend.id,
+                        name: friendship.friend.display_name || friendship.friend.username || 'Usuário'
+                      })}
+                    >
+                      <AvatarImage src={friendship.friend.avatar_url || undefined} />
+                      <AvatarFallback className="bg-primary/20 text-primary">
+                        {(friendship.friend.display_name || friendship.friend.username || 'U').charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    {/* Indicador de status online */}
+                    <span 
+                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-background ${
+                        isOnline ? 'bg-green-500' : 'bg-muted-foreground/50'
+                      }`}
+                      title={isOnline ? 'Online' : 'Offline'}
+                    />
+                  </div>
+                  
+                  {/* Nome e username */}
+                  <div 
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onClick={() => setSelectedFriend({
+                      id: friendship.friend.id,
+                      name: friendship.friend.display_name || friendship.friend.username || 'Usuário'
+                    })}
+                  >
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium truncate">
+                        {friendship.friend.display_name || friendship.friend.username || 'Usuário'}
+                      </p>
+                      {isOnline && (
+                        <span className="text-[10px] text-green-500 font-medium">ONLINE</span>
+                      )}
+                    </div>
+                    {friendship.friend.username && (
+                      <p className="text-xs text-muted-foreground">
+                        @{friendship.friend.username}
+                      </p>
+                    )}
+                  </div>
 
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8"
-                  onClick={() => setSelectedFriend({
-                    id: friendship.friend.id,
-                    name: friendship.friend.display_name || friendship.friend.username || 'Usuário'
-                  })}
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                      <UserMinus className="h-4 w-4" />
+                  {/* Botões de ação */}
+                  <div className="flex items-center gap-1">
+                    {/* Chat rápido */}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                      onClick={() => handleQuickChat(friendship.friend.id)}
+                      disabled={createConversation.isPending}
+                      title="Enviar mensagem"
+                    >
+                      <MessageCircle className="h-4 w-4" />
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent className="glass-card border-border/50">
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Remover amigo?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Tem certeza que deseja remover {friendship.friend.display_name || friendship.friend.username || 'este usuário'} da sua lista de amigos?
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => handleRemoveFriend(
-                          friendship.id, 
-                          friendship.friend.display_name || friendship.friend.username || 'Usuário'
-                        )}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Remover
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            ))}
+
+                    {/* Ver perfil */}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8"
+                      onClick={() => setSelectedFriend({
+                        id: friendship.friend.id,
+                        name: friendship.friend.display_name || friendship.friend.username || 'Usuário'
+                      })}
+                      title="Ver perfil"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+
+                    {/* Remover amigo */}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                          <UserMinus className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="glass-card border-border/50">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remover amigo?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tem certeza que deseja remover {friendship.friend.display_name || friendship.friend.username || 'este usuário'} da sua lista de amigos?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleRemoveFriend(
+                              friendship.id, 
+                              friendship.friend.display_name || friendship.friend.username || 'Usuário'
+                            )}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Remover
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

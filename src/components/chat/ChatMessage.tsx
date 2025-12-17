@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
-  DropdownMenu, 
+  DropdownMenu,
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuTrigger 
@@ -29,8 +29,8 @@ interface ChatMessageProps {
   onReply: () => void;
 }
 
-// Componente para renderizar uma mensagem do chat
-export default function ChatMessage({
+// Componente para renderizar uma mensagem do chat (memoizado para performance)
+const ChatMessage = memo(function ChatMessage({
   message,
   isOwn,
   showAvatar,
@@ -311,4 +311,6 @@ export default function ChatMessage({
       </div>
     </div>
   );
-}
+});
+
+export default ChatMessage;

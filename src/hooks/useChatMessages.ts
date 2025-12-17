@@ -166,7 +166,7 @@ export function useLoadMoreMessages(conversationId: string | null) {
   });
 }
 
-// Hook para enviar mensagem
+// Hook para enviar mensagem com optimistic update para resposta instantânea
 export function useSendMessage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -202,15 +202,57 @@ export function useSendMessage() {
 
       if (error) throw error;
 
-      // Atualizar updated_at da conversa
-      await supabase
+      // Atualizar updated_at da conversa (não bloqueia)
+      supabase
         .from('conversations')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', conversationId);
 
       return data;
     },
-    onSuccess: (_, variables) => {
+    // Optimistic update: adiciona mensagem instantaneamente na UI
+    onMutate: async (variables) => {
+      if (!user) return;
+      
+      await queryClient.cancelQueries({ queryKey: ['chatMessages', variables.conversationId] });
+      
+      const previousMessages = queryClient.getQueryData(['chatMessages', variables.conversationId]);
+      
+      // Criar mensagem temporária
+      const tempMessage: ChatMessageWithSender = {
+        id: `temp-${Date.now()}`,
+        conversation_id: variables.conversationId,
+        sender_id: user.id,
+        content: variables.content || null,
+        message_type: (variables.messageType || 'text') as 'text' | 'anime_card' | 'recommendation' | 'image' | 'system',
+        metadata: variables.metadata || {},
+        reply_to: variables.replyTo || null,
+        is_deleted: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        sender: {
+          id: user.id,
+          username: null,
+          display_name: 'Você',
+          avatar_url: null,
+        },
+      };
+      
+      // Adicionar mensagem ao cache
+      queryClient.setQueryData(['chatMessages', variables.conversationId], (old: ChatMessageWithSender[] | undefined) => {
+        return [...(old || []), tempMessage];
+      });
+      
+      return { previousMessages };
+    },
+    onError: (_, variables, context) => {
+      // Reverter em caso de erro
+      if (context?.previousMessages) {
+        queryClient.setQueryData(['chatMessages', variables.conversationId], context.previousMessages);
+      }
+    },
+    onSettled: (_, __, variables) => {
+      // Revalidar para sincronizar com servidor
       queryClient.invalidateQueries({ queryKey: ['chatMessages', variables.conversationId] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },

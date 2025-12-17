@@ -1,6 +1,4 @@
-import { useState, useCallback } from 'react';
-import Cropper from 'react-easy-crop';
-import type { Area, Point } from 'react-easy-crop';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,8 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Loader2, ZoomIn, RotateCcw } from 'lucide-react';
-import { getCroppedImg, PixelCrop } from '@/lib/cropImage';
+import { Loader2, MoveVertical } from 'lucide-react';
 
 interface BannerCropModalProps {
   open: boolean;
@@ -21,8 +18,8 @@ interface BannerCropModalProps {
 }
 
 /**
- * Modal para recorte de banner com formato retangular (16:9)
- * Permite ao usuário ajustar zoom e posição antes de confirmar
+ * Modal para ajuste de posicionamento vertical do banner
+ * Permite ao usuário escolher qual parte da imagem será exibida
  */
 export function BannerCropModal({
   open,
@@ -30,53 +27,88 @@ export function BannerCropModal({
   imageSrc,
   onCropComplete,
 }: BannerCropModalProps) {
-  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<PixelCrop | null>(null);
+  const [yPosition, setYPosition] = useState(50); // 0 = topo, 100 = fundo
   const [isProcessing, setIsProcessing] = useState(false);
+  const [imageNaturalSize, setImageNaturalSize] = useState({ width: 0, height: 0 });
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
 
-  // Callback quando o usuário move/zooma a imagem
-  const onCropChange = useCallback((crop: Point) => {
-    setCrop(crop);
-  }, []);
+  // Carrega as dimensões naturais da imagem
+  useEffect(() => {
+    if (imageSrc) {
+      const img = new Image();
+      img.onload = () => {
+        setImageNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
+      };
+      img.src = imageSrc;
+    }
+  }, [imageSrc]);
 
-  // Callback quando o zoom muda
-  const onZoomChange = useCallback((zoom: number) => {
-    setZoom(zoom);
-  }, []);
-
-  // Callback quando a área de crop é definida
-  const onCropAreaComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
-    setCroppedAreaPixels(croppedAreaPixels);
-  }, []);
-
-  // Reseta o zoom e posição
-  const handleReset = useCallback(() => {
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-  }, []);
-
-  // Processa o crop e retorna a imagem recortada
+  // Processa o crop baseado na posição Y escolhida
   const handleConfirm = useCallback(async () => {
-    if (!croppedAreaPixels) return;
+    if (!imageNaturalSize.width || !imageNaturalSize.height) return;
 
     setIsProcessing(true);
     try {
-      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
-      onCropComplete(croppedBlob);
-      onClose();
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = imageSrc;
+      });
+
+      // Dimensões do banner final (proporção 16:6)
+      const targetAspect = 16 / 6;
+      const sourceAspect = img.naturalWidth / img.naturalHeight;
+      
+      let cropWidth = img.naturalWidth;
+      let cropHeight = img.naturalWidth / targetAspect;
+      
+      // Se a altura calculada for maior que a imagem, ajusta
+      if (cropHeight > img.naturalHeight) {
+        cropHeight = img.naturalHeight;
+        cropWidth = cropHeight * targetAspect;
+      }
+
+      // Calcula a posição Y baseada no slider (0-100)
+      const maxY = img.naturalHeight - cropHeight;
+      const cropY = (yPosition / 100) * maxY;
+      const cropX = (img.naturalWidth - cropWidth) / 2;
+
+      // Cria o canvas e faz o crop
+      const canvas = document.createElement('canvas');
+      canvas.width = 1200; // Largura final do banner
+      canvas.height = 450; // Altura final (1200 / 16 * 6)
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Não foi possível criar contexto do canvas');
+
+      ctx.drawImage(
+        img,
+        cropX, cropY, cropWidth, cropHeight,
+        0, 0, canvas.width, canvas.height
+      );
+
+      // Converte para blob
+      canvas.toBlob((blob) => {
+        if (blob) {
+          onCropComplete(blob);
+          onClose();
+        }
+      }, 'image/jpeg', 0.9);
+
     } catch (error) {
-      console.error('Erro ao recortar imagem:', error);
+      console.error('Erro ao processar banner:', error);
     } finally {
       setIsProcessing(false);
     }
-  }, [imageSrc, croppedAreaPixels, onCropComplete, onClose]);
+  }, [imageSrc, yPosition, imageNaturalSize, onCropComplete, onClose]);
 
   // Limpa estados ao fechar
   const handleClose = useCallback(() => {
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-    setCroppedAreaPixels(null);
+    setYPosition(50);
     onClose();
   }, [onClose]);
 
@@ -84,48 +116,39 @@ export function BannerCropModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Ajustar banner do perfil</DialogTitle>
+          <DialogTitle>Posicionar banner do perfil</DialogTitle>
         </DialogHeader>
 
-        {/* Área de crop com aspect ratio 16:9 para banner */}
-        <div className="relative w-full h-48 bg-muted rounded-lg overflow-hidden">
-          <Cropper
-            image={imageSrc}
-            crop={crop}
-            zoom={zoom}
-            aspect={16 / 6}
-            cropShape="rect"
-            showGrid={true}
-            onCropChange={onCropChange}
-            onZoomChange={onZoomChange}
-            onCropComplete={onCropAreaComplete}
+        {/* Preview do banner com posição ajustável */}
+        <div className="relative w-full h-40 bg-muted rounded-lg overflow-hidden">
+          <img
+            ref={imageRef}
+            src={imageSrc}
+            alt="Preview do banner"
+            className="absolute w-full h-auto min-h-full object-cover"
+            style={{
+              objectPosition: `center ${yPosition}%`,
+            }}
           />
+          {/* Overlay indicando área visível */}
+          <div className="absolute inset-0 border-2 border-primary/50 rounded-lg pointer-events-none" />
         </div>
 
-        {/* Controle de zoom */}
+        {/* Controle de posicionamento vertical */}
         <div className="flex items-center gap-3 px-2">
-          <ZoomIn className="h-4 w-4 text-muted-foreground" />
+          <MoveVertical className="h-4 w-4 text-muted-foreground" />
           <Slider
-            value={[zoom]}
-            min={1}
-            max={3}
-            step={0.1}
-            onValueChange={(value) => setZoom(value[0])}
+            value={[yPosition]}
+            min={0}
+            max={100}
+            step={1}
+            onValueChange={(value) => setYPosition(value[0])}
             className="flex-1"
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleReset}
-            className="h-8 w-8"
-            title="Resetar"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </Button>
         </div>
 
         <p className="text-xs text-muted-foreground text-center">
-          Arraste para posicionar e use o zoom para ajustar
+          Ajuste o slider para escolher qual parte da imagem será exibida no banner
         </p>
 
         <DialogFooter className="gap-2 sm:gap-0">

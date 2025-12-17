@@ -27,13 +27,13 @@ const statusIcons: Record<AnimeStatus, typeof PlayCircle> = {
   not_started: Clock,
 };
 
-// Cores vibrantes para melhor visibilidade
+// Cores sólidas para melhor destaque e visibilidade
 const statusColors: Record<AnimeStatus, { bg: string; text: string; border: string }> = {
-  watching: { bg: 'bg-primary/40', text: 'text-primary', border: 'border-primary/50' },
-  completed: { bg: 'bg-green-500/40', text: 'text-green-400', border: 'border-green-500/50' },
-  paused: { bg: 'bg-yellow-500/40', text: 'text-yellow-400', border: 'border-yellow-500/50' },
-  dropped: { bg: 'bg-red-500/40', text: 'text-red-400', border: 'border-red-500/50' },
-  not_started: { bg: 'bg-purple-500/40', text: 'text-purple-400', border: 'border-purple-500/50' },
+  watching: { bg: 'bg-blue-600', text: 'text-white', border: 'border-blue-700' },
+  completed: { bg: 'bg-green-600', text: 'text-white', border: 'border-green-700' },
+  paused: { bg: 'bg-yellow-500', text: 'text-yellow-950', border: 'border-yellow-600' },
+  dropped: { bg: 'bg-red-600', text: 'text-white', border: 'border-red-700' },
+  not_started: { bg: 'bg-purple-600', text: 'text-white', border: 'border-purple-700' },
 };
 
 interface SortableAnimeItemProps {

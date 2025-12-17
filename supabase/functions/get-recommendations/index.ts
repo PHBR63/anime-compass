@@ -75,8 +75,8 @@ serve(async (req) => {
   }
 
   try {
-    // Obter o token de autenticação
-    const authHeader = req.headers.get("Authorization");
+    // Obter o token de autenticação (suporta header em diferentes casos)
+    const authHeader = req.headers.get("authorization") ?? req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "Não autorizado" }),
@@ -84,14 +84,29 @@ serve(async (req) => {
       );
     }
 
-    // Criar cliente Supabase com service role para validar token
+    // Extrair o token JWT do header (case-insensitive) e validar presença
+    const tokenMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+    const token = tokenMatch?.[1]?.trim();
+
+    if (!token) {
+      console.error("[Recommendations] Header de autorização sem token Bearer válido");
+      return new Response(
+        JSON.stringify({ error: "Token inválido" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Criar cliente Supabase com service role para validar token (sem persistência de sessão)
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const supabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
 
-    // Extrair o token JWT do header
-    const token = authHeader.replace("Bearer ", "");
-    
     // Validar o token e obter o usuário
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {

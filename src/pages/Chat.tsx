@@ -45,6 +45,16 @@ export default function Chat() {
     }
   }, [selectedConversationId, selectedConversation?.unread_count]);
 
+  // Limpar seleção se conversa foi deletada
+  useEffect(() => {
+    if (selectedConversationId && conversations && !conversations.find(c => c.id === selectedConversationId)) {
+      setSelectedConversationId(null);
+      if (isMobile) {
+        setMobileView('list');
+      }
+    }
+  }, [conversations, selectedConversationId, isMobile]);
+
   // Selecionar conversa
   const handleSelectConversation = (id: string) => {
     setSelectedConversationId(id);

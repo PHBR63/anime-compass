@@ -68,7 +68,7 @@ export function CreateListModal({ open, onOpenChange }: CreateListModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Criar Nova Lista</DialogTitle>
         </DialogHeader>

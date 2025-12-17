@@ -141,7 +141,8 @@ export default function Chat() {
   // Layout responsivo (mobile e tablet usam layout de uma coluna)
   if (isCompact) {
     return (
-      <div className="h-[calc(100vh-4rem)]">
+      // Mobile: tela toda | Tablet+: considera sidebar (md:left-64)
+      <div className="fixed inset-0 md:left-64 bg-background z-10">
         {mobileView === 'list' ? (
           <ConversationList
             conversations={conversations || []}
@@ -172,9 +173,9 @@ export default function Chat() {
     );
   }
 
-  // Layout desktop
+  // Layout desktop (tela grande > 1024px)
   return (
-    <div className="h-[calc(100vh-4rem)] flex">
+    <div className="fixed inset-0 md:left-64 flex bg-background z-10">
       {/* Lista de conversas */}
       <div className="w-80 shrink-0">
         <ConversationList

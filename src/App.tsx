@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
 import Index from "./pages/Index";
 import MyList from "./pages/MyList";
+import Franchises from "./pages/Franchises";
 import Discover from "./pages/Discover";
 import Social from "./pages/Social";
 import Achievements from "./pages/Achievements";
@@ -75,6 +76,7 @@ const App = () => (
                     <MainLayout>
                       <Routes>
                         <Route path="/list" element={<MyList />} />
+                        <Route path="/list/franchises" element={<Franchises />} />
                         <Route path="/discover" element={<Discover />} />
                         <Route path="/social" element={<Social />} />
                         <Route path="/chat" element={<Chat />} />

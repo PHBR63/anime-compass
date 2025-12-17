@@ -23,9 +23,24 @@ import { NotificationsDropdown } from '@/components/notifications/NotificationsD
 import { useUnreadNotificationsCount } from '@/hooks/useNotifications';
 import { useUnreadMessagesCount } from '@/hooks/useConversations';
 
-const navItems = [
+interface NavItem {
+  icon: typeof LayoutDashboard;
+  label: string;
+  path: string;
+  hasBadge?: boolean;
+  subItems?: { label: string; path: string }[];
+}
+
+const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-  { icon: List, label: 'Minha Lista', path: '/list' },
+  { 
+    icon: List, 
+    label: 'Minha Lista', 
+    path: '/list',
+    subItems: [
+      { label: 'Franquias', path: '/list/franchises' },
+    ]
+  },
   { icon: Search, label: 'Descobrir', path: '/discover' },
   { icon: Users, label: 'Social', path: '/social' },
   { icon: MessageCircle, label: 'Chat', path: '/chat', hasBadge: true },
@@ -116,40 +131,70 @@ export function Sidebar() {
           <nav className="flex-1 px-3 py-6 space-y-1">
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;
+              const isSubActive = item.subItems?.some(sub => location.pathname === sub.path);
               const showBadge = item.hasBadge && unreadMessages && unreadMessages > 0;
               
               return (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setIsOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group relative",
-                    isActive
-                      ? "bg-primary/10 text-primary border border-primary/20"
-                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                  )}
-                >
-                  <item.icon className={cn(
-                    "h-5 w-5 transition-transform duration-200 group-hover:scale-110",
-                    isActive && "text-primary"
-                  )} />
-                  <span className="font-medium">{item.label}</span>
+                <div key={item.path}>
+                  <NavLink
+                    to={item.path}
+                    onClick={() => setIsOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group relative",
+                      isActive || isSubActive
+                        ? "bg-primary/10 text-primary border border-primary/20"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    )}
+                  >
+                    <item.icon className={cn(
+                      "h-5 w-5 transition-transform duration-200 group-hover:scale-110",
+                      (isActive || isSubActive) && "text-primary"
+                    )} />
+                    <span className="font-medium">{item.label}</span>
+                    
+                    {/* Badge de não lidas para Chat */}
+                    {showBadge && (
+                      <Badge 
+                        className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 text-xs animate-pulse bg-destructive text-destructive-foreground"
+                        variant="default"
+                      >
+                        {unreadMessages > 99 ? '99+' : unreadMessages}
+                      </Badge>
+                    )}
+                    
+                    {isActive && !showBadge && !item.subItems && (
+                      <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    )}
+                  </NavLink>
                   
-                  {/* Badge de não lidas para Chat */}
-                  {showBadge && (
-                    <Badge 
-                      className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 text-xs animate-pulse bg-destructive text-destructive-foreground"
-                      variant="default"
-                    >
-                      {unreadMessages > 99 ? '99+' : unreadMessages}
-                    </Badge>
+                  {/* Subitens */}
+                  {item.subItems && (isActive || isSubActive) && (
+                    <div className="ml-6 mt-1 space-y-1">
+                      {item.subItems.map((subItem) => {
+                        const isSubItemActive = location.pathname === subItem.path;
+                        return (
+                          <NavLink
+                            key={subItem.path}
+                            to={subItem.path}
+                            onClick={() => setIsOpen(false)}
+                            className={cn(
+                              "flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors",
+                              isSubItemActive
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            )}
+                          >
+                            <div className={cn(
+                              "w-1.5 h-1.5 rounded-full",
+                              isSubItemActive ? "bg-primary" : "bg-muted-foreground/50"
+                            )} />
+                            {subItem.label}
+                          </NavLink>
+                        );
+                      })}
+                    </div>
                   )}
-                  
-                  {isActive && !showBadge && (
-                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  )}
-                </NavLink>
+                </div>
               );
             })}
           </nav>

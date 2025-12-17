@@ -211,13 +211,13 @@ export default function SelectAnimeForChat({
                     <div className="text-center py-8 text-muted-foreground">
                       Digite pelo menos 3 caracteres
                     </div>
-                  ) : searchResults?.length === 0 ? (
+                  ) : searchResults?.data?.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       Nenhum anime encontrado
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      {searchResults?.map((anime: any) => renderAnimeCard({
+                      {searchResults?.data?.map((anime: any) => renderAnimeCard({
                         mal_id: anime.mal_id,
                         title: anime.title,
                         image_url: anime.images?.jpg?.image_url,

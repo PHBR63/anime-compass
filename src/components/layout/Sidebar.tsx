@@ -11,7 +11,8 @@ import {
   Menu,
   X,
   Sparkles,
-  LogOut
+  LogOut,
+  MessageCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ const navItems = [
   { icon: List, label: 'Minha Lista', path: '/list' },
   { icon: Search, label: 'Descobrir', path: '/discover' },
   { icon: Users, label: 'Social', path: '/social' },
+  { icon: MessageCircle, label: 'Chat', path: '/chat' },
   { icon: Trophy, label: 'Conquistas', path: '/achievements' },
   { icon: User, label: 'Perfil', path: '/profile' },
 ];

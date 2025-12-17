@@ -7,7 +7,13 @@ const TABLET_BREAKPOINT = 1024;
  * Hook para detectar se o dispositivo é mobile (< 768px)
  */
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined);
+  const [isMobile, setIsMobile] = React.useState<boolean>(() => {
+    // Inicializa com valor correto no cliente
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < MOBILE_BREAKPOINT;
+    }
+    return false;
+  });
 
   React.useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
@@ -19,14 +25,20 @@ export function useIsMobile() {
     return () => mql.removeEventListener("change", onChange);
   }, []);
 
-  return !!isMobile;
+  return isMobile;
 }
 
 /**
  * Hook para detectar se o dispositivo é tablet (768px - 1024px)
  */
 export function useIsTablet() {
-  const [isTablet, setIsTablet] = React.useState<boolean | undefined>(undefined);
+  const [isTablet, setIsTablet] = React.useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const width = window.innerWidth;
+      return width >= MOBILE_BREAKPOINT && width < TABLET_BREAKPOINT;
+    }
+    return false;
+  });
 
   React.useEffect(() => {
     const onChange = () => {
@@ -39,14 +51,19 @@ export function useIsTablet() {
     return () => window.removeEventListener("resize", onChange);
   }, []);
 
-  return !!isTablet;
+  return isTablet;
 }
 
 /**
- * Hook para detectar se deve usar layout compacto (mobile ou tablet)
+ * Hook para detectar se deve usar layout compacto (mobile ou tablet < 1024px)
  */
 export function useIsCompact() {
-  const [isCompact, setIsCompact] = React.useState<boolean | undefined>(undefined);
+  const [isCompact, setIsCompact] = React.useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < TABLET_BREAKPOINT;
+    }
+    return true; // Default seguro para SSR
+  });
 
   React.useEffect(() => {
     const onChange = () => {
@@ -58,5 +75,5 @@ export function useIsCompact() {
     return () => window.removeEventListener("resize", onChange);
   }, []);
 
-  return !!isCompact;
+  return isCompact;
 }

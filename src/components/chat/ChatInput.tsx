@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
@@ -21,8 +21,8 @@ interface ChatInputProps {
 // Lista de emojis comuns
 const COMMON_EMOJIS = ['😊', '😂', '❤️', '🔥', '👍', '😍', '🎉', '😭', '🤔', '👀', '💪', '🙏'];
 
-// Componente de input do chat
-export default function ChatInput({
+// Componente de input do chat (memoizado para performance)
+function ChatInput({
   onSendMessage,
   onSendAnime,
   onSendRecommendation,
@@ -35,16 +35,22 @@ export default function ChatInput({
   const [animeMode, setAnimeMode] = useState<'card' | 'recommendation'>('card');
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const wasTypingRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const lastTypingStateRef = useRef(false);
 
-  // Gerenciar estado de "digitando"
+  // Gerenciar estado de "digitando" com debounce otimizado
+  const updateTypingState = useCallback((isTyping: boolean) => {
+    if (!onTypingChange || lastTypingStateRef.current === isTyping) return;
+    lastTypingStateRef.current = isTyping;
+    onTypingChange(isTyping);
+  }, [onTypingChange]);
+
   useEffect(() => {
-    if (!onTypingChange) return;
-
     const isCurrentlyTyping = message.length > 0;
 
     // Se começou a digitar
     if (isCurrentlyTyping && !wasTypingRef.current) {
-      onTypingChange(true);
+      updateTypingState(true);
       wasTypingRef.current = true;
     }
 
@@ -56,12 +62,12 @@ export default function ChatInput({
     // Se está digitando, definir timeout para parar
     if (isCurrentlyTyping) {
       typingTimeoutRef.current = setTimeout(() => {
-        onTypingChange(false);
+        updateTypingState(false);
         wasTypingRef.current = false;
-      }, 3000); // Para de mostrar "digitando" após 3s de inatividade
+      }, 2000); // Reduzido para 2s
     } else {
       // Se apagou tudo
-      onTypingChange(false);
+      updateTypingState(false);
       wasTypingRef.current = false;
     }
 
@@ -70,16 +76,14 @@ export default function ChatInput({
         clearTimeout(typingTimeoutRef.current);
       }
     };
-  }, [message, onTypingChange]);
+  }, [message, updateTypingState]);
 
   // Limpar ao desmontar
   useEffect(() => {
     return () => {
-      if (onTypingChange) {
-        onTypingChange(false);
-      }
+      updateTypingState(false);
     };
-  }, [onTypingChange]);
+  }, [updateTypingState]);
 
   // Enviar mensagem ao pressionar Enter
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -89,18 +93,18 @@ export default function ChatInput({
     }
   };
 
-  // Enviar mensagem de texto
-  const handleSend = () => {
+  // Enviar mensagem de texto (otimizado)
+  const handleSend = useCallback(() => {
     if (message.trim()) {
       onSendMessage(message.trim());
       setMessage('');
       // Parar de mostrar "digitando" imediatamente ao enviar
-      if (onTypingChange) {
-        onTypingChange(false);
-        wasTypingRef.current = false;
-      }
+      updateTypingState(false);
+      wasTypingRef.current = false;
+      // Manter foco no input
+      inputRef.current?.focus();
     }
-  };
+  }, [message, onSendMessage, updateTypingState]);
 
   // Adicionar emoji ao texto
   const addEmoji = (emoji: string) => {
@@ -178,6 +182,7 @@ export default function ChatInput({
         {/* Campo de mensagem */}
         <div className="flex items-center gap-2">
           <Input
+            ref={inputRef}
             placeholder="Digite uma mensagem..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -205,3 +210,5 @@ export default function ChatInput({
     </>
   );
 }
+
+export default memo(ChatInput);

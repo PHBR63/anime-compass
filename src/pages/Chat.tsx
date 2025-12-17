@@ -6,7 +6,7 @@ import { useSendRecommendation } from '@/hooks/useAnimeRecommendations';
 import ConversationList from '@/components/chat/ConversationList';
 import ChatWindow from '@/components/chat/ChatWindow';
 import NewChatModal from '@/components/chat/NewChatModal';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsCompact } from '@/hooks/use-mobile';
 
 // Página principal do Chat
 export default function Chat() {
@@ -17,7 +17,8 @@ export default function Chat() {
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
   
-  const isMobile = useIsMobile();
+  // Usa layout compacto para mobile E tablet (< 1024px)
+  const isCompact = useIsCompact();
   
   const { data: conversations, isLoading: loadingConversations } = useConversations();
   const { data: messages, isLoading: loadingMessages } = useChatMessages(selectedConversationId);
@@ -50,16 +51,16 @@ export default function Chat() {
   useEffect(() => {
     if (selectedConversationId && conversations && !conversations.find(c => c.id === selectedConversationId)) {
       setSelectedConversationId(null);
-      if (isMobile) {
+      if (isCompact) {
         setMobileView('list');
       }
     }
-  }, [conversations, selectedConversationId, isMobile]);
+  }, [conversations, selectedConversationId, isCompact]);
 
   // Selecionar conversa
   const handleSelectConversation = (id: string) => {
     setSelectedConversationId(id);
-    if (isMobile) {
+    if (isCompact) {
       setMobileView('chat');
     }
   };
@@ -132,13 +133,13 @@ export default function Chat() {
   // Callback quando nova conversa é criada
   const handleConversationCreated = (conversationId: string) => {
     setSelectedConversationId(conversationId);
-    if (isMobile) {
+    if (isCompact) {
       setMobileView('chat');
     }
   };
 
-  // Layout responsivo
-  if (isMobile) {
+  // Layout responsivo (mobile e tablet usam layout de uma coluna)
+  if (isCompact) {
     return (
       <div className="h-[calc(100vh-4rem)]">
         {mobileView === 'list' ? (

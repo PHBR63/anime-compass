@@ -84,21 +84,25 @@ serve(async (req) => {
       );
     }
 
-    // Criar cliente Supabase
+    // Criar cliente Supabase com service role para validar token
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Obter usuário autenticado
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Extrair o token JWT do header
+    const token = authHeader.replace("Bearer ", "");
+    
+    // Validar o token e obter o usuário
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
+      console.error("[Recommendations] Erro ao validar usuário:", userError);
       return new Response(
-        JSON.stringify({ error: "Usuário não encontrado" }),
+        JSON.stringify({ error: "Usuário não encontrado ou sessão inválida" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    
+    console.log(`[Recommendations] Usuário autenticado: ${user.id}`);
 
     // Buscar animes do usuário (completados e assistindo com boa nota)
     const { data: userAnimes, error: animesError } = await supabase

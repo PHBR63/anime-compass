@@ -2,6 +2,7 @@ import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { Home, ArrowLeft, Search, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import lostAnimeCharacter from "@/assets/lost-anime-character.png";
 
 /**
  * Página de erro 404 personalizada
@@ -24,13 +25,25 @@ const NotFound = () => {
       
       {/* Conteúdo principal */}
       <div className="relative z-10 text-center max-w-2xl mx-auto">
-        {/* Número 404 estilizado */}
+        {/* Personagem anime e número 404 */}
         <div className="relative mb-8">
-          <h1 className="text-[12rem] md:text-[16rem] font-bold text-transparent bg-clip-text bg-gradient-to-br from-primary via-accent to-primary leading-none select-none animate-float">
-            404
-          </h1>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Compass className="w-20 h-20 md:w-28 md:h-28 text-primary/50 animate-spin" style={{ animationDuration: '8s' }} />
+          {/* Personagem anime animado */}
+          <div className="flex justify-center mb-4">
+            <img 
+              src={lostAnimeCharacter} 
+              alt="Personagem anime perdido"
+              className="w-40 h-40 md:w-52 md:h-52 object-contain animate-float drop-shadow-2xl"
+            />
+          </div>
+          
+          {/* Número 404 estilizado */}
+          <div className="relative">
+            <h1 className="text-8xl md:text-9xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-primary via-accent to-primary leading-none select-none">
+              404
+            </h1>
+            <div className="absolute inset-0 flex items-center justify-center opacity-20">
+              <Compass className="w-16 h-16 md:w-20 md:h-20 text-primary animate-spin" style={{ animationDuration: '8s' }} />
+            </div>
           </div>
         </div>
 

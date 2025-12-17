@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Globe, Lock, Pencil, GripVertical, LayoutGrid, Share2, Check, Copy } from 'lucide-react';
+import { ArrowLeft, Globe, Lock, Pencil, GripVertical, LayoutGrid, Share2, Check, Copy, Plus } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input';
 import { AnimeGrid } from '@/components/anime/AnimeGrid';
 import { SortableAnimeItem } from './SortableAnimeItem';
 import { EditListModal } from './EditListModal';
+import { AddAnimesToListModal } from './AddAnimesToListModal';
 import { useListItems, useRemoveFromList, useReorderListItems } from '@/hooks/useCustomLists';
 import type { CustomList } from '@/hooks/useCustomLists';
 import { cn } from '@/lib/utils';
@@ -46,6 +47,7 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [copied, setCopied] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const { data: items, isLoading } = useListItems(list.id);
   const removeFromList = useRemoveFromList();
   const reorderItems = useReorderListItems();
@@ -259,6 +261,11 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
                 </Popover>
               )}
               
+              <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar
+              </Button>
+              
               <Button variant="outline" size="sm" onClick={() => setShowEditModal(true)}>
                 <Pencil className="h-4 w-4 mr-2" />
                 Editar
@@ -267,7 +274,6 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
           </div>
         </div>
       </div>
-
       {/* Conteúdo */}
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -321,9 +327,10 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
           <p className="text-muted-foreground mb-4">
             Esta lista está vazia
           </p>
-          <p className="text-sm text-muted-foreground">
-            Use a edição em massa para adicionar animes a esta lista
-          </p>
+          <Button variant="outline" onClick={() => setShowAddModal(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar animes
+          </Button>
         </div>
       )}
 
@@ -332,6 +339,13 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
         list={list}
         open={showEditModal}
         onOpenChange={setShowEditModal}
+      />
+      
+      {/* Modal de adicionar animes */}
+      <AddAnimesToListModal
+        listId={list.id}
+        open={showAddModal}
+        onOpenChange={setShowAddModal}
       />
     </div>
   );

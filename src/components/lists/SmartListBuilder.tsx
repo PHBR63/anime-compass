@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
+
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -325,14 +325,18 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
             <Label className="text-xs text-muted-foreground">Status</Label>
             <div className="flex flex-wrap gap-2">
               {(['watching', 'completed', 'paused', 'dropped', 'not_started'] as AnimeStatus[]).map((status) => (
-                <Badge
+                <button
                   key={status}
-                  variant={selectedStatuses.includes(status) ? 'default' : 'outline'}
-                  className="cursor-pointer transition-colors"
+                  type="button"
                   onClick={() => handleStatusToggle(status)}
+                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer ${
+                    selectedStatuses.includes(status)
+                      ? 'border-transparent bg-primary text-primary-foreground'
+                      : 'border-border bg-transparent text-foreground hover:bg-secondary'
+                  }`}
                 >
                   {statusLabels[status]}
-                </Badge>
+                </button>
               ))}
             </div>
           </div>
@@ -342,14 +346,18 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
             <Label className="text-xs text-muted-foreground">Tipo de Conteúdo</Label>
             <div className="flex flex-wrap gap-2">
               {(['main', 'season', 'movie', 'special'] as const).map((type) => (
-                <Badge
+                <button
                   key={type}
-                  variant={selectedTypes.has(type) ? 'default' : 'outline'}
-                  className="cursor-pointer transition-colors"
+                  type="button"
                   onClick={() => handleTypeToggle(type)}
+                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer ${
+                    selectedTypes.has(type)
+                      ? 'border-transparent bg-primary text-primary-foreground'
+                      : 'border-border bg-transparent text-foreground hover:bg-secondary'
+                  }`}
                 >
                   {animeTypeLabels[type]}
-                </Badge>
+                </button>
               ))}
             </div>
           </div>
@@ -398,14 +406,18 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
                   { value: 'multi_season', label: 'Multi-temporada' },
                   { value: 'high_rated', label: 'Nota Alta (4+)' },
                 ].map(({ value, label }) => (
-                  <Badge
+                  <button
                     key={value || 'all'}
-                    variant={franchiseCriteria === value ? 'default' : 'outline'}
-                    className="cursor-pointer transition-colors"
+                    type="button"
                     onClick={() => setFranchiseCriteria(value)}
+                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer ${
+                      franchiseCriteria === value
+                        ? 'border-transparent bg-primary text-primary-foreground'
+                        : 'border-border bg-transparent text-foreground hover:bg-secondary'
+                    }`}
                   >
                     {label}
-                  </Badge>
+                  </button>
                 ))}
               </div>
             </div>

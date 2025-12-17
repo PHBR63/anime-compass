@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Mail, Lock, User, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Sparkles, ShieldAlert } from 'lucide-react';
 import { z } from 'zod';
 
+// Schema de validação para login
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
 });
 
+// Schema de validação para cadastro
 const signupSchema = loginSchema.extend({
   username: z.string().min(3, 'Username deve ter pelo menos 3 caracteres').max(20, 'Username deve ter no máximo 20 caracteres'),
   confirmPassword: z.string(),
@@ -32,12 +34,17 @@ export default function Auth() {
   
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Obtém a rota de origem para redirecionar após login
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
   useEffect(() => {
+    // Se usuário já está logado, redireciona para a página de origem
     if (!loading && user) {
-      navigate('/');
+      navigate(from, { replace: true });
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +68,7 @@ export default function Auth() {
           }
         } else {
           toast.success('Login realizado com sucesso!');
-          navigate('/');
+          navigate(from, { replace: true });
         }
       } else {
         const validation = signupSchema.safeParse({ email, password, confirmPassword, username });
@@ -80,7 +87,7 @@ export default function Auth() {
           }
         } else {
           toast.success('Conta criada com sucesso!');
-          navigate('/');
+          navigate(from, { replace: true });
         }
       }
     } catch (err) {
@@ -106,6 +113,16 @@ export default function Auth() {
       <div className="absolute bottom-1/4 -right-16 md:-right-32 w-48 md:w-96 h-48 md:h-96 bg-accent/20 rounded-full blur-3xl animate-pulse-glow" />
       
       <div className="w-full max-w-sm md:max-w-md relative z-10">
+        {/* Mensagem de acesso restrito quando redirecionado */}
+        {from !== '/' && (
+          <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-3">
+            <ShieldAlert className="w-5 h-5 text-destructive flex-shrink-0" />
+            <p className="text-sm text-destructive">
+              Faça login para acessar este conteúdo protegido.
+            </p>
+          </div>
+        )}
+
         {/* Logo */}
         <div className="text-center mb-6 md:mb-8">
           <div className="flex items-center justify-center gap-2 mb-2">

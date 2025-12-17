@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { useState, useCallback } from 'react';
+import { useEffect } from 'react';
 
 // Interface para conversa com última mensagem e participantes
 export interface ConversationWithDetails {
@@ -39,6 +39,46 @@ const CONVERSATIONS_PER_PAGE = 20;
 // Hook para buscar todas as conversas do usuário com paginação e busca
 export function useConversations(searchQuery?: string) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Configurar realtime para novas conversas/participações
+  useEffect(() => {
+    if (!user) return;
+
+    // Escutar novas participações do usuário (quando alguém adiciona ele em conversa)
+    const channel = supabase
+      .channel('user-conversations')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'conversation_participants',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          // Quando o usuário é adicionado a uma nova conversa, atualizar lista
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+        },
+        () => {
+          // Atualizar quando conversas são modificadas
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, queryClient]);
 
   return useQuery({
     queryKey: ['conversations', user?.id, searchQuery],

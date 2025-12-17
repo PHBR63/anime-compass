@@ -10,6 +10,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import Index from "./pages/Index";
 import MyList from "./pages/MyList";
 import Franchises from "./pages/Franchises";
+import Studios from "./pages/Studios";
 import Discover from "./pages/Discover";
 import Social from "./pages/Social";
 import Achievements from "./pages/Achievements";
@@ -77,6 +78,7 @@ const App = () => (
                       <Routes>
                         <Route path="/list" element={<MyList />} />
                         <Route path="/list/franchises" element={<Franchises />} />
+                        <Route path="/list/studios" element={<Studios />} />
                         <Route path="/discover" element={<Discover />} />
                         <Route path="/social" element={<Social />} />
                         <Route path="/chat" element={<Chat />} />

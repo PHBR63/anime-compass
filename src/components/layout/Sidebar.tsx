@@ -12,7 +12,8 @@ import {
   X,
   Sparkles,
   LogOut,
-  MessageCircle
+  MessageCircle,
+  Building2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
     path: '/list',
     subItems: [
       { label: 'Franquias', path: '/list/franchises' },
+      { label: 'Estúdios', path: '/list/studios' },
     ]
   },
   { icon: Search, label: 'Descobrir', path: '/discover' },

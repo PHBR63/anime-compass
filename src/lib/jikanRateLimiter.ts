@@ -1,33 +1,33 @@
 /**
  * Sistema de Rate Limiting para API Jikan
- * Implementa uma fila de requisições respeitando o limite de 3 req/s
+ * Implementa uma fila de requisições respeitando o limite da API
+ * A API Jikan permite no máximo 3 requisições por segundo
  */
 
-// Fila de requisições pendentes
 type QueueItem = {
   url: string;
   resolve: (value: Response) => void;
   reject: (reason: Error) => void;
+  retries: number;
 };
 
 class JikanRateLimiter {
   private queue: QueueItem[] = [];
   private isProcessing = false;
   private lastRequestTime = 0;
-  private requestsInWindow = 0;
-  private windowStart = 0;
+  private consecutiveErrors = 0;
   
-  // Jikan permite 3 requisições por segundo
-  private readonly MAX_REQUESTS_PER_SECOND = 3;
-  private readonly MIN_DELAY_MS = 350; // Delay mínimo entre requisições
-  private readonly WINDOW_MS = 1000;
+  // Configurações mais conservadoras para evitar 429
+  private readonly MIN_DELAY_MS = 400; // Delay mínimo entre requisições
+  private readonly MAX_RETRIES = 3;
+  private readonly BASE_BACKOFF_MS = 2000;
 
   /**
    * Adiciona uma requisição à fila e retorna uma Promise
    */
   async enqueue(url: string): Promise<Response> {
     return new Promise((resolve, reject) => {
-      this.queue.push({ url, resolve, reject });
+      this.queue.push({ url, resolve, reject, retries: 0 });
       this.processQueue();
     });
   }
@@ -43,23 +43,12 @@ class JikanRateLimiter {
     while (this.queue.length > 0) {
       const now = Date.now();
       
-      // Reseta contador se passou 1 segundo
-      if (now - this.windowStart >= this.WINDOW_MS) {
-        this.requestsInWindow = 0;
-        this.windowStart = now;
-      }
-
-      // Verifica se atingiu o limite de requisições na janela
-      if (this.requestsInWindow >= this.MAX_REQUESTS_PER_SECOND) {
-        const waitTime = this.WINDOW_MS - (now - this.windowStart);
-        await this.delay(waitTime);
-        continue;
-      }
-
-      // Aplica delay mínimo entre requisições
+      // Calcula delay baseado em erros consecutivos
+      const dynamicDelay = this.MIN_DELAY_MS + (this.consecutiveErrors * 500);
       const timeSinceLastRequest = now - this.lastRequestTime;
-      if (timeSinceLastRequest < this.MIN_DELAY_MS) {
-        await this.delay(this.MIN_DELAY_MS - timeSinceLastRequest);
+      
+      if (timeSinceLastRequest < dynamicDelay) {
+        await this.delay(dynamicDelay - timeSinceLastRequest);
       }
 
       const item = this.queue.shift();
@@ -67,11 +56,31 @@ class JikanRateLimiter {
 
       try {
         this.lastRequestTime = Date.now();
-        this.requestsInWindow++;
         
         const response = await fetch(item.url);
-        item.resolve(response);
+        
+        if (response.status === 429) {
+          // Rate limited - reagenda com backoff exponencial
+          this.consecutiveErrors++;
+          const backoff = this.BASE_BACKOFF_MS * Math.pow(2, Math.min(item.retries, 3));
+          
+          console.warn(`[Jikan] Rate limited. Retry ${item.retries + 1}/${this.MAX_RETRIES} em ${backoff}ms`);
+          
+          if (item.retries < this.MAX_RETRIES) {
+            await this.delay(backoff);
+            this.queue.unshift({ ...item, retries: item.retries + 1 });
+          } else {
+            item.reject(new Error('Rate limit excedido após várias tentativas'));
+          }
+        } else if (!response.ok) {
+          item.reject(new Error(`Erro HTTP: ${response.status}`));
+        } else {
+          // Sucesso - reseta contador de erros
+          this.consecutiveErrors = Math.max(0, this.consecutiveErrors - 1);
+          item.resolve(response);
+        }
       } catch (error) {
+        this.consecutiveErrors++;
         item.reject(error as Error);
       }
     }
@@ -91,9 +100,10 @@ class JikanRateLimiter {
    */
   clearQueue(): void {
     this.queue.forEach(item => {
-      item.reject(new Error('Queue cleared'));
+      item.reject(new Error('Fila limpa'));
     });
     this.queue = [];
+    this.consecutiveErrors = 0;
   }
 
   /**

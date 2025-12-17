@@ -10,11 +10,11 @@ import {
   Bell,
   Menu,
   X,
-  Sparkles,
   LogOut,
   MessageCircle,
   Building2
 } from 'lucide-react';
+import logo from '@/assets/logo.png';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -94,7 +94,7 @@ export function Sidebar() {
           {/* Logo */}
           <div className="flex items-center gap-3 px-6 py-6 border-b border-border/50">
             <div className="relative">
-              <Sparkles className="h-8 w-8 text-primary animate-pulse-glow" />
+              <img src={logo} alt="AniCheck Logo" className="h-8 w-8" />
               <div className="absolute inset-0 blur-lg bg-primary/30" />
             </div>
             <span className="font-display text-2xl font-bold text-gradient">

@@ -421,3 +421,69 @@ export function useUnreadMessagesCount() {
     refetchInterval: 30000, // Atualizar a cada 30 segundos
   });
 }
+
+// Hook para deletar/sair de uma conversa
+export function useDeleteConversation() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (conversationId: string) => {
+      if (!user) throw new Error('Não autenticado');
+
+      // Verificar se é admin do grupo ou conversa direta
+      const { data: participation, error: partError } = await supabase
+        .from('conversation_participants')
+        .select('role')
+        .eq('conversation_id', conversationId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (partError) throw partError;
+
+      const { data: conversation, error: convError } = await supabase
+        .from('conversations')
+        .select('type, created_by')
+        .eq('id', conversationId)
+        .single();
+
+      if (convError) throw convError;
+
+      // Se for grupo e usuário é admin, deletar toda a conversa
+      // Se for conversa direta, apenas sair (remover participação)
+      if (conversation.type === 'group' && participation.role === 'admin') {
+        // Deletar todas as mensagens primeiro
+        await supabase
+          .from('chat_messages')
+          .delete()
+          .eq('conversation_id', conversationId);
+
+        // Deletar todos os participantes
+        await supabase
+          .from('conversation_participants')
+          .delete()
+          .eq('conversation_id', conversationId);
+
+        // Deletar a conversa
+        const { error } = await supabase
+          .from('conversations')
+          .delete()
+          .eq('id', conversationId);
+
+        if (error) throw error;
+      } else {
+        // Apenas sair da conversa (remover participação)
+        const { error } = await supabase
+          .from('conversation_participants')
+          .delete()
+          .eq('conversation_id', conversationId)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}

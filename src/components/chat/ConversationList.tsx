@@ -4,12 +4,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Users, MessageCircle } from 'lucide-react';
-import { ConversationWithDetails } from '@/hooks/useConversations';
+import { Plus, Search, Users, MessageCircle, Trash2, LogOut, MoreVertical } from 'lucide-react';
+import { ConversationWithDetails, useDeleteConversation } from '@/hooks/useConversations';
 import { useGlobalPresence } from '@/hooks/useChatPresence';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import CreateGroupModal from './CreateGroupModal';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface ConversationListProps {
   conversations: ConversationWithDetails[];
@@ -29,7 +47,10 @@ export default function ConversationList({
 }: ConversationListProps) {
   const [search, setSearch] = useState('');
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; isGroup: boolean; isAdmin: boolean } | null>(null);
   const { isUserOnline } = useGlobalPresence();
+  const { user } = useAuth();
+  const deleteConversation = useDeleteConversation();
 
   // Filtrar conversas pela busca (com debounce simulado via useMemo)
   const filteredConversations = useMemo(() => {
@@ -86,6 +107,35 @@ export default function ConversationList({
         return conv.last_message.content || 'Mensagem do sistema';
       default:
         return `${prefix}${conv.last_message.content || ''}`;
+    }
+  };
+
+  // Verificar se o usuário é admin do grupo
+  const isUserAdmin = (conv: ConversationWithDetails) => {
+    if (conv.type !== 'group') return false;
+    const userParticipation = conv.participants.find(p => p.user_id === user?.id);
+    return userParticipation?.role === 'admin';
+  };
+
+  // Handler para deletar/sair da conversa
+  const handleDeleteConversation = async () => {
+    if (!deleteConfirm) return;
+    
+    try {
+      await deleteConversation.mutateAsync(deleteConfirm.id);
+      toast.success(
+        deleteConfirm.isGroup && deleteConfirm.isAdmin 
+          ? 'Grupo deletado com sucesso' 
+          : 'Você saiu da conversa'
+      );
+      // Se estava selecionado, limpar seleção
+      if (selectedId === deleteConfirm.id) {
+        onSelect('');
+      }
+    } catch {
+      toast.error('Erro ao deletar conversa');
+    } finally {
+      setDeleteConfirm(null);
     }
   };
 
@@ -151,60 +201,110 @@ export default function ConversationList({
           <div className="p-2">
             {filteredConversations.map((conv) => {
               const online = isOtherUserOnline(conv);
+              const isAdmin = isUserAdmin(conv);
               return (
-                <button
+                <div
                   key={conv.id}
-                  onClick={() => onSelect(conv.id)}
-                  className={`w-full p-3 rounded-lg flex items-center gap-3 transition-colors mb-1 ${
+                  className={`w-full p-3 rounded-lg flex items-center gap-3 transition-colors mb-1 group ${
                     selectedId === conv.id 
                       ? 'bg-primary/10 border border-primary/20' 
                       : 'hover:bg-muted/50'
                   }`}
                 >
-                  {/* Avatar */}
-                  <div className="relative">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={getConversationAvatar(conv) || undefined} />
-                      <AvatarFallback className={conv.type === 'group' ? 'bg-primary/20' : ''}>
-                        {conv.type === 'group' ? <Users className="h-5 w-5" /> : getInitials(conv)}
-                      </AvatarFallback>
-                    </Avatar>
-                    {/* Badge de não lidas */}
-                    {conv.unread_count > 0 && (
-                      <Badge 
-                        className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs"
-                      >
-                        {conv.unread_count > 99 ? '99+' : conv.unread_count}
-                      </Badge>
-                    )}
-                    {/* Indicador online (para chats diretos) */}
-                    {conv.type === 'direct' && online && (
-                      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-card" />
-                    )}
-                  </div>
-
-                  {/* Info da conversa */}
-                  <div className="flex-1 min-w-0 text-left">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={`font-medium truncate ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
-                        {getConversationName(conv)}
-                      </span>
-                      {conv.last_message && (
-                        <span className="text-xs text-muted-foreground shrink-0">
-                          {formatDistanceToNow(new Date(conv.last_message.created_at), {
-                            addSuffix: false,
-                            locale: ptBR,
-                          })}
-                        </span>
+                  {/* Área clicável principal */}
+                  <button
+                    onClick={() => onSelect(conv.id)}
+                    className="flex items-center gap-3 flex-1 min-w-0"
+                  >
+                    {/* Avatar */}
+                    <div className="relative shrink-0">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={getConversationAvatar(conv) || undefined} />
+                        <AvatarFallback className={conv.type === 'group' ? 'bg-primary/20' : ''}>
+                          {conv.type === 'group' ? <Users className="h-5 w-5" /> : getInitials(conv)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {/* Badge de não lidas */}
+                      {conv.unread_count > 0 && (
+                        <Badge 
+                          className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 text-xs"
+                        >
+                          {conv.unread_count > 99 ? '99+' : conv.unread_count}
+                        </Badge>
+                      )}
+                      {/* Indicador online (para chats diretos) */}
+                      {conv.type === 'direct' && online && (
+                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-card" />
                       )}
                     </div>
-                    <p className={`text-sm truncate ${
-                      conv.unread_count > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'
-                    }`}>
-                      {getLastMessagePreview(conv)}
-                    </p>
-                  </div>
-                </button>
+
+                    {/* Info da conversa */}
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`font-medium truncate ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
+                          {getConversationName(conv)}
+                        </span>
+                        {conv.last_message && (
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {formatDistanceToNow(new Date(conv.last_message.created_at), {
+                              addSuffix: false,
+                              locale: ptBR,
+                            })}
+                          </span>
+                        )}
+                      </div>
+                      <p className={`text-sm truncate ${
+                        conv.unread_count > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'
+                      }`}>
+                        {getLastMessagePreview(conv)}
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Menu de opções */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteConfirm({ 
+                            id: conv.id, 
+                            isGroup: conv.type === 'group',
+                            isAdmin 
+                          });
+                        }}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        {conv.type === 'group' && isAdmin ? (
+                          <>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Deletar grupo
+                          </>
+                        ) : conv.type === 'group' ? (
+                          <>
+                            <LogOut className="h-4 w-4 mr-2" />
+                            Sair do grupo
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Apagar conversa
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               );
             })}
           </div>
@@ -216,6 +316,41 @@ export default function ConversationList({
         open={showCreateGroup}
         onOpenChange={setShowCreateGroup}
       />
+
+      {/* Dialog de confirmação de exclusão */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteConfirm?.isGroup && deleteConfirm?.isAdmin 
+                ? 'Deletar grupo?' 
+                : deleteConfirm?.isGroup 
+                  ? 'Sair do grupo?' 
+                  : 'Apagar conversa?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteConfirm?.isGroup && deleteConfirm?.isAdmin 
+                ? 'Esta ação não pode ser desfeita. Todas as mensagens e participantes serão removidos.' 
+                : deleteConfirm?.isGroup 
+                  ? 'Você não poderá mais ver as mensagens deste grupo.'
+                  : 'Esta ação não pode ser desfeita. Você perderá o acesso a esta conversa.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteConversation}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteConfirm?.isGroup && deleteConfirm?.isAdmin 
+                ? 'Deletar' 
+                : deleteConfirm?.isGroup 
+                  ? 'Sair' 
+                  : 'Apagar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

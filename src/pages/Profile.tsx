@@ -11,13 +11,15 @@ import {
   Trophy,
   Heart,
   Globe,
-  Lock
+  Lock,
+  User
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AvatarUpload } from '@/components/profile/AvatarUpload';
 import { EditProfileModal } from '@/components/profile/EditProfileModal';
+import { SessionExpiredCard, isSessionExpiredError } from '@/components/ui/SessionExpiredCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
 import { useDetailedStats } from '@/hooks/useDetailedStats';
@@ -31,9 +33,9 @@ import { toast } from 'sonner';
  */
 export default function Profile() {
   const { user } = useAuth();
-  const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = useProfile();
-  const { data: stats, isLoading: statsLoading } = useDetailedStats();
-  const { data: entries, isLoading: entriesLoading } = useAnimeEntries();
+  const { data: profile, isLoading: profileLoading, error: profileError, refetch: refetchProfile } = useProfile();
+  const { data: stats, isLoading: statsLoading, error: statsError } = useDetailedStats();
+  const { data: entries, isLoading: entriesLoading, error: entriesError } = useAnimeEntries();
   const { data: achievementStats } = useUserAchievementStats();
   const updateProfile = useUpdateProfile();
 
@@ -81,6 +83,19 @@ export default function Profile() {
       toast.error('Defina um username para compartilhar seu perfil');
     }
   };
+
+  // Verifica se há erro de sessão expirada
+  if (isSessionExpiredError(profileError) || isSessionExpiredError(statsError) || isSessionExpiredError(entriesError)) {
+    return (
+      <div className="space-y-8 pt-12 md:pt-0">
+        <SessionExpiredCard 
+          title="Meu Perfil"
+          icon={<User className="h-5 w-5 text-primary" />}
+          message="Sua sessão expirou. Faça login novamente para acessar seu perfil."
+        />
+      </div>
+    );
+  }
 
   // Estado de carregamento
   if (profileLoading) {

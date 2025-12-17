@@ -35,13 +35,13 @@ const statusIcons: Record<AnimeStatus, typeof PlayCircle> = {
   not_started: Clock,
 };
 
-// Cores vibrantes para melhor visibilidade
+// Cores sólidas para melhor destaque
 const statusColors: Record<AnimeStatus, { bg: string; text: string; border: string }> = {
-  watching: { bg: 'bg-primary/40', text: 'text-primary', border: 'border-primary/50' },
-  completed: { bg: 'bg-green-500/40', text: 'text-green-400', border: 'border-green-500/50' },
-  paused: { bg: 'bg-yellow-500/40', text: 'text-yellow-400', border: 'border-yellow-500/50' },
-  dropped: { bg: 'bg-red-500/40', text: 'text-red-400', border: 'border-red-500/50' },
-  not_started: { bg: 'bg-purple-500/40', text: 'text-purple-400', border: 'border-purple-500/50' },
+  watching: { bg: 'bg-blue-600', text: 'text-white', border: 'border-blue-400' },
+  completed: { bg: 'bg-green-600', text: 'text-white', border: 'border-green-400' },
+  paused: { bg: 'bg-yellow-500', text: 'text-yellow-950', border: 'border-yellow-400' },
+  dropped: { bg: 'bg-red-600', text: 'text-white', border: 'border-red-400' },
+  not_started: { bg: 'bg-purple-600', text: 'text-white', border: 'border-purple-400' },
 };
 
 interface SelectableAnimeCardProps {
@@ -137,7 +137,7 @@ export function SelectableAnimeCard({
             const colors = statusColors[entry.status];
             return (
               <span className={cn(
-                "absolute top-2 right-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full border backdrop-blur-md shadow-lg",
+                "absolute top-2 right-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full border shadow-md",
                 colors.bg, colors.text, colors.border
               )}>
                 <StatusIcon className={cn(

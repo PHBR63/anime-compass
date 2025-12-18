@@ -547,6 +547,9 @@ export type Database = {
         Row: {
           achievements: boolean
           created_at: string
+          do_not_disturb_enabled: boolean
+          do_not_disturb_end: string
+          do_not_disturb_start: string
           friend_accepted: boolean
           friend_added_anime: boolean
           friend_requests: boolean
@@ -560,6 +563,9 @@ export type Database = {
         Insert: {
           achievements?: boolean
           created_at?: string
+          do_not_disturb_enabled?: boolean
+          do_not_disturb_end?: string
+          do_not_disturb_start?: string
           friend_accepted?: boolean
           friend_added_anime?: boolean
           friend_requests?: boolean
@@ -573,6 +579,9 @@ export type Database = {
         Update: {
           achievements?: boolean
           created_at?: string
+          do_not_disturb_enabled?: boolean
+          do_not_disturb_end?: string
+          do_not_disturb_start?: string
           friend_accepted?: boolean
           friend_added_anime?: boolean
           friend_requests?: boolean

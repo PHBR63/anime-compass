@@ -1,12 +1,40 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNotificationPreferences } from './useNotificationPreferences';
+
+/**
+ * Verifica se o horário atual está dentro do período de "não perturbe"
+ */
+function isInDoNotDisturbPeriod(startTime: string, endTime: string): boolean {
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  
+  // Converte horário string (HH:MM:SS ou HH:MM) para minutos
+  const parseTime = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+  
+  const startMinutes = parseTime(startTime);
+  const endMinutes = parseTime(endTime);
+  
+  // Se o período cruza a meia-noite (ex: 22:00 às 08:00)
+  if (startMinutes > endMinutes) {
+    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+  }
+  
+  // Período normal (ex: 09:00 às 17:00)
+  return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+}
 
 /**
  * Hook para gerenciar notificações push do navegador
  * Solicita permissão e envia notificações quando novas mensagens chegam
+ * Respeita o modo "não perturbe" configurado pelo usuário
  */
 export function usePushNotifications() {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSupported, setIsSupported] = useState(false);
+  const { data: preferences } = useNotificationPreferences();
 
   // Verificar suporte e permissão atual
   useEffect(() => {
@@ -17,6 +45,16 @@ export function usePushNotifications() {
       setPermission(Notification.permission);
     }
   }, []);
+
+  // Verifica se deve silenciar notificações
+  const shouldSilence = useCallback(() => {
+    if (!preferences?.do_not_disturb_enabled) return false;
+    
+    return isInDoNotDisturbPeriod(
+      preferences.do_not_disturb_start || '22:00:00',
+      preferences.do_not_disturb_end || '08:00:00'
+    );
+  }, [preferences]);
 
   // Solicitar permissão do usuário
   const requestPermission = useCallback(async () => {
@@ -46,6 +84,12 @@ export function usePushNotifications() {
       return null;
     }
 
+    // Respeita modo "não perturbe"
+    if (shouldSilence()) {
+      console.log('[usePushNotifications] Notificação silenciada (modo não perturbe ativo)');
+      return null;
+    }
+
     try {
       const notification = new Notification(title, {
         icon: '/favicon.ico',
@@ -67,7 +111,7 @@ export function usePushNotifications() {
       console.error('[usePushNotifications] Erro ao enviar notificação:', error);
       return null;
     }
-  }, [isSupported, permission]);
+  }, [isSupported, permission, shouldSilence]);
 
   // Enviar notificação de nova mensagem
   const notifyNewMessage = useCallback((senderName: string, message: string, conversationId?: string) => {
@@ -81,6 +125,7 @@ export function usePushNotifications() {
     isSupported,
     permission,
     isEnabled: permission === 'granted',
+    isDoNotDisturbActive: shouldSilence(),
     requestPermission,
     sendNotification,
     notifyNewMessage,

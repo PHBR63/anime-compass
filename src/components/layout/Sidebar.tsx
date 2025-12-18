@@ -13,7 +13,8 @@ import {
   LogOut,
   MessageCircle,
   Building2,
-  MessageSquare
+  MessageSquare,
+  Moon
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,9 @@ import { useProfile } from '@/hooks/useProfile';
 import { NotificationsDropdown } from '@/components/notifications/NotificationsDropdown';
 import { useUnreadNotificationsCount } from '@/hooks/useNotifications';
 import { useUnreadMessagesCount } from '@/hooks/useConversations';
+import { useNotificationPreferences } from '@/hooks/useNotificationPreferences';
+import { isInDoNotDisturbPeriod } from '@/hooks/usePushNotifications';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface NavItem {
   icon: typeof LayoutDashboard;
@@ -59,6 +63,14 @@ export function Sidebar() {
   const { data: profile } = useProfile();
   const unreadCount = useUnreadNotificationsCount();
   const { data: unreadMessages } = useUnreadMessagesCount();
+  const { data: notifPrefs } = useNotificationPreferences();
+  
+  // Verifica se modo "não perturbe" está ativo agora
+  const isDoNotDisturbActive = isInDoNotDisturbPeriod(
+    notifPrefs?.do_not_disturb_enabled ?? false,
+    notifPrefs?.do_not_disturb_start,
+    notifPrefs?.do_not_disturb_end
+  );
 
   const handleLogout = async () => {
     await signOut();
@@ -102,6 +114,25 @@ export function Sidebar() {
             <span className="font-display text-2xl font-bold text-gradient">
               AniCheck
             </span>
+            
+            {/* Indicador de Não Perturbe */}
+            {isDoNotDisturbActive && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="ml-auto flex items-center justify-center w-7 h-7 rounded-full bg-primary/20 animate-pulse">
+                      <Moon className="h-4 w-4 text-primary" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p className="text-xs">Modo não perturbe ativo</p>
+                    <p className="text-xs text-muted-foreground">
+                      {notifPrefs?.do_not_disturb_start?.slice(0, 5)} - {notifPrefs?.do_not_disturb_end?.slice(0, 5)}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
 
           {/* User info */}

@@ -21,6 +21,7 @@ import { AvatarUpload } from '@/components/profile/AvatarUpload';
 import { BannerUpload } from '@/components/profile/BannerUpload';
 import { EditProfileModal } from '@/components/profile/EditProfileModal';
 import { FavoriteGenresStudios } from '@/components/profile/FavoriteGenresStudios';
+import { ExportAnimeList } from '@/components/profile/ExportAnimeList';
 import { SessionExpiredCard, isSessionExpiredError } from '@/components/ui/SessionExpiredCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
@@ -199,7 +200,10 @@ export default function Profile() {
               </div>
               
               {/* Botões de ação */}
-              <div className="flex gap-2 mt-2 md:mt-0">
+              <div className="flex gap-2 mt-2 md:mt-0 flex-wrap justify-center md:justify-end">
+                {entries && entries.length > 0 && (
+                  <ExportAnimeList entries={entries} username={profile?.username} />
+                )}
                 <Button variant="outline" size="icon" onClick={handleShare} title="Compartilhar perfil">
                   <Share2 className="h-4 w-4" />
                 </Button>

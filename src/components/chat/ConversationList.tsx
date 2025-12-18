@@ -4,9 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Users, MessageCircle, Trash2, LogOut, MoreVertical } from 'lucide-react';
+import { Plus, Search, Users, MessageCircle, Trash2, LogOut, MoreVertical, Pin, PinOff } from 'lucide-react';
 import { ConversationWithDetails, useDeleteConversation } from '@/hooks/useConversations';
 import { useGlobalPresence } from '@/hooks/useChatPresence';
+import { useConversationsTyping } from '@/hooks/useConversationsTyping';
+import { usePinConversation } from '@/hooks/usePinConversation';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import CreateGroupModal from './CreateGroupModal';
@@ -51,6 +53,11 @@ export default function ConversationList({
   const { isUserOnline } = useGlobalPresence();
   const { user } = useAuth();
   const deleteConversation = useDeleteConversation();
+  const pinConversation = usePinConversation();
+  
+  // IDs das conversas para rastrear digitação
+  const conversationIds = useMemo(() => conversations.map(c => c.id), [conversations]);
+  const { getTypingUsers } = useConversationsTyping(conversationIds);
 
   // Filtrar conversas pela busca (com debounce simulado via useMemo)
   const filteredConversations = useMemo(() => {
@@ -90,8 +97,19 @@ export default function ConversationList({
     return isUserOnline(conv.other_participant.user_id);
   };
 
-  // Formatar preview da última mensagem
+  // Formatar preview da última mensagem ou indicador de digitando
   const getLastMessagePreview = (conv: ConversationWithDetails) => {
+    // Verificar se alguém está digitando
+    const typingUsers = getTypingUsers(conv.id);
+    if (typingUsers.length > 0) {
+      if (typingUsers.length === 1) {
+        return conv.type === 'group' 
+          ? `${typingUsers[0].displayName} está digitando...`
+          : 'digitando...';
+      }
+      return `${typingUsers.length} pessoas digitando...`;
+    }
+
     if (!conv.last_message) return 'Nenhuma mensagem ainda';
     
     const prefix = conv.type === 'group' ? `${conv.last_message.sender_name}: ` : '';
@@ -107,6 +125,16 @@ export default function ConversationList({
         return conv.last_message.content || 'Mensagem do sistema';
       default:
         return `${prefix}${conv.last_message.content || ''}`;
+    }
+  };
+
+  // Handler para fixar/desafixar conversa
+  const handlePinConversation = async (conversationId: string, isPinned: boolean) => {
+    try {
+      await pinConversation.mutateAsync({ conversationId, isPinned: !isPinned });
+      toast.success(isPinned ? 'Conversa desafixada' : 'Conversa fixada');
+    } catch {
+      toast.error('Erro ao atualizar conversa');
     }
   };
 
@@ -199,9 +227,12 @@ export default function ConversationList({
           </div>
         ) : (
           <div className="p-2">
-            {filteredConversations.map((conv) => {
+        {filteredConversations.map((conv) => {
               const online = isOtherUserOnline(conv);
               const isAdmin = isUserAdmin(conv);
+              const typingUsers = getTypingUsers(conv.id);
+              const isTypingNow = typingUsers.length > 0;
+              
               return (
                 <div
                   key={conv.id}
@@ -209,7 +240,7 @@ export default function ConversationList({
                     selectedId === conv.id 
                       ? 'bg-primary/10 border border-primary/20' 
                       : 'hover:bg-muted/50'
-                  }`}
+                  } ${conv.is_pinned ? 'bg-muted/30' : ''}`}
                 >
                   {/* Área clicável principal */}
                   <button
@@ -241,6 +272,10 @@ export default function ConversationList({
                     {/* Info da conversa */}
                     <div className="flex-1 min-w-0 text-left overflow-hidden">
                       <div className="flex items-center gap-2">
+                        {/* Ícone de fixado */}
+                        {conv.is_pinned && (
+                          <Pin className="h-3 w-3 text-primary flex-shrink-0" />
+                        )}
                         <span className={`font-medium truncate flex-1 min-w-0 ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
                           {getConversationName(conv)}
                         </span>
@@ -254,7 +289,11 @@ export default function ConversationList({
                         )}
                       </div>
                       <p className={`text-sm truncate ${
-                        conv.unread_count > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'
+                        isTypingNow 
+                          ? 'text-primary animate-pulse' 
+                          : conv.unread_count > 0 
+                            ? 'text-foreground font-medium' 
+                            : 'text-muted-foreground'
                       }`}>
                         {getLastMessagePreview(conv)}
                       </p>
@@ -274,6 +313,27 @@ export default function ConversationList({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      {/* Opção de fixar/desafixar */}
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePinConversation(conv.id, conv.is_pinned);
+                        }}
+                      >
+                        {conv.is_pinned ? (
+                          <>
+                            <PinOff className="h-4 w-4 mr-2" />
+                            Desafixar conversa
+                          </>
+                        ) : (
+                          <>
+                            <Pin className="h-4 w-4 mr-2" />
+                            Fixar conversa
+                          </>
+                        )}
+                      </DropdownMenuItem>
+                      
+                      {/* Opção de deletar/sair */}
                       <DropdownMenuItem
                         onClick={(e) => {
                           e.stopPropagation();

@@ -311,24 +311,30 @@ export type Database = {
         Row: {
           conversation_id: string
           id: string
+          is_pinned: boolean
           joined_at: string
           last_read_at: string | null
+          pinned_at: string | null
           role: string
           user_id: string
         }
         Insert: {
           conversation_id: string
           id?: string
+          is_pinned?: boolean
           joined_at?: string
           last_read_at?: string | null
+          pinned_at?: string | null
           role?: string
           user_id: string
         }
         Update: {
           conversation_id?: string
           id?: string
+          is_pinned?: boolean
           joined_at?: string
           last_read_at?: string | null
+          pinned_at?: string | null
           role?: string
           user_id?: string
         }

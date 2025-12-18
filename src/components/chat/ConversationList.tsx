@@ -248,16 +248,16 @@ export default function ConversationList({
               return (
                 <div
                   key={conv.id}
-                  className={`w-full p-3 rounded-lg flex items-center gap-3 transition-colors mb-1 group ${
+                  className={`w-full p-3 rounded-lg flex items-center gap-3 transition-all duration-200 ease-out mb-1 group ${
                     selectedId === conv.id 
-                      ? 'bg-primary/10 border border-primary/20' 
-                      : 'hover:bg-muted/50'
+                      ? 'bg-primary/10 border border-primary/20 shadow-sm' 
+                      : 'hover:bg-muted/50 border border-transparent'
                   } ${conv.is_pinned ? 'bg-muted/30' : ''}`}
                 >
                   {/* Área clicável principal */}
                   <button
                     onClick={() => onSelect(conv.id)}
-                    className="flex items-center gap-3 flex-1 min-w-0"
+                    className="flex items-center gap-3 flex-1 min-w-0 transition-transform duration-150 active:scale-[0.98]"
                   >
                     {/* Avatar */}
                     <div className="relative shrink-0">

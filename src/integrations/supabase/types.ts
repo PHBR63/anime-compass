@@ -543,6 +543,48 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          achievements: boolean
+          created_at: string
+          friend_accepted: boolean
+          friend_added_anime: boolean
+          friend_requests: boolean
+          friend_started_watching: boolean
+          id: string
+          recommendations: boolean
+          review_likes: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          achievements?: boolean
+          created_at?: string
+          friend_accepted?: boolean
+          friend_added_anime?: boolean
+          friend_requests?: boolean
+          friend_started_watching?: boolean
+          id?: string
+          recommendations?: boolean
+          review_likes?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          achievements?: boolean
+          created_at?: string
+          friend_accepted?: boolean
+          friend_added_anime?: boolean
+          friend_requests?: boolean
+          friend_started_watching?: boolean
+          id?: string
+          recommendations?: boolean
+          review_likes?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string

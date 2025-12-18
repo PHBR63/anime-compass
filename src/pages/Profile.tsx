@@ -23,6 +23,7 @@ import { EditProfileModal } from '@/components/profile/EditProfileModal';
 import { FavoriteGenresStudios } from '@/components/profile/FavoriteGenresStudios';
 import { ExportAnimeList } from '@/components/profile/ExportAnimeList';
 import { PushNotificationSettings } from '@/components/notifications/PushNotificationSettings';
+import { NotificationPreferencesCard } from '@/components/notifications/NotificationPreferencesCard';
 import { SessionExpiredCard, isSessionExpiredError } from '@/components/ui/SessionExpiredCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
@@ -340,7 +341,10 @@ export default function Profile() {
 
       {/* Configurações de Notificações */}
       <AnimatedContent direction="up" delay={0.8} duration={0.5}>
-        <PushNotificationSettings />
+        <div className="space-y-4">
+          <PushNotificationSettings />
+          <NotificationPreferencesCard />
+        </div>
       </AnimatedContent>
 
       {/* Modal de edição */}

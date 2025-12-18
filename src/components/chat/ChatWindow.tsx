@@ -214,7 +214,7 @@ export default function ChatWindow({
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-background">
+    <div className="flex-1 min-w-0 flex flex-col bg-background overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-border flex items-center gap-3">
         {/* Botão voltar (mobile) */}
@@ -304,7 +304,7 @@ export default function ChatWindow({
       </div>
 
       {/* Área de mensagens */}
-      <ScrollArea ref={scrollRef} className="flex-1 p-4">
+      <ScrollArea ref={scrollRef} className="flex-1 min-h-0 p-4">
         {isLoading ? (
           <div className="text-center text-muted-foreground py-8">
             Carregando mensagens...

@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { usePushNotifications } from './usePushNotifications';
 
 // Tipo para notificação do banco
 export interface Notification {
@@ -112,11 +113,50 @@ export function useDeleteNotification() {
   });
 }
 
-// Hook para escutar notificações em tempo real
+// Hook para escutar notificações em tempo real com push notifications
 export function useRealtimeNotifications() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { sendNotification, isEnabled, requestPermission, permission } = usePushNotifications();
+
+  // Função para gerar título e corpo da push notification baseado no tipo
+  const getPushContent = useCallback((notification: Notification) => {
+    const data = notification.data || {};
+    
+    switch (notification.type) {
+      case 'friend_request':
+        return {
+          title: '👋 Nova solicitação de amizade',
+          body: notification.message || `${data.friend_name || 'Alguém'} quer ser seu amigo!`
+        };
+      case 'friend_accepted':
+        return {
+          title: '🎉 Amizade aceita!',
+          body: notification.message || `${data.friend_name || 'Alguém'} aceitou sua solicitação!`
+        };
+      case 'review_like':
+        return {
+          title: '❤️ Sua review recebeu um like!',
+          body: notification.message || `Alguém curtiu sua review de ${data.anime_title || 'um anime'}`
+        };
+      case 'achievement':
+        return {
+          title: '🏆 Nova conquista desbloqueada!',
+          body: notification.message || notification.title
+        };
+      case 'system':
+        return {
+          title: '📢 ' + notification.title,
+          body: notification.message || ''
+        };
+      default:
+        return {
+          title: notification.title,
+          body: notification.message || ''
+        };
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -143,6 +183,16 @@ export function useRealtimeNotifications() {
             title: newNotification.title,
             description: newNotification.message || undefined,
           });
+
+          // Enviar push notification se habilitado
+          if (isEnabled) {
+            const { title, body } = getPushContent(newNotification);
+            sendNotification(title, {
+              body,
+              tag: `notification-${newNotification.type}-${newNotification.id}`,
+              data: newNotification.data,
+            });
+          }
         }
       )
       .subscribe();
@@ -150,7 +200,13 @@ export function useRealtimeNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient, toast]);
+  }, [user, queryClient, toast, isEnabled, sendNotification, getPushContent]);
+
+  return {
+    requestPermission,
+    isEnabled,
+    permission,
+  };
 }
 
 // Função para formatar tempo relativo

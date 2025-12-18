@@ -15,6 +15,9 @@ export interface NotificationPreferences {
   review_likes: boolean;
   achievements: boolean;
   recommendations: boolean;
+  do_not_disturb_enabled: boolean;
+  do_not_disturb_start: string;
+  do_not_disturb_end: string;
   created_at: string;
   updated_at: string;
 }
@@ -30,6 +33,9 @@ const defaultPreferences: Omit<NotificationPreferences, 'id' | 'user_id' | 'crea
   review_likes: true,
   achievements: true,
   recommendations: true,
+  do_not_disturb_enabled: false,
+  do_not_disturb_start: '22:00:00',
+  do_not_disturb_end: '08:00:00',
 };
 
 /**

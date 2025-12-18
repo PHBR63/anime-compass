@@ -24,6 +24,7 @@ import { FavoriteGenresStudios } from '@/components/profile/FavoriteGenresStudio
 import { ExportAnimeList } from '@/components/profile/ExportAnimeList';
 import { PushNotificationSettings } from '@/components/notifications/PushNotificationSettings';
 import { NotificationPreferencesCard } from '@/components/notifications/NotificationPreferencesCard';
+import { DoNotDisturbSettings } from '@/components/notifications/DoNotDisturbSettings';
 import { SessionExpiredCard, isSessionExpiredError } from '@/components/ui/SessionExpiredCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
@@ -344,6 +345,7 @@ export default function Profile() {
         <div className="space-y-4">
           <PushNotificationSettings />
           <NotificationPreferencesCard />
+          <DoNotDisturbSettings />
         </div>
       </AnimatedContent>
 

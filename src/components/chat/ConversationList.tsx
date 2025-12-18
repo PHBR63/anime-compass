@@ -270,17 +270,21 @@ export default function ConversationList({
                     </div>
 
                     {/* Info da conversa */}
-                    <div className="flex-1 min-w-0 text-left overflow-hidden">
-                      <div className="flex items-center gap-2">
-                        {/* Ícone de fixado */}
-                        {conv.is_pinned && (
-                          <Pin className="h-3 w-3 text-primary flex-shrink-0" />
-                        )}
-                        <span className={`font-medium truncate flex-1 min-w-0 ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
-                          {getConversationName(conv)}
-                        </span>
+                    {/* Info da conversa */}
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="flex items-center justify-between gap-2 w-full">
+                        {/* Nome e ícone de fixado */}
+                        <div className="flex items-center gap-1 min-w-0 flex-1">
+                          {conv.is_pinned && (
+                            <Pin className="h-3 w-3 text-primary shrink-0" />
+                          )}
+                          <span className={`font-medium truncate ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
+                            {getConversationName(conv)}
+                          </span>
+                        </div>
+                        {/* Timestamp sempre visível */}
                         {conv.last_message && (
-                          <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0 ml-2">
                             {formatDistanceToNow(new Date(conv.last_message.created_at), {
                               addSuffix: true,
                               locale: ptBR,

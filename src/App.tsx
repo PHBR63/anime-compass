@@ -27,6 +27,7 @@ import NotFound from "./pages/NotFound";
 import Maintenance from "./pages/Maintenance";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import Reviews from "./pages/Reviews";
 
 /**
  * QueryClient com configurações otimizadas para performance
@@ -92,6 +93,7 @@ const App = () => (
                             <Route path="/list/franchises" element={<Franchises />} />
                             <Route path="/list/studios" element={<Studios />} />
                             <Route path="/discover" element={<Discover />} />
+                            <Route path="/reviews" element={<Reviews />} />
                             <Route path="/social" element={<Social />} />
                             <Route path="/chat" element={<Chat />} />
                             <Route path="/achievements" element={<Achievements />} />

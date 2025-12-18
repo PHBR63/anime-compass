@@ -12,7 +12,8 @@ import {
   X,
   LogOut,
   MessageCircle,
-  Building2
+  Building2,
+  MessageSquare
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { cn } from '@/lib/utils';
@@ -44,6 +45,7 @@ const navItems: NavItem[] = [
     ]
   },
   { icon: Search, label: 'Descobrir', path: '/discover' },
+  { icon: MessageSquare, label: 'Reviews', path: '/reviews' },
   { icon: Users, label: 'Social', path: '/social' },
   { icon: MessageCircle, label: 'Chat', path: '/chat', hasBadge: true },
   { icon: Trophy, label: 'Conquistas', path: '/achievements' },

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePublicProfileByUsername } from '@/hooks/usePublicProfile';
+import { UserReviewsSection } from '@/components/profile/UserReviewsSection';
 import { 
   User, 
   Tv, 
@@ -293,6 +294,11 @@ export default function PublicProfile() {
             </CardContent>
           </Card>
         )}
+
+        {/* Reviews do Usuário */}
+        <div className="mt-6">
+          <UserReviewsSection userId={profile.id} />
+        </div>
       </div>
     </div>
   );

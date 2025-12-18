@@ -96,6 +96,7 @@ export type Database = {
           is_favorite: boolean | null
           mal_id: number
           notes: string | null
+          notes_has_spoilers: boolean | null
           rating: number | null
           started_at: string | null
           status: Database["public"]["Enums"]["anime_status"]
@@ -114,6 +115,7 @@ export type Database = {
           is_favorite?: boolean | null
           mal_id: number
           notes?: string | null
+          notes_has_spoilers?: boolean | null
           rating?: number | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["anime_status"]
@@ -132,6 +134,7 @@ export type Database = {
           is_favorite?: boolean | null
           mal_id?: number
           notes?: string | null
+          notes_has_spoilers?: boolean | null
           rating?: number | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["anime_status"]

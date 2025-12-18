@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { X, Plus, Minus, Calendar, Clock, Tv, Star, Heart, Loader2, Check, Bookmark, Languages } from 'lucide-react';
+import { X, Plus, Minus, Calendar, Clock, Tv, Star, Heart, Loader2, Check, Bookmark, Languages, AlertTriangle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { StarRating } from './StarRating';
 import { ReviewsList } from './ReviewsList';
 import { ProgressHistory } from './ProgressHistory';
@@ -70,6 +72,7 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
   // Estados locais para edição
   const [localRating, setLocalRating] = useState<number>(entry?.rating ? Number(entry.rating) : 0);
   const [localNotes, setLocalNotes] = useState<string>(entry?.notes || '');
+  const [localNotesHasSpoilers, setLocalNotesHasSpoilers] = useState<boolean>(entry?.notes_has_spoilers || false);
   const [localEpisodes, setLocalEpisodes] = useState<number>(entry?.episodes_watched || 0);
   const [localStatus, setLocalStatus] = useState<AnimeStatus>(entry?.status || 'not_started');
 
@@ -78,6 +81,7 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
     if (entry) {
       setLocalRating(entry.rating ? Number(entry.rating) : 0);
       setLocalNotes(entry.notes || '');
+      setLocalNotesHasSpoilers(entry.notes_has_spoilers || false);
       setLocalEpisodes(entry.episodes_watched || 0);
       setLocalStatus(entry.status);
     }
@@ -193,7 +197,7 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
   // Função para salvar notas
   const handleSaveNotes = () => {
     if (entry) {
-      handleUpdate({ notes: localNotes });
+      handleUpdate({ notes: localNotes, notes_has_spoilers: localNotesHasSpoilers });
       toast.success('Notas salvas!');
     }
   };
@@ -474,14 +478,31 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
                       placeholder="Adicione suas anotações sobre este anime..."
                       className="bg-secondary/50 border-border/50 min-h-[80px]"
                     />
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={handleSaveNotes}
-                      className="mt-2"
-                    >
-                      Salvar Notas
-                    </Button>
+                    
+                    {/* Toggle de spoiler */}
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="notes-spoiler"
+                          checked={localNotesHasSpoilers}
+                          onCheckedChange={setLocalNotesHasSpoilers}
+                        />
+                        <Label 
+                          htmlFor="notes-spoiler" 
+                          className="text-sm cursor-pointer flex items-center gap-1.5"
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                          Contém spoilers
+                        </Label>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleSaveNotes}
+                      >
+                        Salvar Notas
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

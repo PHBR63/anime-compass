@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Heart, MoreVertical, Star, Calendar, Tv, PlayCircle, CheckCircle, PauseCircle, Clock, XCircle } from 'lucide-react';
+import { Heart, MoreVertical, Star, Calendar, Tv, PlayCircle, CheckCircle, PauseCircle, Clock, XCircle, AlertTriangle, Eye } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,6 +54,7 @@ interface AnimeListItemProps {
  */
 export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [showSpoiler, setShowSpoiler] = useState(false);
   const updateEntry = useUpdateAnimeEntry();
   const deleteEntry = useDeleteAnimeEntry();
 
@@ -153,9 +154,35 @@ export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
               </div>
             )}
             {entry.notes && (
-              <span className="text-xs text-muted-foreground line-clamp-1 flex-1">
-                {entry.notes}
-              </span>
+              <div className="flex items-center gap-1 flex-1 min-w-0">
+                {entry.notes_has_spoilers && !showSpoiler ? (
+                  <>
+                    <AlertTriangle className="h-3 w-3 text-warning shrink-0" />
+                    <span className="text-xs text-muted-foreground blur-sm select-none line-clamp-1">
+                      {entry.notes}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowSpoiler(true);
+                      }}
+                      className="text-xs text-primary hover:underline shrink-0 flex items-center gap-1"
+                    >
+                      <Eye className="h-3 w-3" />
+                      Revelar
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {entry.notes_has_spoilers && (
+                      <AlertTriangle className="h-3 w-3 text-warning shrink-0" />
+                    )}
+                    <span className="text-xs text-muted-foreground line-clamp-1">
+                      {entry.notes}
+                    </span>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>

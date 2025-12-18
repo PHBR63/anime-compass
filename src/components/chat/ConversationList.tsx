@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Plus, Search, Users, MessageCircle, Trash2, LogOut, MoreVertical, Pin, PinOff } from 'lucide-react';
 import { ConversationWithDetails, useDeleteConversation } from '@/hooks/useConversations';
 import { useGlobalPresence } from '@/hooks/useChatPresence';
@@ -285,14 +286,21 @@ export default function ConversationList({
                     <div className="flex-1 min-w-0 text-left">
                       <div className="flex items-center gap-2 w-full">
                         {/* Nome e ícone de fixado - trunca primeiro */}
-                        <div className="flex items-center gap-1 min-w-0 max-w-[65%] overflow-hidden">
-                          {conv.is_pinned && (
-                            <Pin className="h-3 w-3 text-primary shrink-0" />
-                          )}
-                          <span className={`font-medium truncate ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
-                            {getConversationName(conv)}
-                          </span>
-                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1 min-w-0 max-w-[65%] overflow-hidden">
+                              {conv.is_pinned && (
+                                <Pin className="h-3 w-3 text-primary shrink-0" />
+                              )}
+                              <span className={`font-medium truncate ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
+                                {getConversationName(conv)}
+                              </span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[250px]">
+                            <p className="break-words">{getConversationName(conv)}</p>
+                          </TooltipContent>
+                        </Tooltip>
                         {/* Timestamp compacto - sempre visível */}
                         {conv.last_message && (
                           <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-auto shrink-0">

@@ -15,9 +15,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { MoreVertical, Trash2, Reply, Star, ExternalLink, SmilePlus, Check, CheckCheck, Globe, Lock, List } from 'lucide-react';
 import { ChatMessageWithSender } from '@/hooks/useChatMessages';
 import { useMessageReactions, useToggleReaction, REACTION_TYPES, ReactionType } from '@/hooks/useChatReactions';
+import { ReadByDetail } from '@/hooks/useReadReceipts';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -31,6 +38,7 @@ interface ChatMessageProps {
   onDelete?: () => void;
   onReply: () => void;
   isRead?: boolean; // Se a mensagem foi lida pelo destinatário
+  readByDetails?: ReadByDetail[]; // Detalhes de quem leu e quando
 }
 
 // Componente para renderizar uma mensagem do chat
@@ -42,6 +50,7 @@ export default function ChatMessage({
   onDelete,
   onReply,
   isRead = false,
+  readByDetails = [],
 }: ChatMessageProps) {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const { data: reactions } = useMessageReactions(message.id);
@@ -373,10 +382,26 @@ export default function ChatMessage({
             message.message_type !== 'text' && 'text-muted-foreground px-1'
           )}>
             {time}
-            {/* Ícone de confirmação de leitura (somente para mensagens próprias) */}
+            {/* Ícone de confirmação de leitura com tooltip (somente para mensagens próprias) */}
             {isOwn && (
-              isRead ? (
-                <CheckCheck className="h-3 w-3 text-blue-400" />
+              isRead && readByDetails.length > 0 ? (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <CheckCheck className="h-3 w-3 text-blue-400 cursor-pointer" />
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-xs">
+                      <div className="text-xs">
+                        <p className="font-medium mb-1">Visto por:</p>
+                        {readByDetails.map((detail, i) => (
+                          <p key={i} className="text-muted-foreground">
+                            {detail.name} • {format(new Date(detail.readAt), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                          </p>
+                        ))}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               ) : (
                 <Check className="h-3 w-3" />
               )

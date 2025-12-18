@@ -9,8 +9,19 @@ import { ConversationWithDetails, useDeleteConversation } from '@/hooks/useConve
 import { useGlobalPresence } from '@/hooks/useChatPresence';
 import { useConversationsTyping } from '@/hooks/useConversationsTyping';
 import { usePinConversation } from '@/hooks/usePinConversation';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { format } from 'date-fns';
+
+// Formata timestamp de forma compacta (ex: "15min", "2h", "3d")
+const formatCompactTime = (date: Date): string => {
+  const now = new Date();
+  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000);
+  
+  if (diffInMinutes < 1) return 'agora';
+  if (diffInMinutes < 60) return `${diffInMinutes}min`;
+  if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
+  if (diffInMinutes < 10080) return `${Math.floor(diffInMinutes / 1440)}d`;
+  return format(date, 'dd/MM');
+};
 import CreateGroupModal from './CreateGroupModal';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -273,22 +284,19 @@ export default function ConversationList({
                     {/* Info da conversa */}
                     <div className="flex-1 min-w-0 text-left">
                       <div className="flex items-center gap-2 w-full">
-                        {/* Nome e ícone de fixado - ocupa espaço disponível */}
-                        <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
+                        {/* Nome e ícone de fixado - trunca primeiro */}
+                        <div className="flex items-center gap-1 min-w-0 max-w-[65%] overflow-hidden">
                           {conv.is_pinned && (
                             <Pin className="h-3 w-3 text-primary shrink-0" />
                           )}
-                          <span className={`font-medium truncate block ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
+                          <span className={`font-medium truncate ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
                             {getConversationName(conv)}
                           </span>
                         </div>
-                        {/* Timestamp - tamanho fixo à direita */}
+                        {/* Timestamp compacto - sempre visível */}
                         {conv.last_message && (
-                          <span className="text-[10px] lg:text-xs text-muted-foreground whitespace-nowrap shrink-0">
-                            {formatDistanceToNow(new Date(conv.last_message.created_at), {
-                              addSuffix: true,
-                              locale: ptBR,
-                            })}
+                          <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-auto shrink-0">
+                            {formatCompactTime(new Date(conv.last_message.created_at))}
                           </span>
                         )}
                       </div>

@@ -27,7 +27,7 @@ import { ChatMessageWithSender, useDeleteMessage, useLoadMoreMessages } from '@/
 import { useChatPresence } from '@/hooks/useChatPresence';
 import { useChatNotification } from '@/hooks/useChatNotification';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
-import { useReadReceipts, isMessageRead } from '@/hooks/useReadReceipts';
+import { useReadReceipts, isMessageRead, getReadByDetails } from '@/hooks/useReadReceipts';
 import { useAuth } from '@/hooks/useAuth';
 import ChatInput from './ChatInput';
 import ChatMessage from './ChatMessage';
@@ -362,6 +362,11 @@ export default function ChatWindow({
                 const messageIsRead = isOwn && readReceipts 
                   ? isMessageRead(message.created_at, readReceipts) 
                   : false;
+                
+                // Obter detalhes de quem leu (para o tooltip)
+                const readByDetails = isOwn && readReceipts
+                  ? getReadByDetails(message.created_at, readReceipts)
+                  : [];
 
                 return (
                   <ChatMessage
@@ -373,6 +378,7 @@ export default function ChatWindow({
                     onDelete={isOwn ? () => handleDeleteMessage(message.id) : undefined}
                     onReply={() => handleReply(message)}
                     isRead={messageIsRead}
+                    readByDetails={readByDetails}
                   />
                 );
               })}

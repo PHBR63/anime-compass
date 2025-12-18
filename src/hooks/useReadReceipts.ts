@@ -121,3 +121,37 @@ export function getReadByNames(
     })
     .map(receipt => receipt.display_name || receipt.username || 'Usuário');
 }
+
+/**
+ * Interface para detalhes de leitura com nome e horário
+ */
+export interface ReadByDetail {
+  name: string;
+  readAt: string;
+}
+
+/**
+ * Retorna detalhes de quem leu a mensagem e quando
+ * @param messageCreatedAt - Data de criação da mensagem
+ * @param readReceipts - Lista de status de leitura dos participantes
+ * @returns Array com nome e horário de leitura de cada pessoa
+ */
+export function getReadByDetails(
+  messageCreatedAt: string,
+  readReceipts: ParticipantReadStatus[]
+): ReadByDetail[] {
+  if (!readReceipts.length) return [];
+  
+  const messageDate = new Date(messageCreatedAt).getTime();
+  
+  return readReceipts
+    .filter(receipt => {
+      if (!receipt.last_read_at) return false;
+      const readDate = new Date(receipt.last_read_at).getTime();
+      return readDate >= messageDate;
+    })
+    .map(receipt => ({
+      name: receipt.display_name || receipt.username || 'Usuário',
+      readAt: receipt.last_read_at!,
+    }));
+}

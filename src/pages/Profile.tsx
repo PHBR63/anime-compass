@@ -22,6 +22,7 @@ import { BannerUpload } from '@/components/profile/BannerUpload';
 import { EditProfileModal } from '@/components/profile/EditProfileModal';
 import { FavoriteGenresStudios } from '@/components/profile/FavoriteGenresStudios';
 import { ExportAnimeList } from '@/components/profile/ExportAnimeList';
+import { PushNotificationSettings } from '@/components/notifications/PushNotificationSettings';
 import { SessionExpiredCard, isSessionExpiredError } from '@/components/ui/SessionExpiredCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
@@ -336,6 +337,11 @@ export default function Profile() {
           </div>
         </AnimatedContent>
       )}
+
+      {/* Configurações de Notificações */}
+      <AnimatedContent direction="up" delay={0.8} duration={0.5}>
+        <PushNotificationSettings />
+      </AnimatedContent>
 
       {/* Modal de edição */}
       <EditProfileModal

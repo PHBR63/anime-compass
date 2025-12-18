@@ -272,19 +272,19 @@ export default function ConversationList({
                     {/* Info da conversa */}
                     {/* Info da conversa */}
                     <div className="flex-1 min-w-0 text-left">
-                      <div className="flex items-center justify-between gap-2 w-full">
-                        {/* Nome e ícone de fixado */}
-                        <div className="flex items-center gap-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 w-full">
+                        {/* Nome e ícone de fixado - ocupa espaço disponível */}
+                        <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
                           {conv.is_pinned && (
                             <Pin className="h-3 w-3 text-primary shrink-0" />
                           )}
-                          <span className={`font-medium truncate ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
+                          <span className={`font-medium truncate block ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
                             {getConversationName(conv)}
                           </span>
                         </div>
-                        {/* Timestamp sempre visível */}
+                        {/* Timestamp - tamanho fixo à direita */}
                         {conv.last_message && (
-                          <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0 ml-2">
+                          <span className="text-[10px] lg:text-xs text-muted-foreground whitespace-nowrap shrink-0">
                             {formatDistanceToNow(new Date(conv.last_message.created_at), {
                               addSuffix: true,
                               locale: ptBR,
@@ -292,7 +292,7 @@ export default function ConversationList({
                           </span>
                         )}
                       </div>
-                      <p className={`text-sm truncate ${
+                      <p className={`text-xs lg:text-sm truncate block ${
                         isTypingNow 
                           ? 'text-primary animate-pulse' 
                           : conv.unread_count > 0 

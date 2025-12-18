@@ -176,8 +176,8 @@ export default function Chat() {
   // Layout desktop (tela grande > 1024px)
   return (
     <div className="fixed inset-0 md:left-64 flex bg-background z-10">
-      {/* Lista de conversas */}
-      <div className="w-80 shrink-0">
+      {/* Lista de conversas - largura responsiva */}
+      <div className="w-72 lg:w-80 xl:w-96 shrink-0">
         <ConversationList
           conversations={conversations || []}
           selectedId={selectedConversationId}

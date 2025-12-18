@@ -75,6 +75,102 @@ export function useAnimeReviews(malId: number) {
   });
 }
 
+// Hook para buscar todas as reviews da comunidade (feed público)
+export function useCommunityReviews(options?: { limit?: number; orderBy?: 'recent' | 'popular' }) {
+  const { user } = useAuth();
+  const limit = options?.limit || 50;
+  const orderBy = options?.orderBy || 'recent';
+
+  return useQuery({
+    queryKey: ['communityReviews', orderBy, limit],
+    queryFn: async () => {
+      // Buscar reviews
+      let query = supabase
+        .from('reviews')
+        .select('*')
+        .limit(limit);
+
+      // Ordenação
+      if (orderBy === 'popular') {
+        query = query.order('likes_count', { ascending: false });
+      } else {
+        query = query.order('created_at', { ascending: false });
+      }
+
+      const { data: reviews, error } = await query;
+      if (error) throw error;
+
+      // Buscar perfis dos autores
+      const userIds = [...new Set(reviews.map(r => r.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, username, display_name, avatar_url')
+        .in('id', userIds);
+
+      // Buscar reações do usuário atual
+      let userReactions: { review_id: string; id: string; is_like: boolean }[] = [];
+      if (user) {
+        const { data } = await supabase
+          .from('review_reactions')
+          .select('id, review_id, is_like')
+          .eq('user_id', user.id)
+          .in('review_id', reviews.map(r => r.id));
+        userReactions = data || [];
+      }
+
+      // Montar dados completos
+      return reviews.map(review => ({
+        ...review,
+        author: profiles?.find(p => p.id === review.user_id) || null,
+        userReaction: userReactions.find(r => r.review_id === review.id) || null,
+      })) as Review[];
+    },
+  });
+}
+
+// Hook para buscar reviews de um usuário específico
+export function useUserReviews(userId: string | undefined) {
+  const { user: currentUser } = useAuth();
+
+  return useQuery({
+    queryKey: ['userReviews', userId],
+    queryFn: async () => {
+      const { data: reviews, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('user_id', userId!)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Buscar perfil do autor
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, username, display_name, avatar_url')
+        .eq('id', userId!)
+        .single();
+
+      // Buscar reações do usuário atual
+      let userReactions: { review_id: string; id: string; is_like: boolean }[] = [];
+      if (currentUser) {
+        const { data } = await supabase
+          .from('review_reactions')
+          .select('id, review_id, is_like')
+          .eq('user_id', currentUser.id)
+          .in('review_id', reviews.map(r => r.id));
+        userReactions = data || [];
+      }
+
+      return reviews.map(review => ({
+        ...review,
+        author: profile || null,
+        userReaction: userReactions.find(r => r.review_id === review.id) || null,
+      })) as Review[];
+    },
+    enabled: !!userId,
+  });
+}
+
 // Hook para buscar review do usuário atual para um anime
 export function useUserReview(malId: number) {
   const { user } = useAuth();

@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { usePushNotifications } from './usePushNotifications';
+import { useNotificationPreferences } from './useNotificationPreferences';
 
 // Tipo para notificação do banco
 export interface Notification {
@@ -119,6 +120,7 @@ export function useRealtimeNotifications() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { sendNotification, isEnabled, requestPermission, permission } = usePushNotifications();
+  const { data: preferences } = useNotificationPreferences();
 
   // Função para gerar título e corpo da push notification baseado no tipo
   const getPushContent = useCallback((notification: Notification) => {
@@ -187,11 +189,19 @@ export function useRealtimeNotifications() {
           // Enviar push notification se habilitado
           if (isEnabled) {
             const { title, body } = getPushContent(newNotification);
+            
+            // Passa configurações de "não perturbe"
+            const doNotDisturb = preferences ? {
+              enabled: preferences.do_not_disturb_enabled ?? false,
+              start: preferences.do_not_disturb_start,
+              end: preferences.do_not_disturb_end,
+            } : undefined;
+            
             sendNotification(title, {
               body,
               tag: `notification-${newNotification.type}-${newNotification.id}`,
               data: newNotification.data,
-            });
+            }, doNotDisturb);
           }
         }
       )
@@ -200,7 +210,7 @@ export function useRealtimeNotifications() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient, toast, isEnabled, sendNotification, getPushContent]);
+  }, [user, queryClient, toast, isEnabled, sendNotification, getPushContent, preferences]);
 
   return {
     requestPermission,

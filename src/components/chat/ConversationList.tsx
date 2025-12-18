@@ -168,7 +168,7 @@ export default function ConversationList({
   };
 
   return (
-    <div className="flex flex-col h-full border-r border-border bg-card">
+    <div className="flex flex-col h-full bg-card overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-4">

@@ -239,15 +239,15 @@ export default function ConversationList({
                     </div>
 
                     {/* Info da conversa */}
-                    <div className="flex-1 min-w-0 text-left">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`font-medium truncate ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
+                    <div className="flex-1 min-w-0 text-left overflow-hidden">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-medium truncate flex-1 min-w-0 ${conv.unread_count > 0 ? 'text-foreground' : ''}`}>
                           {getConversationName(conv)}
                         </span>
                         {conv.last_message && (
-                          <span className="text-xs text-muted-foreground shrink-0">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
                             {formatDistanceToNow(new Date(conv.last_message.created_at), {
-                              addSuffix: false,
+                              addSuffix: true,
                               locale: ptBR,
                             })}
                           </span>

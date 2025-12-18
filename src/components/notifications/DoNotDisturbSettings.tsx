@@ -2,8 +2,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Moon, Clock } from 'lucide-react';
 import { useNotificationPreferences, useUpdateNotificationPreferences } from '@/hooks/useNotificationPreferences';
+import { isInDoNotDisturbPeriod } from '@/hooks/usePushNotifications';
 import { toast } from 'sonner';
 
 /**
@@ -40,14 +42,24 @@ export function DoNotDisturbSettings() {
   const isEnabled = preferences?.do_not_disturb_enabled ?? false;
   const startTime = preferences?.do_not_disturb_start ?? '22:00';
   const endTime = preferences?.do_not_disturb_end ?? '08:00';
+  
+  // Verifica se está ativo agora
+  const isActiveNow = isInDoNotDisturbPeriod(isEnabled, startTime, endTime);
 
   return (
     <Card className="bg-card/50 backdrop-blur-sm border-border/50">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Moon className="h-5 w-5 text-primary" />
-          Modo Não Perturbe
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Moon className="h-5 w-5 text-primary" />
+            Modo Não Perturbe
+          </CardTitle>
+          {isActiveNow && (
+            <Badge variant="secondary" className="bg-primary/20 text-primary">
+              Ativo agora
+            </Badge>
+          )}
+        </div>
         <CardDescription>
           Silencie notificações durante horários específicos
         </CardDescription>

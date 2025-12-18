@@ -19,6 +19,8 @@ export interface ConversationWithDetails {
     sender_name: string | null;
   };
   unread_count: number;
+  is_pinned: boolean;
+  pinned_at: string | null;
   participants: {
     user_id: string;
     username: string | null;
@@ -85,10 +87,10 @@ export function useConversations(searchQuery?: string) {
     queryFn: async () => {
       if (!user) return [];
 
-      // Buscar conversas onde o usuário participa
+      // Buscar conversas onde o usuário participa (incluindo dados de pin)
       const { data: participations, error: partError } = await supabase
         .from('conversation_participants')
-        .select('conversation_id, last_read_at')
+        .select('conversation_id, last_read_at, is_pinned, pinned_at')
         .eq('user_id', user.id);
 
       if (partError) throw partError;
@@ -96,6 +98,7 @@ export function useConversations(searchQuery?: string) {
 
       const conversationIds = participations.map(p => p.conversation_id);
       const lastReadMap = new Map(participations.map(p => [p.conversation_id, p.last_read_at]));
+      const pinnedMap = new Map(participations.map(p => [p.conversation_id, { is_pinned: p.is_pinned, pinned_at: p.pinned_at }]));
 
       // Buscar detalhes das conversas
       let query = supabase
@@ -183,6 +186,8 @@ export function useConversations(searchQuery?: string) {
           ? participants.find(p => p.user_id !== user.id)
           : undefined;
 
+        const pinData = pinnedMap.get(conv.id) || { is_pinned: false, pinned_at: null };
+
         return {
           ...conv,
           participants,
@@ -194,7 +199,26 @@ export function useConversations(searchQuery?: string) {
             sender_name: senderProfile?.display_name || senderProfile?.username || 'Usuário',
           } : undefined,
           unread_count: unreadCounts.get(conv.id) || 0,
+          is_pinned: pinData.is_pinned,
+          pinned_at: pinData.pinned_at,
         } as ConversationWithDetails;
+      });
+
+      // Ordenar: fixadas primeiro (por pinned_at mais recente), depois por updated_at
+      result.sort((a, b) => {
+        // Fixadas primeiro
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        
+        // Se ambas fixadas, ordenar por pinned_at
+        if (a.is_pinned && b.is_pinned) {
+          const aPinned = new Date(a.pinned_at || 0).getTime();
+          const bPinned = new Date(b.pinned_at || 0).getTime();
+          return bPinned - aPinned;
+        }
+        
+        // Se nenhuma fixada, ordenar por updated_at
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
       });
 
       // Filtrar por nome de participante em conversas diretas se há busca

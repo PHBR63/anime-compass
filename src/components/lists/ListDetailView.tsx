@@ -30,7 +30,7 @@ import { EditListModal } from './EditListModal';
 import { AddAnimesToListModal } from './AddAnimesToListModal';
 import { useListItems, useRemoveFromList, useReorderListItems } from '@/hooks/useCustomLists';
 import type { CustomList } from '@/hooks/useCustomLists';
-import { cn } from '@/lib/utils';
+
 import { toast } from 'sonner';
 
 interface ListDetailViewProps {
@@ -174,18 +174,13 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
                   {list.name}
                 </h1>
                 <Badge 
-                  variant="outline" 
-                  className={cn(
-                    "shrink-0",
-                    list.is_public 
-                      ? "bg-green-500/20 text-green-400 border-green-500/30" 
-                      : ""
-                  )}
+                  variant={list.is_public ? "success" : "secondary"}
+                  className="shrink-0 transition-all duration-200"
                 >
                   {list.is_public ? (
-                    <><Globe className="h-3 w-3 mr-1" /> Pública</>
+                    <><Globe className="h-3 w-3" /> Pública</>
                   ) : (
-                    <><Lock className="h-3 w-3 mr-1" /> Privada</>
+                    <><Lock className="h-3 w-3" /> Privada</>
                   )}
                 </Badge>
               </div>

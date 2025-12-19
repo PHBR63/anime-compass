@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useDeleteList, useListItems } from '@/hooks/useCustomLists';
 import type { CustomList } from '@/hooks/useCustomLists';
-import { cn } from '@/lib/utils';
+
 
 interface ListCardProps {
   list: CustomList;
@@ -50,10 +50,7 @@ export function ListCard({ list, onClick }: ListCardProps) {
   return (
     <>
       <Card 
-        className={cn(
-          "group relative overflow-hidden cursor-pointer transition-all duration-300",
-          "hover:shadow-lg hover:shadow-primary/10 hover:border-border"
-        )}
+        className="group relative overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 hover:border-border"
         onClick={onClick}
       >
         {/* Capa - Collage ou Placeholder */}
@@ -88,18 +85,13 @@ export function ListCard({ list, onClick }: ListCardProps) {
 
           {/* Badge público/privado */}
           <Badge 
-            variant="outline" 
-            className={cn(
-              "absolute top-2 left-2 text-xs",
-              list.is_public 
-                ? "bg-green-500/20 text-green-400 border-green-500/30" 
-                : "bg-secondary/80 backdrop-blur-sm"
-            )}
+            variant={list.is_public ? "success" : "secondary"}
+            className="absolute top-2 left-2 backdrop-blur-sm transition-all duration-200"
           >
             {list.is_public ? (
-              <><Globe className="h-3 w-3 mr-1" /> Pública</>
+              <><Globe className="h-3 w-3" /> Pública</>
             ) : (
-              <><Lock className="h-3 w-3 mr-1" /> Privada</>
+              <><Lock className="h-3 w-3" /> Privada</>
             )}
           </Badge>
 

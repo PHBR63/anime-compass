@@ -1,9 +1,9 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AnimeEntriesProvider } from "@/contexts/AnimeEntriesContext";
 import { AchievementCelebrationProvider } from "@/contexts/AchievementCelebrationContext";
@@ -12,6 +12,15 @@ import { WelcomeModal, HelpPanel, TourOverlay, HelpButton } from "@/components/h
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { InstallBanner, OfflineIndicator } from "@/components/pwa";
+import {
+  DashboardSkeleton,
+  ListSkeleton,
+  DiscoverSkeleton,
+  ProfileSkeleton,
+  ChatSkeleton,
+  AuthSkeleton,
+  GenericSkeleton,
+} from "@/components/ui/skeletons";
 
 /**
  * Lazy loading das páginas para code-splitting
@@ -38,17 +47,89 @@ const Reviews = lazy(() => import("./pages/Reviews"));
 const Install = lazy(() => import("./pages/Install"));
 
 /**
- * Componente de loading para Suspense
- * Exibido enquanto a página está sendo carregada
+ * Prefetch das rotas mais acessadas
+ * Carrega os chunks em background para navegação mais rápida
  */
-const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <div className="flex flex-col items-center gap-4">
-      <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
-      <p className="text-sm text-muted-foreground animate-pulse">Carregando...</p>
-    </div>
-  </div>
-);
+const prefetchRoutes = () => {
+  // Prefetch após 2 segundos de idle
+  const idleCallback = window.requestIdleCallback || ((cb) => setTimeout(cb, 100));
+  
+  idleCallback(() => {
+    // Rotas prioritárias para prefetch
+    import("./pages/Dashboard");
+    import("./pages/MyList");
+    import("./pages/Discover");
+  });
+};
+
+/**
+ * Componente para gerenciar prefetch baseado na navegação
+ */
+function RoutePrefetcher() {
+  const location = useLocation();
+
+  useEffect(() => {
+    // Prefetch rotas relacionadas baseado na rota atual
+    const prefetchRelated = () => {
+      switch (location.pathname) {
+        case "/":
+          // Na home, prefetch das principais rotas
+          import("./pages/MyList");
+          import("./pages/Discover");
+          break;
+        case "/list":
+          // Na lista, prefetch de detalhes e descobrir
+          import("./pages/ListDetailPage");
+          import("./pages/Franchises");
+          break;
+        case "/discover":
+          // No descobrir, prefetch da lista
+          import("./pages/MyList");
+          break;
+        case "/social":
+          // No social, prefetch do chat
+          import("./pages/Chat");
+          break;
+      }
+    };
+
+    // Delay para não competir com o carregamento atual
+    const timer = setTimeout(prefetchRelated, 1000);
+    return () => clearTimeout(timer);
+  }, [location.pathname]);
+
+  return null;
+}
+
+/**
+ * Componente de loading contextual para Suspense
+ * Exibe skeleton específico baseado na rota
+ */
+function ContextualLoader() {
+  const location = useLocation();
+  
+  // Mapeia rotas para skeletons específicos
+  if (location.pathname === "/" || location.pathname === "/dashboard") {
+    return <DashboardSkeleton />;
+  }
+  if (location.pathname.startsWith("/list")) {
+    return <ListSkeleton />;
+  }
+  if (location.pathname === "/discover") {
+    return <DiscoverSkeleton />;
+  }
+  if (location.pathname === "/profile") {
+    return <ProfileSkeleton />;
+  }
+  if (location.pathname === "/chat") {
+    return <ChatSkeleton />;
+  }
+  if (location.pathname === "/auth") {
+    return <AuthSkeleton />;
+  }
+  
+  return <GenericSkeleton />;
+}
 
 /**
  * QueryClient com configurações otimizadas para performance
@@ -75,6 +156,11 @@ const queryClient = new QueryClient({
   },
 });
 
+// Inicia prefetch quando o app carrega
+if (typeof window !== "undefined") {
+  prefetchRoutes();
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -92,19 +178,37 @@ const App = () => (
             <TourOverlay />
             <HelpButton />
             <BrowserRouter>
-              <Suspense fallback={<PageLoader />}>
+              {/* Prefetcher de rotas relacionadas */}
+              <RoutePrefetcher />
+              <Suspense fallback={<GenericSkeleton />}>
                 <Routes>
                   {/* Rotas públicas */}
-                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/auth" element={
+                    <Suspense fallback={<AuthSkeleton />}>
+                      <Auth />
+                    </Suspense>
+                  } />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/maintenance" element={<Maintenance />} />
                   <Route path="/install" element={<Install />} />
-                  <Route path="/u/:username" element={<PublicProfilePage />} />
-                  <Route path="/shared/list/:listId" element={<PublicListView />} />
+                  <Route path="/u/:username" element={
+                    <Suspense fallback={<ProfileSkeleton />}>
+                      <PublicProfilePage />
+                    </Suspense>
+                  } />
+                  <Route path="/shared/list/:listId" element={
+                    <Suspense fallback={<ListSkeleton />}>
+                      <PublicListView />
+                    </Suspense>
+                  } />
                   
                   {/* Rota pública - Landing/Dashboard */}
-                  <Route path="/" element={<Index />} />
+                  <Route path="/" element={
+                    <Suspense fallback={<DashboardSkeleton />}>
+                      <Index />
+                    </Suspense>
+                  } />
                   
                   {/* Rotas protegidas com Provider de AnimeEntries */}
                   <Route
@@ -113,19 +217,49 @@ const App = () => (
                       <ProtectedRoute>
                         <AnimeEntriesProvider>
                           <MainLayout>
-                            <Routes>
-                              <Route path="/list" element={<MyList />} />
-                              <Route path="/list/:id" element={<ListDetailPage />} />
-                              <Route path="/list/franchises" element={<Franchises />} />
-                              <Route path="/list/studios" element={<Studios />} />
-                              <Route path="/discover" element={<Discover />} />
-                              <Route path="/reviews" element={<Reviews />} />
-                              <Route path="/social" element={<Social />} />
-                              <Route path="/chat" element={<Chat />} />
-                              <Route path="/achievements" element={<Achievements />} />
-                              <Route path="/profile" element={<Profile />} />
-                              <Route path="*" element={<NotFound />} />
-                            </Routes>
+                            <Suspense fallback={<GenericSkeleton />}>
+                              <Routes>
+                                <Route path="/list" element={
+                                  <Suspense fallback={<ListSkeleton />}>
+                                    <MyList />
+                                  </Suspense>
+                                } />
+                                <Route path="/list/:id" element={
+                                  <Suspense fallback={<ListSkeleton />}>
+                                    <ListDetailPage />
+                                  </Suspense>
+                                } />
+                                <Route path="/list/franchises" element={
+                                  <Suspense fallback={<ListSkeleton />}>
+                                    <Franchises />
+                                  </Suspense>
+                                } />
+                                <Route path="/list/studios" element={
+                                  <Suspense fallback={<ListSkeleton />}>
+                                    <Studios />
+                                  </Suspense>
+                                } />
+                                <Route path="/discover" element={
+                                  <Suspense fallback={<DiscoverSkeleton />}>
+                                    <Discover />
+                                  </Suspense>
+                                } />
+                                <Route path="/reviews" element={<Reviews />} />
+                                <Route path="/social" element={<Social />} />
+                                <Route path="/chat" element={
+                                  <Suspense fallback={<ChatSkeleton />}>
+                                    <Chat />
+                                  </Suspense>
+                                } />
+                                <Route path="/achievements" element={<Achievements />} />
+                                <Route path="/profile" element={
+                                  <Suspense fallback={<ProfileSkeleton />}>
+                                    <Profile />
+                                  </Suspense>
+                                } />
+                                <Route path="*" element={<NotFound />} />
+                              </Routes>
+                            </Suspense>
                           </MainLayout>
                         </AnimeEntriesProvider>
                       </ProtectedRoute>

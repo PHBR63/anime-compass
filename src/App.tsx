@@ -10,6 +10,7 @@ import { HelpProvider } from "@/contexts/HelpContext";
 import { WelcomeModal, HelpPanel, TourOverlay, HelpButton } from "@/components/help";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { InstallBanner, OfflineIndicator } from "@/components/pwa";
 import Index from "./pages/Index";
 import MyList from "./pages/MyList";
 import ListDetailPage from "./pages/ListDetailPage";
@@ -28,6 +29,7 @@ import Maintenance from "./pages/Maintenance";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Reviews from "./pages/Reviews";
+import Install from "./pages/Install";
 
 /**
  * QueryClient com configurações otimizadas para performance
@@ -62,6 +64,9 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
+            {/* Componentes PWA */}
+            <OfflineIndicator />
+            <InstallBanner />
             {/* Componentes globais de ajuda */}
             <WelcomeModal />
             <HelpPanel />
@@ -74,6 +79,7 @@ const App = () => (
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/maintenance" element={<Maintenance />} />
+                <Route path="/install" element={<Install />} />
                 <Route path="/u/:username" element={<PublicProfilePage />} />
                 <Route path="/shared/list/:listId" element={<PublicListView />} />
                 

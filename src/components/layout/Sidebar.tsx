@@ -16,7 +16,7 @@ import {
   MessageSquare,
   Moon
 } from 'lucide-react';
-import logo from '@/assets/logo.png';
+import { Logo } from '@/components/ui/Logo';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -107,10 +107,7 @@ export function Sidebar() {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex items-center gap-3 px-6 py-6 border-b border-border/50">
-            <div className="relative">
-              <img src={logo} alt="AniCheck Logo" className="h-8 w-8" />
-              <div className="absolute inset-0 blur-lg bg-primary/30" />
-            </div>
+            <Logo size="md" showGlow={true} />
             <span className="font-display text-2xl font-bold text-gradient">
               AniCheck
             </span>

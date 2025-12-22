@@ -1,7 +1,7 @@
 /**
  * Contexto para compartilhar dados de anime entries entre componentes
  * Evita chamadas redundantes ao hook useAnimeEntries em múltiplos cards
- * Inclui suporte offline-first para operações
+ * Inclui suporte offline-first para operações e realtime sync
  */
 
 import React, { createContext, useContext, ReactNode } from 'react';
@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 import { addToQueue } from '@/lib/offlineQueue';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
@@ -160,6 +161,9 @@ function useDeleteMutation() {
 // Provider do contexto
 export function AnimeEntriesProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  
+  // Ativa sincronização em tempo real
+  useRealtimeSync();
   
   // Busca todas as entries uma única vez
   const { data: entries, isLoading } = useQuery({

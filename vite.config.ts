@@ -93,6 +93,36 @@ export default defineConfig(({ mode }) => ({
             form_factor: "wide",
             label: "AniCheck Dashboard"
           }
+        ],
+        shortcuts: [
+          {
+            name: "Minha Lista",
+            short_name: "Lista",
+            description: "Acesse sua lista de animes",
+            url: "/list",
+            icons: [{ src: "/icons/icon-96x96.png", sizes: "96x96" }]
+          },
+          {
+            name: "Descobrir",
+            short_name: "Descobrir",
+            description: "Descubra novos animes",
+            url: "/discover",
+            icons: [{ src: "/icons/icon-96x96.png", sizes: "96x96" }]
+          },
+          {
+            name: "Dashboard",
+            short_name: "Dashboard",
+            description: "Veja suas estatísticas",
+            url: "/dashboard",
+            icons: [{ src: "/icons/icon-96x96.png", sizes: "96x96" }]
+          },
+          {
+            name: "Social",
+            short_name: "Amigos",
+            description: "Conecte-se com amigos",
+            url: "/social",
+            icons: [{ src: "/icons/icon-96x96.png", sizes: "96x96" }]
+          }
         ]
       },
       workbox: {

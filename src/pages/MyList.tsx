@@ -223,7 +223,7 @@ export default function MyList() {
               )}
             </Button>
             <Link to="/discover">
-              <Button variant="glow">
+              <Button variant="sakura">
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Anime
               </Button>
@@ -346,7 +346,7 @@ export default function MyList() {
           </p>
           {!searchQuery && activeStatus === 'all' && !filters.onlyFavorites && filters.minRating === 0 && !filters.hasNotes && (
             <Link to="/discover">
-              <Button variant="glow">
+              <Button variant="torii">
                 <Plus className="h-4 w-4 mr-2" />
                 Descobrir Animes
               </Button>

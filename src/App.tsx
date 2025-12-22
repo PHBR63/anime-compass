@@ -12,7 +12,7 @@ import { HelpProvider } from "@/contexts/HelpContext";
 import { WelcomeModal, HelpPanel, TourOverlay, HelpButton } from "@/components/help";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { InstallBanner, OfflineIndicator } from "@/components/pwa";
+import { InstallBanner, OfflineIndicator, UpdateNotification } from "@/components/pwa";
 import { AnimatedRoutes } from "@/components/animations/AnimatedRoutes";
 import { PageTransition } from "@/components/animations/PageTransition";
 import { NotificationClickHandler } from "@/components/notifications/NotificationClickHandler";
@@ -169,6 +169,7 @@ const App = () => (
               {/* Componentes PWA */}
               <OfflineIndicator />
               <InstallBanner />
+              <UpdateNotification />
               {/* Componentes globais de ajuda */}
               <WelcomeModal />
               <HelpPanel />

@@ -96,11 +96,16 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       workbox: {
+        // Forçar novo SW a assumir controle imediatamente
+        clientsClaim: true,
+        skipWaiting: true,
         // Aumentar limite para arquivos grandes (5MB)
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         // Não falhar o build se um asset exceder o limite
         mode: "production",
+        // Limpar caches antigos automaticamente
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.jikan\.moe\/.*/i,

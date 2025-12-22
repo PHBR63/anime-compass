@@ -3,8 +3,44 @@
  * Este arquivo é injetado pelo Vite PWA plugin junto com o SW gerado pelo Workbox
  */
 
-// Escuta mensagens do cliente para exibir notificações
+// Força o novo SW a assumir controle imediatamente
+self.addEventListener('install', (event) => {
+  console.log('[SW] Instalando nova versão...');
+  self.skipWaiting();
+});
+
+// Assume controle de todas as páginas imediatamente
+self.addEventListener('activate', (event) => {
+  console.log('[SW] Nova versão ativada!');
+  event.waitUntil(
+    Promise.all([
+      // Limpar caches antigos
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames
+            .filter((cacheName) => cacheName.startsWith('workbox-') && cacheName !== 'workbox-precache-v2')
+            .map((cacheName) => {
+              console.log('[SW] Removendo cache antigo:', cacheName);
+              return caches.delete(cacheName);
+            })
+        );
+      }),
+      // Assumir controle de todos os clientes
+      self.clients.claim(),
+    ])
+  );
+});
+
+// Escuta mensagens do cliente para exibir notificações ou ações
 self.addEventListener('message', (event) => {
+  // Comando para pular espera e ativar imediatamente
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[SW] Recebido comando SKIP_WAITING');
+    self.skipWaiting();
+    return;
+  }
+  
+  // Comando para exibir notificação
   if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
     const { title, options } = event.data;
     
@@ -16,6 +52,11 @@ self.addEventListener('message', (event) => {
       requireInteraction: false,
       ...options,
     });
+  }
+
+  // Notificar cliente que atualização foi aplicada
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports?.[0]?.postMessage({ version: '1.0.0', updated: true });
   }
 });
 

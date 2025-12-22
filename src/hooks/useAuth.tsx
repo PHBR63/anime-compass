@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { prefetchUserData, shouldRefreshCache } from '@/lib/cachePrefetch';
 
 interface AuthContextType {
   user: User | null;
@@ -24,6 +25,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Pré-carrega cache quando usuário faz login
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Usa setTimeout para não bloquear o callback do auth
+          setTimeout(() => {
+            prefetchUserData(session.user.id);
+          }, 0);
+        }
       }
     );
 
@@ -31,6 +40,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Verifica e atualiza cache se necessário quando já está logado
+      if (session?.user) {
+        shouldRefreshCache(session.user.id).then((needsRefresh) => {
+          if (needsRefresh) {
+            prefetchUserData(session.user.id);
+          }
+        });
+      }
     });
 
     return () => subscription.unsubscribe();

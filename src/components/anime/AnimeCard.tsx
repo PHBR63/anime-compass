@@ -41,12 +41,12 @@ const statusIcons: Record<AnimeStatus, typeof PlayCircle> = {
   not_started: Clock,
 };
 
-// Cores vibrantes para melhor visibilidade
+// Cores orientais para melhor visibilidade
 const statusColors: Record<AnimeStatus, { bg: string; text: string; border: string }> = {
-  watching: { bg: 'bg-primary/40', text: 'text-primary', border: 'border-primary/50' },
+  watching: { bg: 'bg-sakura/40', text: 'text-sakura', border: 'border-sakura/50' },
   completed: { bg: 'bg-green-500/40', text: 'text-green-400', border: 'border-green-500/50' },
-  paused: { bg: 'bg-yellow-500/40', text: 'text-yellow-400', border: 'border-yellow-500/50' },
-  dropped: { bg: 'bg-red-500/40', text: 'text-red-400', border: 'border-red-500/50' },
+  paused: { bg: 'bg-amber-500/40', text: 'text-amber-400', border: 'border-amber-500/50' },
+  dropped: { bg: 'bg-torii/40', text: 'text-torii', border: 'border-torii/50' },
   not_started: { bg: 'bg-purple-500/40', text: 'text-purple-400', border: 'border-purple-500/50' },
 };
 
@@ -108,7 +108,7 @@ function AnimeCardComponent({ entry }: AnimeCardProps) {
     <>
       <SpotlightCard
         className="anime-card group cursor-pointer touch-manipulation"
-        spotlightColor="rgba(139, 92, 246, 0.1)"
+        spotlightColor="hsl(350 100% 85% / 0.15)"
         spotlightSize={250}
         showBorder={false}
       >
@@ -190,7 +190,7 @@ function AnimeCardComponent({ entry }: AnimeCardProps) {
           {/* Rating */}
           {entry.rating && (
             <div className="absolute bottom-14 md:bottom-16 right-2 md:right-3 flex items-center gap-1 bg-background/80 backdrop-blur-sm px-1.5 md:px-2 py-0.5 md:py-1 rounded-full">
-              <Star className="h-3 w-3 md:h-3.5 md:w-3.5 text-warning fill-warning" />
+              <Star className="h-3 w-3 md:h-3.5 md:w-3.5 text-kintsugi fill-kintsugi" />
               <span className="text-xs md:text-sm font-medium">{Number(entry.rating).toFixed(0)}</span>
             </div>
           )}
@@ -210,7 +210,7 @@ function AnimeCardComponent({ entry }: AnimeCardProps) {
                 </div>
                 <div className="h-0.5 md:h-1 bg-secondary rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-gradient-primary rounded-full transition-all duration-300"
+                    className="h-full bg-gradient-to-r from-sakura to-torii rounded-full transition-all duration-300"
                     style={{ width: `${progress}%` }}
                   />
                 </div>

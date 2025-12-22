@@ -37,12 +37,12 @@ const statusIcons: Record<AnimeStatus, typeof PlayCircle> = {
   not_started: Clock,
 };
 
-// Cores vibrantes para melhor visibilidade
+// Cores orientais para melhor visibilidade
 const statusColors: Record<AnimeStatus, { bg: string; text: string; border: string }> = {
-  watching: { bg: 'bg-primary/40', text: 'text-primary', border: 'border-primary/50' },
+  watching: { bg: 'bg-sakura/40', text: 'text-sakura', border: 'border-sakura/50' },
   completed: { bg: 'bg-green-500/40', text: 'text-green-400', border: 'border-green-500/50' },
-  paused: { bg: 'bg-yellow-500/40', text: 'text-yellow-400', border: 'border-yellow-500/50' },
-  dropped: { bg: 'bg-red-500/40', text: 'text-red-400', border: 'border-red-500/50' },
+  paused: { bg: 'bg-amber-500/40', text: 'text-amber-400', border: 'border-amber-500/50' },
+  dropped: { bg: 'bg-torii/40', text: 'text-torii', border: 'border-torii/50' },
   not_started: { bg: 'bg-purple-500/40', text: 'text-purple-400', border: 'border-purple-500/50' },
 };
 
@@ -80,7 +80,7 @@ export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
   return (
     <>
       <div 
-        className="group flex items-center gap-4 p-3 rounded-xl bg-card border border-border/50 hover:border-border hover:shadow-md transition-all cursor-pointer"
+        className="group flex items-center gap-4 p-3 rounded-xl bg-card border border-border/50 hover:border-sakura/30 hover:shadow-md hover:shadow-sakura/5 transition-all cursor-pointer"
         onClick={handleClick}
       >
         {/* Imagem */}
@@ -154,24 +154,24 @@ export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
           <div className="flex items-center gap-3">
             {entry.rating && (
               <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    className={cn(
-                      "h-3.5 w-3.5",
-                      star <= entry.rating! 
-                        ? "text-warning fill-warning" 
-                        : "text-muted-foreground/30"
-                    )}
-                  />
-                ))}
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={cn(
+                          "h-3.5 w-3.5",
+                          star <= entry.rating! 
+                            ? "text-kintsugi fill-kintsugi" 
+                            : "text-muted-foreground/30"
+                        )}
+                      />
+                    ))}
               </div>
             )}
             {entry.notes && (
               <div className="flex items-center gap-1 flex-1 min-w-0">
                 {entry.notes_has_spoilers && !showSpoiler ? (
                   <>
-                    <AlertTriangle className="h-3 w-3 text-warning shrink-0" />
+                    <AlertTriangle className="h-3 w-3 text-kintsugi shrink-0" />
                     <span className="text-xs text-muted-foreground blur-sm select-none line-clamp-1">
                       {entry.notes}
                     </span>
@@ -180,7 +180,7 @@ export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
                         e.stopPropagation();
                         setShowSpoiler(true);
                       }}
-                      className="text-xs text-primary hover:underline shrink-0 flex items-center gap-1"
+                      className="text-xs text-sakura hover:underline shrink-0 flex items-center gap-1"
                     >
                       <Eye className="h-3 w-3" />
                       Revelar
@@ -189,7 +189,7 @@ export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
                 ) : (
                   <>
                     {entry.notes_has_spoilers && (
-                      <AlertTriangle className="h-3 w-3 text-warning shrink-0" />
+                      <AlertTriangle className="h-3 w-3 text-kintsugi shrink-0" />
                     )}
                     <span className="text-xs text-muted-foreground line-clamp-1">
                       {entry.notes}

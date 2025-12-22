@@ -20,6 +20,7 @@ export default {
       fontFamily: {
         sans: ['Outfit', 'sans-serif'],
         display: ['Space Grotesk', 'sans-serif'],
+        zen: ['Zen Kaku Gothic New', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -58,6 +59,12 @@ export default {
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         info: "hsl(var(--info))",
+        // Cores orientais
+        sakura: "hsl(var(--sakura))",
+        bamboo: "hsl(var(--bamboo))",
+        torii: "hsl(var(--torii))",
+        kintsugi: "hsl(var(--kintsugi))",
+        ink: "hsl(var(--ink))",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -109,6 +116,35 @@ export default {
             opacity: "0" 
           },
         },
+        // Animações orientais
+        "neon-pulse": {
+          "0%, 100%": { 
+            textShadow: "var(--neon-glow)",
+          },
+          "50%": { 
+            textShadow: "var(--neon-glow-intense)",
+          },
+        },
+        "neon-flicker": {
+          "0%, 19.999%, 22%, 62.999%, 64%, 64.999%, 70%, 100%": {
+            opacity: "1",
+            textShadow: "var(--neon-glow)",
+          },
+          "20%, 21.999%, 63%, 63.999%, 65%, 69.999%": {
+            opacity: "0.5",
+            textShadow: "none",
+          },
+        },
+        "wave-drift": {
+          "0%": { backgroundPosition: "0 0" },
+          "100%": { backgroundPosition: "120px 0" },
+        },
+        "sakura-fall": {
+          "0%": { transform: "translateY(-10%) rotate(0deg)", opacity: "0" },
+          "10%": { opacity: "1" },
+          "90%": { opacity: "1" },
+          "100%": { transform: "translateY(100vh) rotate(720deg)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -120,6 +156,11 @@ export default {
         "fade-in": "fade-in 0.3s ease-out",
         "scale-in": "scale-in 0.3s ease-out",
         "light-pillar": "light-pillar 8s linear infinite",
+        // Animações orientais
+        "neon-pulse": "neon-pulse 2s ease-in-out infinite",
+        "neon-flicker": "neon-flicker 3s linear infinite",
+        "wave-drift": "wave-drift 20s linear infinite",
+        "sakura-fall": "sakura-fall 10s linear infinite",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

@@ -3,29 +3,35 @@ import { HeroSection } from '@/components/landing/HeroSection';
 import { FeaturesSection } from '@/components/landing/FeaturesSection';
 import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
 import { CTASection } from '@/components/landing/CTASection';
-import { FloatingLines } from '@/components/backgrounds/FloatingLines';
+import { SakuraPetals, WavePattern } from '@/components/backgrounds';
 
 /**
  * Landing Page principal do AniCheck
  * Página pública para usuários não logados
+ * Estética oriental com pétalas de sakura e elementos japoneses
  */
 const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-background relative">
-      {/* Background animado com linhas flutuantes */}
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Background com pétalas de sakura caindo */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <FloatingLines
-          linesGradient={['#8b5cf6', '#a855f7', '#06b6d4', '#10b981']}
-          enabledWaves={['top', 'middle', 'bottom']}
-          lineCount={8}
-          lineDistance={4}
-          animationSpeed={0.8}
-          interactive={true}
-          bendRadius={12}
-          bendStrength={-3}
-          parallax={true}
-          parallaxStrength={0.15}
-          mixBlendMode="screen"
+        <SakuraPetals
+          petalCount={40}
+          colors={['hsl(350, 100%, 85%)', 'hsl(350, 90%, 80%)', 'hsl(355, 100%, 90%)', 'hsl(350, 80%, 75%)']}
+          speed={0.8}
+          windStrength={0.4}
+          minSize={10}
+          maxSize={18}
+          opacity={0.7}
+        />
+      </div>
+
+      {/* Pattern de ondas japonesas sutil no fundo */}
+      <div className="fixed inset-0 z-0 pointer-events-none opacity-30">
+        <WavePattern 
+          color="hsl(var(--primary))"
+          opacity={0.03}
+          size={80}
         />
       </div>
       
@@ -38,11 +44,11 @@ const LandingPage = () => {
           <CTASection />
         </main>
         
-        {/* Footer simples */}
-        <footer className="py-8 border-t border-border/50">
+        {/* Footer com estilo oriental */}
+        <footer className="py-8 border-t border-border/50 relative">
           <div className="container mx-auto px-4 text-center">
-            <p className="text-sm text-muted-foreground">
-              © 2024 AniCheck. Feito com 💜 para otakus.
+            <p className="text-sm text-muted-foreground font-zen">
+              © 2024 AniCheck. Feito com 💜 para otakus. ✧ アニチェック ✧
             </p>
           </div>
         </footer>

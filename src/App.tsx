@@ -14,6 +14,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { InstallBanner, OfflineIndicator } from "@/components/pwa";
 import { AnimatedRoutes } from "@/components/animations/AnimatedRoutes";
 import { PageTransition } from "@/components/animations/PageTransition";
+import { NotificationClickHandler } from "@/components/notifications/NotificationClickHandler";
 import {
   DashboardSkeleton,
   ListSkeleton,
@@ -169,6 +170,8 @@ const App = () => (
             <TourOverlay />
             <HelpButton />
             <BrowserRouter>
+              {/* Handler para cliques em notificações do SW */}
+              <NotificationClickHandler />
               {/* Prefetcher de rotas relacionadas */}
               <RoutePrefetcher />
               <Suspense fallback={<GenericSkeleton />}>

@@ -10,7 +10,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { AnimeDetailModal } from './AnimeDetailModal';
+import { SyncPendingBadge } from './SyncPendingBadge';
 import { useUpdateAnimeEntry, useDeleteAnimeEntry } from '@/hooks/useAnimeEntries';
+import { usePendingSync } from '@/hooks/usePendingSync';
 import type { Database } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 
@@ -57,6 +59,11 @@ export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
   const [showSpoiler, setShowSpoiler] = useState(false);
   const updateEntry = useUpdateAnimeEntry();
   const deleteEntry = useDeleteAnimeEntry();
+  const { hasPendingForAnime, getPendingOperationType } = usePendingSync();
+  
+  // Verifica se há operação pendente para este anime
+  const isPending = hasPendingForAnime(entry.id) || hasPendingForAnime(entry.mal_id);
+  const pendingType = getPendingOperationType(entry.id) || getPendingOperationType(entry.mal_id);
 
   const progress = entry.total_episodes 
     ? (entry.episodes_watched || 0) / entry.total_episodes * 100 
@@ -104,23 +111,30 @@ export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
               </div>
             </div>
             
-            {/* Badge de status com ícone */}
-            {(() => {
-              const StatusIcon = statusIcons[entry.status];
-              const colors = statusColors[entry.status];
-              return (
-                <span className={cn(
-                  "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full border shrink-0",
-                  colors.bg, colors.text, colors.border
-                )}>
-                  <StatusIcon className={cn(
-                    "h-3.5 w-3.5",
-                    entry.status === 'watching' && "animate-pulse"
-                  )} />
-                  {statusLabels[entry.status]}
-                </span>
-              );
-            })()}
+            {/* Badge de status com ícone e indicador de sync */}
+            <div className="flex items-center gap-1.5">
+              {(() => {
+                const StatusIcon = statusIcons[entry.status];
+                const colors = statusColors[entry.status];
+                return (
+                  <span className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full border shrink-0",
+                    colors.bg, colors.text, colors.border
+                  )}>
+                    <StatusIcon className={cn(
+                      "h-3.5 w-3.5",
+                      entry.status === 'watching' && "animate-pulse"
+                    )} />
+                    {statusLabels[entry.status]}
+                  </span>
+                );
+              })()}
+              
+              {/* Indicador de sync pendente */}
+              {isPending && (
+                <SyncPendingBadge operationType={pendingType} size="sm" />
+              )}
+            </div>
           </div>
 
           {/* Progresso */}

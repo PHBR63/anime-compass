@@ -114,7 +114,7 @@ export default function ChatMessage({
       <Tooltip>
         <TooltipTrigger asChild>
           <Card 
-            className="overflow-hidden max-w-xs cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+            className="overflow-hidden max-w-xs cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-primary/50"
             onClick={() => message.metadata.mal_id && onAnimeClick?.(message.metadata.mal_id)}
           >
             <div className="flex">
@@ -161,7 +161,7 @@ export default function ChatMessage({
       <Tooltip>
         <TooltipTrigger asChild>
           <Card 
-            className="overflow-hidden max-w-xs border-primary/30 bg-primary/5 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+            className="overflow-hidden max-w-xs border-primary/30 bg-primary/5 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-primary/50"
             onClick={() => message.metadata.mal_id && onAnimeClick?.(message.metadata.mal_id)}
           >
             <div className="p-2 bg-primary/10 border-b border-primary/20">

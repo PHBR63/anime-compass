@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Link } from 'react-router-dom';
+import { SakuraPetals, WavePattern } from '@/components/backgrounds';
+import { AnimatedContent, NeonText } from '@/components/animations';
 import type { Database } from '@/integrations/supabase/types';
 
 type AnimeStatus = Database['public']['Enums']['anime_status'];
@@ -30,6 +32,10 @@ const defaultSort: SortOptions = {
   direction: 'desc',
 };
 
+/**
+ * Página Minha Lista - Gerenciamento de animes do usuário
+ * Com estética oriental (SakuraPetals, WavePattern, NeonText)
+ */
 export default function MyList() {
   const [activeStatus, setActiveStatus] = useState<AnimeStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -177,102 +183,116 @@ export default function MyList() {
   }
 
   return (
-    <div className="space-y-6 pt-12 md:pt-0 pb-24">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl md:text-4xl font-bold">
-            Minha Lista
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie seus animes e acompanhe seu progresso
-          </p>
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          <Button 
-            variant={isSelectionMode ? "default" : "outline"}
-            onClick={handleToggleSelectionMode}
-          >
-            {isSelectionMode ? (
-              <>
-                <X className="h-4 w-4 mr-2" />
-                Cancelar
-              </>
-            ) : (
-              <>
-                <Edit className="h-4 w-4 mr-2" />
-                Editar em Massa
-              </>
-            )}
-          </Button>
-          <Link to="/discover">
-            <Button variant="glow">
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Anime
-            </Button>
-          </Link>
-        </div>
+    <div className="relative space-y-6 pt-12 md:pt-0 pb-24 min-h-screen">
+      {/* Backgrounds orientais */}
+      <div className="fixed inset-0 -z-10 pointer-events-none opacity-40">
+        <SakuraPetals petalCount={20} opacity={0.5} />
+      </div>
+      <div className="fixed inset-0 -z-10 pointer-events-none">
+        <WavePattern opacity={0.08} />
       </div>
 
+      {/* Header */}
+      <AnimatedContent direction="down" duration={0.5}>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="font-zen text-3xl md:text-4xl font-bold">
+              <NeonText color="sakura" intensity="low">Minha Lista</NeonText>
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Gerencie seus animes e acompanhe seu progresso
+            </p>
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            <Button 
+              variant={isSelectionMode ? "default" : "outline"}
+              onClick={handleToggleSelectionMode}
+            >
+              {isSelectionMode ? (
+                <>
+                  <X className="h-4 w-4 mr-2" />
+                  Cancelar
+                </>
+              ) : (
+                <>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar em Massa
+                </>
+              )}
+            </Button>
+            <Link to="/discover">
+              <Button variant="glow">
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Anime
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </AnimatedContent>
+
       {/* Seção de Listas Personalizadas */}
-      <ListsSection />
+      <AnimatedContent direction="up" delay={0.1}>
+        <ListsSection />
+      </AnimatedContent>
 
       <Separator className="my-6" />
 
       {/* Filters bar */}
-      <div className="glass-card p-4 space-y-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          {/* Search */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar animes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-secondary/50 border-border/50"
-            />
-          </div>
-          
-          {/* View mode toggle e filtros avançados */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 p-1 rounded-lg bg-secondary/50">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setViewMode('grid')}
-                title="Visualização em grade"
-              >
-                <Grid className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setViewMode('list')}
-                title="Visualização em lista"
-              >
-                <ListIcon className="h-4 w-4" />
-              </Button>
+      <AnimatedContent direction="up" delay={0.2}>
+        <div className="glass-card p-4 space-y-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar animes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-secondary/50 border-border/50"
+              />
             </div>
             
-            <AdvancedFilters
-              filters={filters}
-              sort={sort}
-              onFiltersChange={setFilters}
-              onSortChange={setSort}
-            />
+            {/* View mode toggle e filtros avançados */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 p-1 rounded-lg bg-secondary/50">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setViewMode('grid')}
+                  title="Visualização em grade"
+                >
+                  <Grid className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setViewMode('list')}
+                  title="Visualização em lista"
+                >
+                  <ListIcon className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <AdvancedFilters
+                filters={filters}
+                sort={sort}
+                onFiltersChange={setFilters}
+                onSortChange={setSort}
+              />
+            </div>
           </div>
-        </div>
 
-        {/* Status filter */}
-        <StatusFilter
-          activeStatus={activeStatus}
-          onChange={setActiveStatus}
-          counts={statusCounts}
-        />
-      </div>
+          {/* Status filter */}
+          <StatusFilter
+            activeStatus={activeStatus}
+            onChange={setActiveStatus}
+            counts={statusCounts}
+          />
+        </div>
+      </AnimatedContent>
 
       {/* Results count */}
       <p className="text-sm text-muted-foreground">

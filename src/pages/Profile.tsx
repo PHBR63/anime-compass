@@ -32,13 +32,13 @@ import { useDetailedStats } from '@/hooks/useDetailedStats';
 import { useAnimeEntries } from '@/hooks/useAnimeEntries';
 import { useUserAchievementStats } from '@/hooks/useAchievements';
 import { toast } from 'sonner';
-import { GradientText, CountUp, AnimatedContent } from '@/components/animations';
-import { ParticlesBackground } from '@/components/backgrounds';
+import { GradientText, CountUp, AnimatedContent, NeonText } from '@/components/animations';
+import { SakuraPetals, WavePattern } from '@/components/backgrounds';
 
 /**
  * Página de perfil do usuário
  * Exibe informações pessoais, estatísticas de animes e favoritos
- * Com animações avançadas para visual premium
+ * Com estética oriental (SakuraPetals, WavePattern, NeonText)
  */
 export default function Profile() {
   const { user } = useAuth();
@@ -135,15 +135,14 @@ export default function Profile() {
 
   return (
     <div className="space-y-8 pt-12 md:pt-0 relative min-h-screen">
-      {/* Fundo de partículas animadas */}
-      <div className="fixed inset-0 -z-10 overflow-hidden">
-        <ParticlesBackground 
-          particleCount={35} 
-          baseHue={280} 
-          speed={0.25}
-          connectionDistance={100}
-        />
+      {/* Backgrounds orientais - SakuraPetals substituindo ParticlesBackground */}
+      <div className="fixed inset-0 -z-10 overflow-hidden opacity-50">
+        <SakuraPetals petalCount={25} opacity={0.5} />
       </div>
+      <div className="fixed inset-0 -z-10 pointer-events-none">
+        <WavePattern opacity={0.1} />
+      </div>
+
       {/* Cabeçalho do perfil com Banner */}
       <AnimatedContent direction="down" duration={0.5}>
         <div className="glass-card overflow-hidden">
@@ -176,10 +175,10 @@ export default function Profile() {
               {/* Informações textuais */}
               <div className="flex-1 text-center md:text-left mt-2 md:mt-0">
                 <div className="flex items-center justify-center md:justify-start gap-2">
-                  <h1 className="font-display text-2xl md:text-3xl font-bold">
-                    <GradientText animate speed={0.5}>
+                  <h1 className="font-zen text-2xl md:text-3xl font-bold">
+                    <NeonText color="sakura" intensity="low">
                       {profile?.display_name || 'Usuário'}
-                    </GradientText>
+                    </NeonText>
                   </h1>
                   <span title={profile?.is_public ? "Perfil público" : "Perfil privado"}>
                     {profile?.is_public ? (
@@ -291,7 +290,7 @@ export default function Profile() {
       <AnimatedContent direction="up" delay={0.4} duration={0.5}>
         <div className="glass-card p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+            <h2 className="font-zen text-lg font-semibold flex items-center gap-2">
               <Trophy className="h-5 w-5 text-warning" />
               Taxa de Conclusão
             </h2>
@@ -317,7 +316,7 @@ export default function Profile() {
       {!entriesLoading && favoriteEntries.length > 0 && (
         <AnimatedContent direction="up" delay={0.7} duration={0.5}>
           <div className="glass-card p-6">
-            <h2 className="font-display text-lg font-semibold flex items-center gap-2 mb-4">
+            <h2 className="font-zen text-lg font-semibold flex items-center gap-2 mb-4">
               <Heart className="h-5 w-5 text-destructive fill-destructive" />
               Favoritos
             </h2>
@@ -343,7 +342,7 @@ export default function Profile() {
       {/* Configurações de Notificações */}
       <AnimatedContent direction="up" delay={0.8} duration={0.5}>
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
+          <h3 className="font-zen text-lg font-semibold flex items-center gap-2">
             <Settings className="h-5 w-5 text-primary" />
             Configurações de Notificações
           </h3>

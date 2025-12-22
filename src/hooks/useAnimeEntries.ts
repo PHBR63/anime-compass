@@ -4,6 +4,15 @@ import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import { useOnlineStatus } from './useOnlineStatus';
 import { addToQueue } from '@/lib/offlineQueue';
+import {
+  cacheAnimeEntries,
+  getCachedAnimeEntries,
+  addCachedEntry,
+  updateCachedEntry,
+  removeCachedEntry,
+  cacheUserStats,
+  getCachedUserStats,
+} from '@/lib/offlineCache';
 import type { Database } from '@/integrations/supabase/types';
 
 type AnimeEntry = Database['public']['Tables']['anime_entries']['Row'];
@@ -11,14 +20,31 @@ type AnimeEntryInsert = Database['public']['Tables']['anime_entries']['Insert'];
 type AnimeEntryUpdate = Database['public']['Tables']['anime_entries']['Update'];
 type AnimeStatus = Database['public']['Enums']['anime_status'];
 
+/**
+ * Hook para buscar anime entries com suporte a cache offline
+ * Quando online: busca do servidor e atualiza cache
+ * Quando offline: retorna dados do cache IndexedDB
+ */
 export function useAnimeEntries(status?: AnimeStatus) {
   const { user } = useAuth();
+  const { isOnline } = useOnlineStatus();
 
   return useQuery({
     queryKey: ['anime-entries', user?.id, status],
     queryFn: async () => {
       if (!user) return [];
-      
+
+      // Se offline, busca do cache
+      if (!isOnline) {
+        const cached = await getCachedAnimeEntries(user.id, status);
+        if (cached.length > 0) {
+          return cached as AnimeEntry[];
+        }
+        // Se não tem cache, lança erro
+        throw new Error('Sem conexão e sem dados em cache');
+      }
+
+      // Online: busca do servidor
       let query = supabase
         .from('anime_entries')
         .select('*')
@@ -31,11 +57,19 @@ export function useAnimeEntries(status?: AnimeStatus) {
       }
 
       const { data, error } = await query;
-      
+
       if (error) throw error;
+
+      // Atualiza o cache em background (apenas se buscou sem filtro de status)
+      if (!status && data) {
+        cacheAnimeEntries(data, user.id).catch(console.error);
+      }
+
       return data as AnimeEntry[];
     },
     enabled: !!user,
+    // Permite retornar dados stale quando offline
+    staleTime: isOnline ? 1000 * 60 * 5 : Infinity,
   });
 }
 
@@ -74,7 +108,12 @@ export function useAddAnimeEntry() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (_, __, context) => {
+    onSuccess: (data) => {
+      // Adiciona ao cache local
+      if (data) {
+        addCachedEntry(data).catch(console.error);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['anime-entries'] });
       queryClient.invalidateQueries({ queryKey: ['user-stats'] });
       if (isOnline) {
@@ -121,7 +160,12 @@ export function useUpdateAnimeEntry() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // Atualiza o cache local
+      if (variables.id) {
+        updateCachedEntry(variables.id, variables).catch(console.error);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['anime-entries'] });
       queryClient.invalidateQueries({ queryKey: ['user-stats'] });
       if (!isOnline) {
@@ -158,7 +202,10 @@ export function useDeleteAnimeEntry() {
       
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
+      // Remove do cache local
+      removeCachedEntry(id).catch(console.error);
+      
       queryClient.invalidateQueries({ queryKey: ['anime-entries'] });
       queryClient.invalidateQueries({ queryKey: ['user-stats'] });
       if (isOnline) {
@@ -173,13 +220,35 @@ export function useDeleteAnimeEntry() {
   });
 }
 
+/**
+ * Hook para estatísticas do usuário com suporte a cache offline
+ */
 export function useUserStats() {
   const { user } = useAuth();
+  const { isOnline } = useOnlineStatus();
 
   return useQuery({
     queryKey: ['user-stats', user?.id],
     queryFn: async () => {
       if (!user) return null;
+
+      // Se offline, busca do cache
+      if (!isOnline) {
+        const cached = await getCachedUserStats(user.id);
+        if (cached) {
+          return cached as {
+            totalAnimes: number;
+            watching: number;
+            completed: number;
+            paused: number;
+            dropped: number;
+            notStarted: number;
+            totalEpisodes: number;
+            averageRating: string;
+            completionRate: string;
+          };
+        }
+      }
 
       const { data: entries, error } = await supabase
         .from('anime_entries')
@@ -205,8 +274,12 @@ export function useUserStats() {
           : '0',
       };
 
+      // Salva no cache em background
+      cacheUserStats(stats, user.id).catch(console.error);
+
       return stats;
     },
     enabled: !!user,
+    staleTime: isOnline ? 1000 * 60 * 5 : Infinity,
   });
 }

@@ -332,36 +332,182 @@
     @apply bg-muted-foreground/50;
   }
   
-  /* Ajustes específicos para tema claro */
+  /* ========================================
+     ESTILOS ESPECÍFICOS PARA TEMA CLARO
+     ======================================== */
+  
+  /* Cards com sombras suaves e elegantes */
   .light .glass-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
     box-shadow: 
-      0 4px 20px -4px hsl(var(--sakura) / 0.12),
-      0 1px 3px hsl(var(--foreground) / 0.05);
+      0 1px 2px hsl(var(--foreground) / 0.03),
+      0 4px 12px hsl(var(--sakura) / 0.08),
+      0 8px 24px hsl(var(--sakura) / 0.04);
+  }
+  
+  .light .glass-card:hover {
+    box-shadow: 
+      0 2px 4px hsl(var(--foreground) / 0.04),
+      0 8px 20px hsl(var(--sakura) / 0.12),
+      0 16px 40px hsl(var(--sakura) / 0.06);
+    transform: translateY(-2px);
+  }
+  
+  /* Anime cards com efeito de elevação suave */
+  .light .anime-card {
+    box-shadow: 
+      0 2px 8px hsl(var(--foreground) / 0.06),
+      0 4px 16px hsl(var(--sakura) / 0.08);
   }
   
   .light .anime-card:hover {
-    box-shadow: 0 20px 40px -15px hsl(var(--sakura) / 0.25);
+    box-shadow: 
+      0 8px 24px hsl(var(--sakura) / 0.18),
+      0 16px 48px hsl(var(--torii) / 0.08);
+    transform: translateY(-4px) scale(1.02);
+  }
+  
+  .light .anime-card::after {
+    background: linear-gradient(
+      to top,
+      hsl(var(--sakura) / 0.15),
+      transparent 60%
+    );
+  }
+  
+  /* Botões com hover mais vibrante */
+  .light button:not([disabled]):hover,
+  .light [role="button"]:not([disabled]):hover {
+    box-shadow: 0 4px 12px hsl(var(--sakura) / 0.2);
+  }
+  
+  /* Inputs com foco destacado */
+  .light input:focus,
+  .light textarea:focus,
+  .light select:focus {
+    box-shadow: 
+      0 0 0 3px hsl(var(--sakura) / 0.15),
+      0 2px 8px hsl(var(--sakura) / 0.1);
+  }
+  
+  /* Sidebar com sombra lateral */
+  .light aside,
+  .light [data-sidebar] {
+    box-shadow: 2px 0 12px hsl(var(--foreground) / 0.04);
+  }
+  
+  /* Links com underline animado sakura */
+  .light .link-underline::after {
+    @apply bg-sakura;
+    height: 2px;
+  }
+  
+  /* Stat cards com gradiente suave */
+  .light .stat-card {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card)),
+      hsl(var(--sakura) / 0.03)
+    );
+    box-shadow: 
+      0 2px 8px hsl(var(--sakura) / 0.08),
+      inset 0 1px 0 hsl(0 0% 100% / 0.5);
+  }
+  
+  .light .stat-card:hover {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card)),
+      hsl(var(--sakura) / 0.08)
+    );
+  }
+  
+  /* Badges e tags com estilo delicado */
+  .light .badge,
+  .light [data-badge] {
+    box-shadow: 0 1px 3px hsl(var(--foreground) / 0.06);
+  }
+  
+  /* Dropdown e popovers com sombra elegante */
+  .light [data-radix-popper-content-wrapper] > *,
+  .light [role="menu"],
+  .light [role="listbox"] {
+    box-shadow: 
+      0 4px 16px hsl(var(--foreground) / 0.08),
+      0 8px 32px hsl(var(--sakura) / 0.06);
+  }
+  
+  /* Scrollbar estilizada para tema claro */
+  .light ::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+  }
+  
+  .light ::-webkit-scrollbar-thumb {
+    background: hsl(var(--sakura) / 0.3);
+    border: 2px solid hsl(var(--muted));
+  }
+  
+  .light ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--sakura) / 0.5);
+  }
+  
+  /* Tabelas com linhas zebradas suaves */
+  .light tr:nth-child(even) {
+    background: hsl(var(--sakura) / 0.03);
+  }
+  
+  .light tr:hover {
+    background: hsl(var(--sakura) / 0.06);
+  }
+  
+  /* Avatar com borda sakura */
+  .light [data-avatar],
+  .light .avatar {
+    box-shadow: 0 0 0 2px hsl(var(--sakura) / 0.2);
   }
   
   /* Status badges mais vibrantes no tema claro */
   .light .status-watching {
     @apply bg-sakura/15 text-sakura border-sakura/40;
+    box-shadow: 0 2px 6px hsl(var(--sakura) / 0.15);
   }
 
   .light .status-completed {
     @apply bg-emerald-500/15 text-emerald-600 border-emerald-500/40;
+    box-shadow: 0 2px 6px hsl(142 76% 45% / 0.15);
   }
 
   .light .status-paused {
     @apply bg-amber-500/15 text-amber-600 border-amber-500/40;
+    box-shadow: 0 2px 6px hsl(38 92% 50% / 0.15);
   }
 
   .light .status-dropped {
     @apply bg-destructive/15 text-destructive border-destructive/40;
+    box-shadow: 0 2px 6px hsl(var(--destructive) / 0.15);
   }
 
   .light .status-planned {
     @apply bg-violet-500/15 text-violet-600 border-violet-500/40;
+    box-shadow: 0 2px 6px hsl(270 70% 50% / 0.15);
+  }
+  
+  /* Efeito de brilho suave em elementos interativos */
+  .light .hover-glow:hover {
+    box-shadow: 
+      0 0 20px hsl(var(--sakura) / 0.3),
+      0 4px 12px hsl(var(--sakura) / 0.15);
+  }
+  
+  /* Gradiente de fundo suave */
+  .light body {
+    background: linear-gradient(
+      180deg,
+      hsl(30 25% 97%),
+      hsl(350 20% 96%) 50%,
+      hsl(30 20% 95%)
+    );
   }
 }
 

@@ -8,11 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Mail, Lock, User, Sparkles, ShieldAlert, Gift, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ShieldAlert, Gift } from 'lucide-react';
 import { z } from 'zod';
 import { PasswordStrengthIndicator, isPasswordStrong } from '@/components/auth/PasswordStrengthIndicator';
 import { SakuraPetals, WavePattern } from '@/components/backgrounds';
-import { NeonText } from '@/components/animations';
+import { Logo } from '@/components/ui/Logo';
 
 // Chave para armazenar preferência de "Lembrar-me"
 const REMEMBER_ME_KEY = 'anicheck_remember_me';
@@ -231,16 +231,8 @@ export default function Auth() {
 
         {/* Logo com estilo oriental */}
         <div className="text-center mb-6 md:mb-8">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-sakura animate-pulse" />
-            <NeonText 
-              color="sakura" 
-              intensity="medium" 
-              animated={true}
-              className="text-3xl md:text-4xl font-bold font-zen"
-            >
-              AniCheck
-            </NeonText>
+          <div className="flex items-center justify-center mb-4">
+            <Logo variant="full" size="xl" showGlow={true} />
           </div>
           <p className="text-sm md:text-base text-muted-foreground font-zen">
             {isLogin ? 'おかえりなさい！' : 'アカウントを作成'}

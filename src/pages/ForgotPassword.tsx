@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Mail, Sparkles, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Logo } from '@/components/ui/Logo';
 import { z } from 'zod';
 
 // Schema de validação para email
@@ -66,9 +67,8 @@ export default function ForgotPassword() {
       <div className="w-full max-w-sm md:max-w-md relative z-10">
         {/* Logo */}
         <div className="text-center mb-6 md:mb-8">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-primary animate-glow" />
-            <h1 className="text-3xl md:text-4xl font-bold text-gradient">AniCheck</h1>
+          <div className="flex items-center justify-center mb-4">
+            <Logo variant="full" size="lg" showGlow={true} />
           </div>
           <p className="text-sm md:text-base text-muted-foreground">
             Recuperar senha

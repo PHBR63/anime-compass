@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Link } from 'react-router-dom';
 import { SakuraPetals, WavePattern } from '@/components/backgrounds';
 import { AnimatedContent, NeonText } from '@/components/animations';
+import { ToriiDivider } from '@/components/decorative';
 import type { Database } from '@/integrations/supabase/types';
 
 type AnimeStatus = Database['public']['Enums']['anime_status'];
@@ -236,7 +237,8 @@ export default function MyList() {
         <ListsSection />
       </AnimatedContent>
 
-      <Separator className="my-6" />
+      {/* Separador decorativo Torii */}
+      <ToriiDivider variant="sakura" />
 
       {/* Filters bar */}
       <AnimatedContent direction="up" delay={0.2}>

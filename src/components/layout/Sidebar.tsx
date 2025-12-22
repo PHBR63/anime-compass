@@ -118,7 +118,7 @@ export function Sidebar() {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex items-center gap-2 px-6 py-6 border-b border-border/50">
-            <Logo variant="full" size="md" showGlow={false} theme="light" />
+            <Logo variant="full" size="md" showGlow={false} />
             
             {/* Indicador de Não Perturbe */}
             {isDoNotDisturbActive && (

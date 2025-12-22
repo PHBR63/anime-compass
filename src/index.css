@@ -616,6 +616,157 @@
 }
 
 /* ========================================
+   SKELETON ANIMATIONS - PALETA SAKURA
+   ======================================== */
+
+/* Skeleton Sakura - Gradiente animado com cores sakura */
+@keyframes skeleton-sakura {
+  0% {
+    background-position: -200% 0;
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    background-position: 200% 0;
+    opacity: 0.6;
+  }
+}
+
+.skeleton-sakura {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--sakura) / 0.3) 25%,
+    hsl(var(--sakura) / 0.5) 50%,
+    hsl(var(--sakura) / 0.3) 75%,
+    hsl(var(--muted)) 100%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-sakura 2s ease-in-out infinite;
+}
+
+/* Skeleton Shimmer - Brilho deslizante */
+@keyframes skeleton-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: hsl(var(--muted));
+}
+
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(var(--sakura) / 0.4) 50%,
+    transparent 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+/* Skeleton Pulse - Pulsação suave sakura */
+@keyframes skeleton-pulse {
+  0%, 100% {
+    background-color: hsl(var(--muted));
+    opacity: 0.6;
+  }
+  50% {
+    background-color: hsl(var(--sakura) / 0.3);
+    opacity: 1;
+  }
+}
+
+.skeleton-pulse {
+  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Skeleton Wave - Onda animada estilo torii */
+@keyframes skeleton-wave {
+  0% {
+    background-position: -468px 0;
+  }
+  100% {
+    background-position: 468px 0;
+  }
+}
+
+.skeleton-wave {
+  background: linear-gradient(
+    to right,
+    hsl(var(--muted)) 8%,
+    hsl(var(--sakura) / 0.4) 18%,
+    hsl(var(--torii) / 0.2) 33%,
+    hsl(var(--sakura) / 0.4) 48%,
+    hsl(var(--muted)) 58%
+  );
+  background-size: 800px 100%;
+  animation: skeleton-wave 2s linear infinite;
+}
+
+/* Variações para tema claro */
+.light .skeleton-sakura {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--sakura) / 0.2) 25%,
+    hsl(var(--sakura) / 0.35) 50%,
+    hsl(var(--sakura) / 0.2) 75%,
+    hsl(var(--muted)) 100%
+  );
+  background-size: 400% 100%;
+}
+
+.light .skeleton-shimmer::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(var(--sakura) / 0.3) 50%,
+    transparent 100%
+  );
+}
+
+.light .skeleton-pulse {
+  animation-name: skeleton-pulse-light;
+}
+
+@keyframes skeleton-pulse-light {
+  0%, 100% {
+    background-color: hsl(var(--muted));
+    opacity: 0.8;
+  }
+  50% {
+    background-color: hsl(var(--sakura) / 0.2);
+    opacity: 1;
+  }
+}
+
+.light .skeleton-wave {
+  background: linear-gradient(
+    to right,
+    hsl(var(--muted)) 8%,
+    hsl(var(--sakura) / 0.25) 18%,
+    hsl(var(--torii) / 0.15) 33%,
+    hsl(var(--sakura) / 0.25) 48%,
+    hsl(var(--muted)) 58%
+  );
+}
+
+/* ========================================
    OTIMIZAÇÕES MOBILE / PWA
    ======================================== */
 

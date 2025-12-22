@@ -11,7 +11,7 @@ interface Requirement {
   test: (password: string) => boolean;
 }
 
-// Requisitos de senha
+// Requisitos de senha - alinhados com as regras do backend
 const requirements: Requirement[] = [
   { label: "Mínimo 8 caracteres", test: (p) => p.length >= 8 },
   { label: "Letra maiúscula", test: (p) => /[A-Z]/.test(p) },
@@ -27,12 +27,12 @@ const calculateStrength = (password: string): number => {
   return (passedRequirements / requirements.length) * 100;
 };
 
-// Retorna o label e cor baseado na força
+// Retorna o label e cor baseado na força - threshold ajustado para 80%
 const getStrengthInfo = (strength: number): { label: string; colorClass: string } => {
   if (strength === 0) return { label: "", colorClass: "bg-muted" };
   if (strength <= 20) return { label: "Muito fraca", colorClass: "bg-destructive" };
-  if (strength <= 40) return { label: "Fraca", colorClass: "bg-orange-500" };
-  if (strength <= 60) return { label: "Média", colorClass: "bg-yellow-500" };
+  if (strength <= 40) return { label: "Fraca", colorClass: "bg-destructive" };
+  if (strength <= 60) return { label: "Média", colorClass: "bg-orange-500" };
   if (strength <= 80) return { label: "Forte", colorClass: "bg-lime-500" };
   return { label: "Muito forte", colorClass: "bg-green-500" };
 };
@@ -51,7 +51,7 @@ export function PasswordStrengthIndicator({ password }: PasswordStrengthIndicato
           <span className="text-muted-foreground">Força da senha</span>
           <span className={cn(
             "font-medium",
-            strength <= 40 ? "text-destructive" : strength <= 60 ? "text-yellow-600" : "text-green-600"
+            strength <= 60 ? "text-destructive" : strength <= 80 ? "text-yellow-600" : "text-green-600"
           )}>
             {label}
           </span>
@@ -86,11 +86,17 @@ export function PasswordStrengthIndicator({ password }: PasswordStrengthIndicato
           );
         })}
       </ul>
+
+      {/* Aviso sobre senhas comprometidas (HIBP) */}
+      <p className="text-xs text-muted-foreground/80 flex items-center gap-1.5 pt-1 border-t border-border/30">
+        <span className="text-amber-500">⚠️</span>
+        Senhas encontradas em vazamentos de dados serão rejeitadas
+      </p>
     </div>
   );
 }
 
-// Função utilitária para validar se a senha atende aos requisitos mínimos
+// Função utilitária para validar se a senha atende aos requisitos mínimos (80% = 4 de 5 requisitos)
 export const isPasswordStrong = (password: string): boolean => {
-  return calculateStrength(password) >= 60;
+  return calculateStrength(password) >= 80;
 };

@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Lock, Sparkles, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { Lock, Sparkles, Eye, EyeOff, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { z } from 'zod';
 import { PasswordStrengthIndicator, isPasswordStrong } from '@/components/auth/PasswordStrengthIndicator';
 
-// Schema de validação para nova senha
+// Schema de validação para nova senha - alinhado com o indicador (8 caracteres)
 const passwordSchema = z.object({
-  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+  password: z.string().min(8, 'Senha deve ter pelo menos 8 caracteres'),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Senhas não coincidem",
@@ -30,6 +30,7 @@ export default function ResetPassword() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isValidSession, setIsValidSession] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [resetError, setResetError] = useState<string | null>(null); // Erro inline persistente
   
   const navigate = useNavigate();
 
@@ -60,23 +61,50 @@ export default function ResetPassword() {
     return () => subscription.unsubscribe();
   }, []);
 
+  /**
+   * Traduz erros do Supabase para mensagens amigáveis
+   */
+  const getErrorMessage = (error: Error): string => {
+    const msg = error.message.toLowerCase();
+    
+    if (msg.includes('password has been pwned') || msg.includes('pwned')) {
+      return 'Esta senha foi encontrada em vazamentos de dados. Por segurança, escolha outra senha diferente.';
+    }
+    if (msg.includes('should be at least') || msg.includes('too short')) {
+      return 'A senha deve ter pelo menos 8 caracteres.';
+    }
+    if (msg.includes('session') || msg.includes('expired') || msg.includes('token')) {
+      return 'Sua sessão expirou. Por favor, solicite um novo link de recuperação.';
+    }
+    if (msg.includes('weak') || msg.includes('strength')) {
+      return 'Senha muito fraca. Use letras maiúsculas, minúsculas, números e caracteres especiais.';
+    }
+    
+    return 'Erro ao redefinir senha. Tente novamente ou solicite um novo link.';
+  };
+
   // Atualiza a senha do usuário
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setResetError(null); // Limpa erro anterior
 
     try {
       // Valida as senhas antes de enviar
       const validation = passwordSchema.safeParse({ password, confirmPassword });
       if (!validation.success) {
-        toast.error(validation.error.errors[0].message);
+        const errorMsg = validation.error.errors[0].message;
+        setResetError(errorMsg);
+        toast.error(errorMsg);
         setIsLoading(false);
         return;
       }
 
-      // Verifica força da senha
+      // Verifica força da senha (80% = 4 de 5 requisitos)
       if (!isPasswordStrong(password)) {
-        toast.error('Senha muito fraca. Atenda aos requisitos mínimos.');
+        const errorMsg = 'Senha muito fraca. Atenda a pelo menos 4 dos 5 requisitos de segurança.';
+        setResetError(errorMsg);
+        toast.error(errorMsg);
         setIsLoading(false);
         return;
       }
@@ -86,7 +114,9 @@ export default function ResetPassword() {
       });
 
       if (error) {
-        toast.error('Erro ao redefinir senha. Tente novamente.');
+        const errorMsg = getErrorMessage(error);
+        setResetError(errorMsg);
+        toast.error(errorMsg, { duration: 7000 });
       } else {
         setIsSuccess(true);
         toast.success('Senha redefinida com sucesso!');
@@ -97,7 +127,9 @@ export default function ResetPassword() {
         }, 3000);
       }
     } catch (err) {
-      toast.error('Erro inesperado. Tente novamente.');
+      const errorMsg = 'Erro inesperado. Tente novamente ou solicite um novo link.';
+      setResetError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -181,9 +213,17 @@ export default function ResetPassword() {
           ) : (
             // Formulário de nova senha
             <>
-              <p className="text-muted-foreground text-sm mb-6 text-center">
+              <p className="text-muted-foreground text-sm mb-4 text-center">
                 Digite sua nova senha abaixo.
               </p>
+
+              {/* Aviso sobre senhas comprometidas */}
+              <div className="mb-6 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground">
+                  Senhas fracas ou encontradas em vazamentos de dados serão automaticamente rejeitadas por segurança.
+                </p>
+              </div>
               
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
@@ -195,7 +235,10 @@ export default function ResetPassword() {
                       type={showPassword ? 'text' : 'password'}
                       placeholder="••••••••"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (resetError) setResetError(null);
+                      }}
                       className="pl-10 pr-10 bg-background/50 border-border/50 focus:border-primary"
                       required
                     />
@@ -220,12 +263,32 @@ export default function ResetPassword() {
                       type={showPassword ? 'text' : 'password'}
                       placeholder="••••••••"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        if (resetError) setResetError(null);
+                      }}
                       className="pl-10 bg-background/50 border-border/50 focus:border-primary"
                       required
                     />
                   </div>
                 </div>
+
+                {/* Erro inline com opção de solicitar novo link */}
+                {resetError && (
+                  <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <p className="text-sm text-destructive font-medium">{resetError}</p>
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={() => navigate('/forgot-password')}
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Solicitar novo link de recuperação
+                    </Button>
+                  </div>
+                )}
 
                 <Button
                   type="submit"

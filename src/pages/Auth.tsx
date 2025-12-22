@@ -18,10 +18,10 @@ const REMEMBER_ME_KEY = 'anicheck_remember_me';
 // Schema de validação para login
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+  password: z.string().min(8, 'Senha deve ter pelo menos 8 caracteres'),
 });
 
-// Schema de validação para cadastro
+// Schema de validação para cadastro - alinhado com requisitos de força (8 caracteres)
 const signupSchema = loginSchema.extend({
   username: z.string().min(3, 'Username deve ter pelo menos 3 caracteres').max(20, 'Username deve ter no máximo 20 caracteres'),
   confirmPassword: z.string(),
@@ -114,9 +114,9 @@ export default function Auth() {
           return;
         }
 
-        // Verifica força da senha antes de criar conta
+        // Verifica força da senha antes de criar conta (80% = 4 de 5 requisitos)
         if (!isPasswordStrong(password)) {
-          toast.error('Senha muito fraca. Atenda aos requisitos mínimos.');
+          toast.error('Senha muito fraca. Atenda a pelo menos 4 dos 5 requisitos de segurança.');
           setIsLoading(false);
           return;
         }

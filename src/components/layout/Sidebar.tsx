@@ -169,8 +169,8 @@ export function Sidebar() {
             </div>
           )}
 
-          {/* Navigation */}
-          <nav className="flex-1 px-3 py-6 space-y-1">
+          {/* Navigation - com scroll */}
+          <nav className="flex-1 overflow-y-auto px-3 py-6 space-y-1 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
             {navItems.filter(item => {
               if (item.adminOnly) return isAdmin;
               if (item.moderatorOnly) return isModerator;

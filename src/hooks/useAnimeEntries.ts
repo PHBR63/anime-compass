@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { useOnlineStatus } from './useOnlineStatus';
+import { addToQueue } from '@/lib/offlineQueue';
 import type { Database } from '@/integrations/supabase/types';
 
 type AnimeEntry = Database['public']['Tables']['anime_entries']['Row'];
@@ -37,13 +39,31 @@ export function useAnimeEntries(status?: AnimeStatus) {
   });
 }
 
+/**
+ * Hook para adicionar anime à lista com suporte offline
+ * Se offline, adiciona à fila de sincronização
+ */
 export function useAddAnimeEntry() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { isOnline } = useOnlineStatus();
 
   return useMutation({
     mutationFn: async (entry: Omit<AnimeEntryInsert, 'user_id'>) => {
       if (!user) throw new Error('Not authenticated');
+      
+      // Se offline, adiciona à fila
+      if (!isOnline) {
+        await addToQueue('add-anime', { ...entry, user_id: user.id }, user.id);
+        // Retorna dados simulados para atualização otimista
+        return {
+          ...entry,
+          id: `temp-${Date.now()}`,
+          user_id: user.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as AnimeEntry;
+      }
       
       const { data, error } = await supabase
         .from('anime_entries')
@@ -54,10 +74,14 @@ export function useAddAnimeEntry() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, __, context) => {
       queryClient.invalidateQueries({ queryKey: ['anime-entries'] });
       queryClient.invalidateQueries({ queryKey: ['user-stats'] });
-      toast.success('Anime adicionado à lista!');
+      if (isOnline) {
+        toast.success('Anime adicionado à lista!');
+      } else {
+        toast.success('Anime salvo offline! Será sincronizado quando voltar online.');
+      }
     },
     onError: (error: Error) => {
       if (error.message.includes('duplicate key')) {
@@ -69,11 +93,24 @@ export function useAddAnimeEntry() {
   });
 }
 
+/**
+ * Hook para atualizar anime com suporte offline
+ * Se offline, adiciona à fila de sincronização
+ */
 export function useUpdateAnimeEntry() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { isOnline } = useOnlineStatus();
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: AnimeEntryUpdate & { id: string }) => {
+      // Se offline, adiciona à fila
+      if (!isOnline && user) {
+        await addToQueue('update-anime', { id, ...updates }, user.id);
+        // Retorna dados simulados
+        return { id, ...updates } as AnimeEntry;
+      }
+      
       const { data, error } = await supabase
         .from('anime_entries')
         .update(updates)
@@ -87,6 +124,9 @@ export function useUpdateAnimeEntry() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['anime-entries'] });
       queryClient.invalidateQueries({ queryKey: ['user-stats'] });
+      if (!isOnline) {
+        toast.info('Alteração salva offline');
+      }
     },
     onError: () => {
       toast.error('Erro ao atualizar anime');
@@ -94,11 +134,23 @@ export function useUpdateAnimeEntry() {
   });
 }
 
+/**
+ * Hook para deletar anime com suporte offline
+ * Se offline, adiciona à fila de sincronização
+ */
 export function useDeleteAnimeEntry() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { isOnline } = useOnlineStatus();
 
   return useMutation({
     mutationFn: async (id: string) => {
+      // Se offline, adiciona à fila
+      if (!isOnline && user) {
+        await addToQueue('delete-anime', { id }, user.id);
+        return;
+      }
+      
       const { error } = await supabase
         .from('anime_entries')
         .delete()
@@ -109,7 +161,11 @@ export function useDeleteAnimeEntry() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['anime-entries'] });
       queryClient.invalidateQueries({ queryKey: ['user-stats'] });
-      toast.success('Anime removido da lista');
+      if (isOnline) {
+        toast.success('Anime removido da lista');
+      } else {
+        toast.success('Remoção salva offline');
+      }
     },
     onError: () => {
       toast.error('Erro ao remover anime');

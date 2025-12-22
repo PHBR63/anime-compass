@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { useOnlineStatus } from './useOnlineStatus';
+import { addToQueue } from '@/lib/offlineQueue';
 
 // Tipo para review com dados do perfil do autor
 export interface Review {
@@ -192,10 +194,14 @@ export function useUserReview(malId: number) {
   });
 }
 
-// Hook para criar review
+/**
+ * Hook para criar review com suporte offline
+ * Se offline, adiciona à fila de sincronização
+ */
 export function useCreateReview() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { isOnline } = useOnlineStatus();
 
   return useMutation({
     mutationFn: async (data: {
@@ -206,10 +212,26 @@ export function useCreateReview() {
       has_spoilers?: boolean;
       tags?: string[];
     }) => {
+      if (!user) throw new Error('Not authenticated');
+      
+      // Se offline, adiciona à fila
+      if (!isOnline) {
+        await addToQueue('add-review', {
+          user_id: user.id,
+          mal_id: data.mal_id,
+          title: data.title,
+          content: data.content,
+          rating: data.rating || null,
+          has_spoilers: data.has_spoilers || false,
+          tags: data.tags || null,
+        }, user.id);
+        return;
+      }
+      
       const { error } = await supabase
         .from('reviews')
         .insert({
-          user_id: user!.id,
+          user_id: user.id,
           mal_id: data.mal_id,
           title: data.title,
           content: data.content,
@@ -223,7 +245,11 @@ export function useCreateReview() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['reviews', variables.mal_id] });
       queryClient.invalidateQueries({ queryKey: ['userReview', variables.mal_id] });
-      toast.success('Review publicada com sucesso!');
+      if (isOnline) {
+        toast.success('Review publicada com sucesso!');
+      } else {
+        toast.success('Review salva offline! Será publicada quando voltar online.');
+      }
     },
     onError: () => {
       toast.error('Erro ao publicar review');
@@ -231,9 +257,14 @@ export function useCreateReview() {
   });
 }
 
-// Hook para atualizar review
+/**
+ * Hook para atualizar review com suporte offline
+ * Se offline, adiciona à fila de sincronização
+ */
 export function useUpdateReview() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { isOnline } = useOnlineStatus();
 
   return useMutation({
     mutationFn: async (data: {
@@ -245,6 +276,12 @@ export function useUpdateReview() {
       has_spoilers?: boolean;
       tags?: string[];
     }) => {
+      // Se offline, adiciona à fila
+      if (!isOnline && user) {
+        await addToQueue('update-review', data, user.id);
+        return;
+      }
+      
       const { error } = await supabase
         .from('reviews')
         .update({
@@ -261,7 +298,11 @@ export function useUpdateReview() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['reviews', variables.mal_id] });
       queryClient.invalidateQueries({ queryKey: ['userReview', variables.mal_id] });
-      toast.success('Review atualizada!');
+      if (isOnline) {
+        toast.success('Review atualizada!');
+      } else {
+        toast.info('Alteração salva offline');
+      }
     },
     onError: () => {
       toast.error('Erro ao atualizar review');

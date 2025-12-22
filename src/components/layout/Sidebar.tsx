@@ -21,6 +21,7 @@ import { Logo } from '@/components/ui/Logo';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useIsAdmin } from '@/hooks/useAdmin';
@@ -255,6 +256,12 @@ export function Sidebar() {
 
           {/* Bottom actions */}
           <div className="px-3 pb-6 space-y-2">
+            {/* Toggle de Tema */}
+            <div className="flex items-center gap-2 px-1 py-2">
+              <ThemeToggle />
+              <span className="text-sm text-muted-foreground">Tema</span>
+            </div>
+            
             <div className="flex items-center gap-2">
               <NotificationsDropdown />
               <span className="text-sm text-muted-foreground">Notificações</span>

@@ -33,6 +33,7 @@ import ChatInput from './ChatInput';
 import ChatMessage from './ChatMessage';
 import GroupSettingsDrawer from './GroupSettingsDrawer';
 import NotificationSettingsModal from './NotificationSettingsModal';
+import { AnimeDetailModal } from '@/components/anime/AnimeDetailModal';
 import { toast } from 'sonner';
 
 interface ChatWindowProps {
@@ -63,6 +64,7 @@ export default function ChatWindow({
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessageWithSender | null>(null);
   const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [selectedMalId, setSelectedMalId] = useState<number | null>(null); // Estado para modal de anime
   const prevMessagesLength = useRef(messages.length);
   
   const deleteMessage = useDeleteMessage();
@@ -377,6 +379,7 @@ export default function ChatWindow({
                     showSenderName={conversation.type === 'group' && !isOwn && showAvatar}
                     onDelete={isOwn ? () => handleDeleteMessage(message.id) : undefined}
                     onReply={() => handleReply(message)}
+                    onAnimeClick={(malId) => setSelectedMalId(malId)}
                     isRead={messageIsRead}
                     readByDetails={readByDetails}
                   />
@@ -434,6 +437,13 @@ export default function ChatWindow({
       <NotificationSettingsModal
         open={showNotificationSettings}
         onOpenChange={setShowNotificationSettings}
+      />
+
+      {/* Modal de detalhes do anime */}
+      <AnimeDetailModal
+        open={!!selectedMalId}
+        onOpenChange={(open) => !open && setSelectedMalId(null)}
+        malId={selectedMalId || 0}
       />
     </div>
   );

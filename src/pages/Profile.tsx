@@ -22,7 +22,7 @@ import { BannerUpload } from '@/components/profile/BannerUpload';
 import { EditProfileModal } from '@/components/profile/EditProfileModal';
 import { FavoriteGenresStudios } from '@/components/profile/FavoriteGenresStudios';
 import { ExportAnimeList } from '@/components/profile/ExportAnimeList';
-import { PushNotificationSettings } from '@/components/notifications/PushNotificationSettings';
+import { PushCategoriesCard } from '@/components/notifications/PushCategoriesCard';
 import { NotificationPreferencesCard } from '@/components/notifications/NotificationPreferencesCard';
 import { DoNotDisturbSettings } from '@/components/notifications/DoNotDisturbSettings';
 import { SessionExpiredCard, isSessionExpiredError } from '@/components/ui/SessionExpiredCard';
@@ -343,7 +343,11 @@ export default function Profile() {
       {/* Configurações de Notificações */}
       <AnimatedContent direction="up" delay={0.8} duration={0.5}>
         <div className="space-y-4">
-          <PushNotificationSettings />
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Settings className="h-5 w-5 text-primary" />
+            Configurações de Notificações
+          </h3>
+          <PushCategoriesCard />
           <NotificationPreferencesCard />
           <DoNotDisturbSettings />
         </div>

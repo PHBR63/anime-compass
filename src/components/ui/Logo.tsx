@@ -118,22 +118,39 @@ export function Logo({
       {/* Efeito de glow */}
       {showGlow && (
         <div 
-          className="absolute inset-0 blur-lg bg-primary/40 rounded-full scale-110"
+          className="absolute inset-0 blur-lg bg-primary/40 rounded-full scale-110 transition-all duration-500"
           aria-hidden="true" 
         />
       )}
       
-      {/* Imagem do logo */}
-      <img
-        src={src}
-        alt={alt}
-        className={cn(
-          'relative object-contain transition-opacity duration-300',
-          sizeClass
-        )}
-        loading="eager"
-        decoding="async"
-      />
+      {/* Container com ambas as imagens para crossfade suave */}
+      <div className="relative">
+        {/* Imagem dark - visível no tema claro */}
+        <img
+          src={imageMap[variant].dark}
+          alt={alt}
+          className={cn(
+            'relative object-contain transition-all duration-500 ease-in-out',
+            sizeClass,
+            effectiveTheme === 'dark' ? 'opacity-100' : 'opacity-0 absolute inset-0'
+          )}
+          loading="eager"
+          decoding="async"
+        />
+        
+        {/* Imagem light - visível no tema escuro */}
+        <img
+          src={imageMap[variant].light}
+          alt={alt}
+          className={cn(
+            'object-contain transition-all duration-500 ease-in-out',
+            sizeClass,
+            effectiveTheme === 'light' ? 'opacity-100' : 'opacity-0 absolute inset-0'
+          )}
+          loading="eager"
+          decoding="async"
+        />
+      </div>
     </div>
   );
 }

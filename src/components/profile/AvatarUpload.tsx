@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Camera, Loader2 } from 'lucide-react';
+import { Camera, Loader2, ImageOff } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +11,82 @@ interface AvatarUploadProps {
   currentAvatarUrl: string | null;
   displayName: string | null;
   onAvatarUpdated: (newUrl: string) => void;
+}
+
+// Extensões de arquivo permitidas (mesmas validadas no servidor)
+const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+/**
+ * Valida se o arquivo é uma imagem permitida
+ * @param file - Arquivo a ser validado
+ * @returns Objeto com resultado da validação e mensagem de erro
+ */
+function validateImageFile(file: File): { valid: boolean; error?: string } {
+  // Validar tipo MIME
+  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+    return { 
+      valid: false, 
+      error: `Formato não suportado. Use apenas: ${ALLOWED_EXTENSIONS.join(', ').toUpperCase()}` 
+    };
+  }
+
+  // Validar extensão do arquivo
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  if (!extension || !ALLOWED_EXTENSIONS.includes(extension)) {
+    return { 
+      valid: false, 
+      error: `Extensão inválida. Use apenas: ${ALLOWED_EXTENSIONS.join(', ')}` 
+    };
+  }
+
+  // Validar tamanho
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return { 
+      valid: false, 
+      error: `Arquivo muito grande. Máximo permitido: ${MAX_FILE_SIZE_MB}MB` 
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Interpreta erros do Supabase Storage e retorna mensagem amigável
+ * @param error - Erro retornado pelo Supabase
+ * @returns Mensagem de erro amigável para o usuário
+ */
+function getUploadErrorMessage(error: Error | { message?: string; statusCode?: string }): string {
+  const message = 'message' in error ? error.message?.toLowerCase() : '';
+  
+  // Erro de política RLS (tipo de arquivo inválido no servidor)
+  if (message.includes('policy') || message.includes('violates')) {
+    return 'Tipo de arquivo não permitido. Use apenas JPG, PNG ou WebP.';
+  }
+  
+  // Erro de tamanho
+  if (message.includes('size') || message.includes('too large')) {
+    return `Arquivo muito grande. Máximo: ${MAX_FILE_SIZE_MB}MB`;
+  }
+  
+  // Limite de arquivos atingido
+  if (message.includes('limit') || message.includes('count')) {
+    return 'Limite de uploads atingido. Delete avatares antigos primeiro.';
+  }
+  
+  // Erro de autenticação
+  if (message.includes('auth') || message.includes('unauthorized')) {
+    return 'Sessão expirada. Por favor, faça login novamente.';
+  }
+  
+  // Erro de rede
+  if (message.includes('network') || message.includes('fetch')) {
+    return 'Erro de conexão. Verifique sua internet e tente novamente.';
+  }
+  
+  return 'Erro ao fazer upload. Tente novamente.';
 }
 
 /**
@@ -40,15 +116,17 @@ export function AvatarUpload({ userId, currentAvatarUrl, displayName, onAvatarUp
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validação do tipo de arquivo
-    if (!file.type.startsWith('image/')) {
-      toast.error('Por favor, selecione uma imagem');
-      return;
-    }
-
-    // Validação do tamanho (máx 5MB para imagem original antes do crop)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('A imagem deve ter no máximo 5MB');
+    // Validação robusta do arquivo
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      toast.error(validation.error, {
+        icon: <ImageOff className="h-4 w-4" />,
+        duration: 5000
+      });
+      // Limpa o input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       return;
     }
 
@@ -57,6 +135,9 @@ export function AvatarUpload({ userId, currentAvatarUrl, displayName, onAvatarUp
     reader.onload = () => {
       setSelectedImage(reader.result as string);
       setCropModalOpen(true);
+    };
+    reader.onerror = () => {
+      toast.error('Erro ao ler o arquivo. Tente novamente.');
     };
     reader.readAsDataURL(file);
 
@@ -82,7 +163,14 @@ export function AvatarUpload({ userId, currentAvatarUrl, displayName, onAvatarUp
           contentType: 'image/jpeg'
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        const errorMessage = getUploadErrorMessage(uploadError);
+        toast.error(errorMessage, {
+          icon: <ImageOff className="h-4 w-4" />,
+          duration: 5000
+        });
+        return;
+      }
 
       // Gera URL pública do avatar
       const { data: { publicUrl } } = supabase.storage
@@ -95,13 +183,22 @@ export function AvatarUpload({ userId, currentAvatarUrl, displayName, onAvatarUp
         .update({ avatar_url: publicUrl })
         .eq('id', userId);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        toast.error('Erro ao atualizar perfil. Tente novamente.');
+        return;
+      }
 
       onAvatarUpdated(publicUrl);
-      toast.success('Avatar atualizado!');
+      toast.success('Avatar atualizado com sucesso!');
     } catch (error) {
       console.error('Erro no upload:', error);
-      toast.error('Erro ao fazer upload do avatar');
+      const errorMessage = error instanceof Error 
+        ? getUploadErrorMessage(error)
+        : 'Erro inesperado. Tente novamente.';
+      toast.error(errorMessage, {
+        icon: <ImageOff className="h-4 w-4" />,
+        duration: 5000
+      });
     } finally {
       setIsUploading(false);
       setSelectedImage(null);
@@ -143,7 +240,7 @@ export function AvatarUpload({ userId, currentAvatarUrl, displayName, onAvatarUp
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept=".jpg,.jpeg,.png,.webp"
           onChange={handleFileChange}
           className="hidden"
         />

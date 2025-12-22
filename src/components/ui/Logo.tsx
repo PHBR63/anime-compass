@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { useTheme } from 'next-themes';
 
 // Importa as imagens do logo - versão escura (para fundos claros)
 import logoIcon from '@/assets/logo-icon.png';
@@ -27,8 +28,9 @@ interface LogoProps {
    * Tema do logo:
    * - dark: Cores escuras (roxo + vermelho) para fundos claros
    * - light: Cores claras (rosa + vermelho) para fundos escuros
+   * - auto: Detecta automaticamente baseado no tema do sistema
    */
-  theme?: 'dark' | 'light';
+  theme?: 'dark' | 'light' | 'auto';
   /**
    * Exibir efeito de glow ao redor do logo
    */
@@ -44,9 +46,18 @@ export function Logo({
   className, 
   variant = 'icon', 
   size = 'md',
-  theme = 'dark',
+  theme = 'auto',
   showGlow = false 
 }: LogoProps) {
+  const { resolvedTheme } = useTheme();
+
+  // Determina o tema efetivo do logo
+  // No tema escuro do sistema, usamos logo light (cores claras)
+  // No tema claro do sistema, usamos logo dark (cores escuras)
+  const effectiveTheme = theme === 'auto' 
+    ? (resolvedTheme === 'dark' ? 'light' : 'dark')
+    : theme;
+
   // Tamanhos predefinidos para o ícone
   const iconSizeClasses = {
     sm: 'h-6 w-auto',
@@ -97,8 +108,8 @@ export function Logo({
     full: fullSizeClasses,
   };
 
-  // Seleciona a imagem baseada na variante e tema
-  const src = imageMap[variant][theme];
+  // Seleciona a imagem baseada na variante e tema efetivo
+  const src = imageMap[variant][effectiveTheme];
   const sizeClass = sizeMap[variant][size];
   const alt = variant === 'icon' ? 'AniCheck Icon' : variant === 'text' ? 'AniCheck' : 'AniCheck Logo';
 
@@ -117,7 +128,7 @@ export function Logo({
         src={src}
         alt={alt}
         className={cn(
-          'relative object-contain',
+          'relative object-contain transition-opacity duration-300',
           sizeClass
         )}
         loading="eager"

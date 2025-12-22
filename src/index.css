@@ -13,8 +13,8 @@
     --popover: 222 47% 10%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 183 100% 50%;
-    --primary-foreground: 222 47% 6%;
+    --primary: 350 75% 60%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 222 47% 14%;
     --secondary-foreground: 210 40% 98%;
@@ -22,20 +22,20 @@
     --muted: 222 30% 18%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 280 100% 65%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 0 75% 50%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
     --border: 222 30% 18%;
     --input: 222 30% 15%;
-    --ring: 183 100% 50%;
+    --ring: 350 75% 60%;
 
     --radius: 0.75rem;
 
-    --glow-primary: 183 100% 50%;
-    --glow-accent: 280 100% 65%;
+    --glow-primary: 350 75% 60%;
+    --glow-accent: 0 75% 50%;
     --success: 142 76% 45%;
     --warning: 38 92% 50%;
     --info: 199 89% 48%;
@@ -52,8 +52,8 @@
     --glass-bg: 222 47% 11% / 0.7;
     --glass-border: 210 40% 98% / 0.1;
 
-    --gradient-primary: linear-gradient(135deg, hsl(183 100% 50%), hsl(199 89% 48%));
-    --gradient-accent: linear-gradient(135deg, hsl(280 100% 65%), hsl(320 100% 60%));
+    --gradient-primary: linear-gradient(135deg, hsl(350 75% 60%), hsl(0 75% 50%));
+    --gradient-accent: linear-gradient(135deg, hsl(0 75% 50%), hsl(350 75% 60%));
     --gradient-dark: linear-gradient(180deg, hsl(222 47% 6%), hsl(222 47% 3%));
     --gradient-card: linear-gradient(145deg, hsl(222 47% 10%), hsl(222 47% 7%));
     

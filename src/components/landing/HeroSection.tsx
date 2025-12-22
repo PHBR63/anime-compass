@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { Play, Sparkles, Tv, Clock, Trophy, Film } from 'lucide-react';
 import { useGlobalStats, formatNumber } from '@/hooks/useGlobalStats';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SplitText, AnimatedContent, ShinyText, MagneticButton, SpotlightCard } from '@/components/animations';
+import { SplitText, AnimatedContent } from '@/components/animations';
+import { ToriiGate } from '@/components/decorative/ToriiGate';
 
 /**
  * Seção Hero da landing page
  * Apresenta o produto com headline, descrição, CTAs e estatísticas globais reais
- * Inclui animações avançadas com GSAP
+ * Estética oriental japonesa com elementos minimalistas
  */
 export const HeroSection = () => {
   const { data: stats, isLoading } = useGlobalStats();
@@ -39,31 +40,30 @@ export const HeroSection = () => {
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 px-4">
-      {/* Background com efeitos - otimizado para mobile */}
+      {/* Background com gradiente suave oriental */}
       <div className="absolute inset-0 -z-10">
-        {/* Gradient blobs animados - menores em mobile */}
-        <div className="absolute top-1/4 left-1/4 w-48 md:w-96 h-48 md:h-96 bg-primary/20 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-1/4 right-1/4 w-40 md:w-80 h-40 md:h-80 bg-accent/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-primary/5 rounded-full blur-3xl" />
+        {/* Gradiente principal - tons quentes e suaves */}
+        <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-primary/5" />
         
-        {/* Grid pattern */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:32px_32px] md:bg-[size:64px_64px]" />
+        {/* Círculos decorativos sutis - estilo zen */}
+        <div className="absolute top-1/4 left-1/4 w-48 md:w-72 h-48 md:h-72 bg-primary/10 rounded-full blur-3xl opacity-50" />
+        <div className="absolute bottom-1/4 right-1/4 w-40 md:w-64 h-40 md:h-64 bg-accent/10 rounded-full blur-3xl opacity-40" />
       </div>
 
       <div className="container mx-auto text-center">
-        {/* Badge com AnimatedContent e ShinyText */}
+        {/* Badge com estilo oriental minimalista */}
         <AnimatedContent direction="down" delay={0} duration={0.5}>
-          <div className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-primary/10 border border-primary/20 mb-6 md:mb-8">
+          <div className="inline-flex items-center gap-2 px-4 md:px-5 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6 md:mb-8">
             <Sparkles className="w-3.5 h-3.5 md:w-4 md:h-4 text-primary" />
-            <ShinyText className="text-xs md:text-sm text-primary font-medium">
-              Organize sua jornada anime
-            </ShinyText>
+            <span className="text-xs md:text-sm text-primary font-medium font-zen">
+              あなたのアニメ旅 • Sua jornada anime
+            </span>
           </div>
         </AnimatedContent>
 
         {/* Headline com SplitText - animação letra por letra */}
         <h1 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold mb-4 md:mb-6 leading-tight">
-          <span className="bg-gradient-to-r from-foreground via-foreground to-foreground/60 bg-clip-text text-transparent">
+          <span className="text-foreground">
             <SplitText 
               text="Acompanhe seus" 
               splitType="words"
@@ -84,49 +84,45 @@ export const HeroSection = () => {
           </span>
         </h1>
 
-        {/* Subtítulo com AnimatedContent */}
+        {/* Subtítulo com AnimatedContent e fonte zen */}
         <AnimatedContent direction="up" delay={0.7} duration={0.6}>
-          <p className="text-base md:text-lg lg:text-xl text-muted-foreground max-w-xl md:max-w-2xl mx-auto mb-8 md:mb-10 px-2">
+          <p className="text-base md:text-lg lg:text-xl text-muted-foreground max-w-xl md:max-w-2xl mx-auto mb-8 md:mb-10 px-2 font-zen">
             Organize, descubra e compartilhe sua lista de animes. 
             Com recomendações personalizadas, conquistas e estatísticas detalhadas.
           </p>
         </AnimatedContent>
 
-        {/* CTAs com AnimatedContent */}
+        {/* CTAs com estilo oriental - sem efeitos neon */}
         <AnimatedContent direction="up" delay={0.9} duration={0.5}>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4">
-            <MagneticButton strength={0.4} radius={120}>
-              <Button size="lg" variant="glow" asChild className="w-full sm:w-auto">
-                <Link to="/auth" className="gap-2">
-                  <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
-                  Começar Grátis
-                </Link>
-              </Button>
-            </MagneticButton>
-            <MagneticButton strength={0.4} radius={120}>
-              <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
-                <Link to="/auth" className="gap-2">
-                  <Play className="w-4 h-4 md:w-5 md:h-5" />
-                  Fazer Login
-                </Link>
-              </Button>
-            </MagneticButton>
+            <Button size="lg" variant="torii" asChild className="w-full sm:w-auto">
+              <Link to="/auth" className="gap-2">
+                <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
+                Começar Grátis
+              </Link>
+            </Button>
+            <Button size="lg" variant="outline" asChild className="w-full sm:w-auto border-primary/30 hover:border-primary/50 hover:bg-primary/5">
+              <Link to="/auth" className="gap-2">
+                <Play className="w-4 h-4 md:w-5 md:h-5" />
+                Fazer Login
+              </Link>
+            </Button>
           </div>
         </AnimatedContent>
 
-        {/* Preview/Mockup do app com estatísticas reais */}
+        {/* Torii Gate decorativo */}
+        <AnimatedContent direction="up" delay={1.0} duration={0.6}>
+          <div className="mt-8 md:mt-12">
+            <ToriiGate variant="sakura" size="sm" withDecoration={false} />
+          </div>
+        </AnimatedContent>
+
+        {/* Card de estatísticas com estilo washi (papel japonês) */}
         <AnimatedContent direction="up" delay={1.1} duration={0.7} scale={0.95}>
-          <div className="mt-10 md:mt-16 relative">
+          <div className="mt-6 md:mt-10 relative">
             <div className="relative mx-auto max-w-sm md:max-w-4xl">
-              {/* Glow effect */}
-              <div className="absolute -inset-2 md:-inset-4 bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 rounded-xl md:rounded-2xl blur-xl md:blur-2xl" />
-              
-              {/* Card preview com estatísticas reais e SpotlightCard */}
-              <SpotlightCard 
-                className="bg-card/80 backdrop-blur-xl border border-border/50 shadow-2xl"
-                spotlightColor="rgba(139, 92, 246, 0.12)"
-                spotlightSize={350}
-              >
+              {/* Card de estatísticas estilo oriental - sem glow intenso */}
+              <div className="bg-card/60 backdrop-blur-md border border-border/50 rounded-xl md:rounded-2xl shadow-xl">
                 <div className="p-4 md:p-6">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
                     {statsConfig.map((stat, i) => {
@@ -134,10 +130,10 @@ export const HeroSection = () => {
                       return (
                         <div 
                           key={i} 
-                          className="bg-background/50 rounded-lg md:rounded-xl p-3 md:p-4 text-center group hover:bg-background/70 transition-colors"
+                          className="bg-background/50 rounded-lg md:rounded-xl p-3 md:p-4 text-center group hover:bg-primary/5 transition-colors border border-transparent hover:border-primary/20"
                         >
                           <div className="flex items-center justify-center mb-1 md:mb-2">
-                            <Icon className="w-4 h-4 md:w-5 md:h-5 text-primary/60 group-hover:text-primary transition-colors" />
+                            <Icon className="w-4 h-4 md:w-5 md:h-5 text-primary/70 group-hover:text-primary transition-colors" />
                           </div>
                           {isLoading ? (
                             <Skeleton className="h-7 md:h-9 w-16 md:w-20 mx-auto mb-1" />
@@ -146,13 +142,13 @@ export const HeroSection = () => {
                               {formatNumber(stat.value)}
                             </p>
                           )}
-                          <p className="text-xs md:text-sm text-muted-foreground">{stat.label}</p>
+                          <p className="text-xs md:text-sm text-muted-foreground font-zen">{stat.label}</p>
                         </div>
                       );
                     })}
                   </div>
                 </div>
-              </SpotlightCard>
+              </div>
             </div>
           </div>
         </AnimatedContent>

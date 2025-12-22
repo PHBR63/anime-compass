@@ -95,7 +95,7 @@ export default function Dashboard() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <h1 className="font-zen text-2xl sm:text-3xl md:text-4xl font-bold truncate">
-              おかえり、<NeonText color="sakura" intensity="low" animated={false}>{profile?.display_name || profile?.username || 'Otaku'}</NeonText>! 👋
+              Olá, <NeonText color="sakura" intensity="low" animated={false}>{profile?.display_name || profile?.username || 'Otaku'}</NeonText>! 👋
             </h1>
             <p className="text-muted-foreground mt-1 text-sm md:text-base">
               Acompanhe seu progresso e descubra novos animes
@@ -105,7 +105,7 @@ export default function Dashboard() {
           <Link to="/discover" className="shrink-0">
             <Button variant="sakura" className="w-full sm:w-fit">
               <Sparkles className="h-4 w-4" />
-              発見する (Descobrir)
+              Descobrir
             </Button>
           </Link>
         </div>
@@ -123,28 +123,28 @@ export default function Dashboard() {
           <>
             <AnimatedContent direction="up" delay={0} duration={0.4}>
               <StatCard
-                label="アニメ総数"
+                label="Total de Animes"
                 value={stats?.totalAnimes || 0}
                 icon={Film}
               />
             </AnimatedContent>
             <AnimatedContent direction="up" delay={0.1} duration={0.4}>
               <StatCard
-                label="エピソード"
+                label="Episódios"
                 value={stats?.totalEpisodes || 0}
                 icon={PlayCircle}
               />
             </AnimatedContent>
             <AnimatedContent direction="up" delay={0.2} duration={0.4}>
               <StatCard
-                label="視聴時間"
+                label="Tempo"
                 value={formatTime(stats?.totalEpisodes || 0)}
                 icon={Clock}
               />
             </AnimatedContent>
             <AnimatedContent direction="up" delay={0.3} duration={0.4}>
               <StatCard
-                label="平均評価"
+                label="Média"
                 value={stats?.averageRating || '0.0'}
                 icon={Star}
               />
@@ -182,11 +182,11 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-zen text-lg md:text-xl font-semibold flex items-center gap-2">
               <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-sakura" />
-              視聴中 (Assistindo Agora)
+              Assistindo Agora
             </h2>
             <Link to="/list">
               <Button variant="ghost" size="sm" className="text-xs md:text-sm hover:text-sakura">
-                すべて見る
+                Ver Tudo
               </Button>
             </Link>
           </div>
@@ -212,7 +212,7 @@ export default function Dashboard() {
           ) : (
             <div className="glass-card p-8 text-center border border-sakura/20">
               <p className="text-muted-foreground mb-4 font-zen">
-                まだ何も見ていません
+                Nenhum anime ainda
               </p>
               <p className="text-sm text-muted-foreground/70 mb-4">
                 Você ainda não está assistindo nenhum anime
@@ -220,7 +220,7 @@ export default function Dashboard() {
               <Link to="/discover">
                 <Button variant="torii">
                   <Plus className="h-4 w-4 mr-2" />
-                  アニメを追加
+                  Adicionar Anime
                 </Button>
               </Link>
             </div>

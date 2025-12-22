@@ -621,6 +621,39 @@ export type Database = {
           },
         ]
       }
+      moderation_logs: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          moderator_id: string
+          reason: string | null
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          moderator_id: string
+          reason?: string | null
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          moderator_id?: string
+          reason?: string | null
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: []
+      }
       notification_preferences: {
         Row: {
           achievements: boolean
@@ -716,6 +749,7 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          ban_until: string | null
           banner_url: string | null
           bio: string | null
           created_at: string
@@ -724,9 +758,12 @@ export type Database = {
           is_public: boolean | null
           updated_at: string
           username: string | null
+          warn_count: number | null
+          warned_at: string | null
         }
         Insert: {
           avatar_url?: string | null
+          ban_until?: string | null
           banner_url?: string | null
           bio?: string | null
           created_at?: string
@@ -735,9 +772,12 @@ export type Database = {
           is_public?: boolean | null
           updated_at?: string
           username?: string | null
+          warn_count?: number | null
+          warned_at?: string | null
         }
         Update: {
           avatar_url?: string | null
+          ban_until?: string | null
           banner_url?: string | null
           bio?: string | null
           created_at?: string
@@ -746,6 +786,53 @@ export type Database = {
           is_public?: boolean | null
           updated_at?: string
           username?: string | null
+          warn_count?: number | null
+          warned_at?: string | null
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          content_id: string
+          content_type: string
+          created_at: string
+          description: string | null
+          id: string
+          reason: string
+          reported_user_id: string | null
+          reporter_id: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          content_id: string
+          content_type: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          reason: string
+          reported_user_id?: string | null
+          reporter_id: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          reason?: string
+          reported_user_id?: string | null
+          reporter_id?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
         }
         Relationships: []
       }
@@ -794,6 +881,7 @@ export type Database = {
           created_at: string
           has_spoilers: boolean | null
           id: string
+          is_hidden: boolean | null
           likes_count: number | null
           mal_id: number
           rating: number | null
@@ -807,6 +895,7 @@ export type Database = {
           created_at?: string
           has_spoilers?: boolean | null
           id?: string
+          is_hidden?: boolean | null
           likes_count?: number | null
           mal_id: number
           rating?: number | null
@@ -820,6 +909,7 @@ export type Database = {
           created_at?: string
           has_spoilers?: boolean | null
           id?: string
+          is_hidden?: boolean | null
           likes_count?: number | null
           mal_id?: number
           rating?: number | null
@@ -970,6 +1060,7 @@ export type Database = {
         Args: { _friend_id: string; _user_id: string }
         Returns: boolean
       }
+      is_moderator_or_admin: { Args: { _user_id: string }; Returns: boolean }
       log_audit_action: {
         Args: {
           p_action: string

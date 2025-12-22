@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useIsAdmin } from '@/hooks/useAdmin';
+import { useIsModerator, usePendingReportsCount } from '@/hooks/useModeration';
 import { NotificationsDropdown } from '@/components/notifications/NotificationsDropdown';
 import { useUnreadNotificationsCount } from '@/hooks/useNotifications';
 import { useUnreadMessagesCount } from '@/hooks/useConversations';
@@ -37,6 +38,7 @@ interface NavItem {
   path: string;
   hasBadge?: boolean;
   adminOnly?: boolean;
+  moderatorOnly?: boolean;
   subItems?: { label: string; path: string }[];
 }
 
@@ -57,6 +59,7 @@ const navItems: NavItem[] = [
   { icon: MessageCircle, label: 'Chat', path: '/chat', hasBadge: true },
   { icon: Trophy, label: 'Conquistas', path: '/achievements' },
   { icon: User, label: 'Perfil', path: '/profile' },
+  { icon: Shield, label: 'Moderação', path: '/moderation', moderatorOnly: true },
   { icon: Shield, label: 'Admin', path: '/admin', adminOnly: true },
 ];
 
@@ -66,6 +69,8 @@ export function Sidebar() {
   const { signOut, user } = useAuth();
   const { data: profile } = useProfile();
   const { data: isAdmin } = useIsAdmin();
+  const { data: isModerator } = useIsModerator();
+  const { data: pendingReports } = usePendingReportsCount();
   const unreadCount = useUnreadNotificationsCount();
   const { data: unreadMessages } = useUnreadMessagesCount();
   const { data: notifPrefs } = useNotificationPreferences();
@@ -166,10 +171,15 @@ export function Sidebar() {
 
           {/* Navigation */}
           <nav className="flex-1 px-3 py-6 space-y-1">
-            {navItems.filter(item => !item.adminOnly || isAdmin).map((item) => {
+            {navItems.filter(item => {
+              if (item.adminOnly) return isAdmin;
+              if (item.moderatorOnly) return isModerator;
+              return true;
+            }).map((item) => {
               const isActive = location.pathname === item.path;
               const isSubActive = item.subItems?.some(sub => location.pathname === sub.path);
               const showBadge = item.hasBadge && unreadMessages && unreadMessages > 0;
+              const showModBadge = item.path === '/moderation' && pendingReports && pendingReports > 0;
               
               return (
                 <div key={item.path}>
@@ -189,8 +199,18 @@ export function Sidebar() {
                     )} />
                     <span className="font-medium">{item.label}</span>
                     
+                    {/* Badge de denúncias para Moderação */}
+                    {showModBadge && (
+                      <Badge 
+                        className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 text-xs animate-pulse bg-amber-500 text-white"
+                        variant="default"
+                      >
+                        {pendingReports > 99 ? '99+' : pendingReports}
+                      </Badge>
+                    )}
+                    
                     {/* Badge de não lidas para Chat */}
-                    {showBadge && (
+                    {showBadge && !showModBadge && (
                       <Badge 
                         className="ml-auto h-5 min-w-5 flex items-center justify-center p-0 text-xs animate-pulse bg-destructive text-destructive-foreground"
                         variant="default"

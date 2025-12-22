@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AnimeDetailModal } from '@/components/anime/AnimeDetailModal';
 import { SakuraPetals, WavePattern } from '@/components/backgrounds';
 import { AnimatedContent, NeonText } from '@/components/animations';
+import { ToriiDivider } from '@/components/decorative';
 
 /**
  * Página de descoberta de animes com scroll infinito
@@ -436,6 +437,9 @@ export default function Discover() {
               )}
             </section>
           )}
+
+          {/* Separador decorativo Torii antes dos destaques */}
+          {activeTab === 'season' && highlightAnimes.length > 0 && <ToriiDivider variant="gradient" />}
 
           {/* Destaques da temporada */}
           {activeTab === 'season' && highlightAnimes.length > 0 && (

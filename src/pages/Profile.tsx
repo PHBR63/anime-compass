@@ -34,6 +34,7 @@ import { useUserAchievementStats } from '@/hooks/useAchievements';
 import { toast } from 'sonner';
 import { GradientText, CountUp, AnimatedContent, NeonText } from '@/components/animations';
 import { SakuraPetals, WavePattern } from '@/components/backgrounds';
+import { ToriiDivider } from '@/components/decorative';
 
 /**
  * Página de perfil do usuário
@@ -260,6 +261,9 @@ export default function Profile() {
         </div>
       </AnimatedContent>
 
+      {/* Separador decorativo Torii */}
+      <ToriiDivider variant="sakura" />
+
       {/* Grid de estatísticas */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
@@ -308,6 +312,9 @@ export default function Profile() {
           </p>
         </div>
       </AnimatedContent>
+
+      {/* Separador decorativo Torii */}
+      <ToriiDivider variant="gradient" />
 
       {/* Gêneros e Estúdios Favoritos */}
       <FavoriteGenresStudios />

@@ -6,6 +6,7 @@ import { SocialTabs } from '@/components/social/SocialTabs';
 import { InviteSection } from '@/components/invites/InviteSection';
 import { SakuraPetals, WavePattern } from '@/components/backgrounds';
 import { AnimatedContent, NeonText } from '@/components/animations';
+import { ToriiDivider } from '@/components/decorative';
 
 /**
  * Página social com sistema completo de amizades, ranking e estatísticas
@@ -47,6 +48,9 @@ export default function Social() {
       <AnimatedContent direction="up" delay={0.2}>
         <ReceivedRecommendations />
       </AnimatedContent>
+
+      {/* Separador decorativo Torii */}
+      <ToriiDivider variant="sakura" />
 
       {/* Grid principal */}
       <AnimatedContent direction="up" delay={0.3}>

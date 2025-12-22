@@ -123,6 +123,28 @@
     @apply border-border;
   }
 
+  /* Transição suave para alternância de temas - 300ms */
+  *,
+  *::before,
+  *::after {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow, opacity;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+  }
+
+  /* Desabilitar transição em elementos que não devem ter animação lenta */
+  input,
+  textarea,
+  select,
+  button:active,
+  .no-transition,
+  .no-transition *,
+  [data-radix-scroll-area-viewport],
+  .animate-fade-in,
+  .animate-scale-in {
+    transition-duration: 0ms !important;
+  }
+
   html {
     scroll-behavior: smooth;
     /* Previne overscroll/bounce em iOS */
@@ -134,7 +156,6 @@
     background: var(--gradient-dark);
     min-height: 100vh;
     min-height: 100dvh; /* Dynamic viewport height para mobile */
-    transition: background 0.3s ease, color 0.3s ease;
     
     /* Safe area insets para dispositivos com notch */
     padding-top: env(safe-area-inset-top);

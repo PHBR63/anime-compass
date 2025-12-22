@@ -15,6 +15,7 @@ import { InstallBanner, OfflineIndicator } from "@/components/pwa";
 import { AnimatedRoutes } from "@/components/animations/AnimatedRoutes";
 import { PageTransition } from "@/components/animations/PageTransition";
 import { NotificationClickHandler } from "@/components/notifications/NotificationClickHandler";
+import { InkCursor } from "@/components/effects";
 import {
   DashboardSkeleton,
   ListSkeleton,
@@ -161,6 +162,8 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
+            {/* Efeito de cursor com rastro de tinta - estilo sumi-e */}
+            <InkCursor />
             {/* Componentes PWA */}
             <OfflineIndicator />
             <InstallBanner />

@@ -32,6 +32,7 @@ export default function SelectAnimeForChat({
   recipientId,
 }: SelectAnimeForChatProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [myListFilter, setMyListFilter] = useState(''); // Filtro para "Minha Lista"
   const [selectedAnime, setSelectedAnime] = useState<any>(null);
   const [recommendationMessage, setRecommendationMessage] = useState('');
   
@@ -47,12 +48,18 @@ export default function SelectAnimeForChat({
     score: entry.rating,
   })) || [];
 
+  // Filtrar animes da lista pelo termo de busca
+  const filteredMyAnimes = myAnimes.filter(anime =>
+    anime.title.toLowerCase().includes(myListFilter.toLowerCase())
+  );
+
   // Resetar ao fechar
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       setSelectedAnime(null);
       setRecommendationMessage('');
       setSearchQuery('');
+      setMyListFilter(''); // Resetar filtro da lista
     }
     onOpenChange(open);
   };
@@ -176,14 +183,31 @@ export default function SelectAnimeForChat({
 
             {/* Aba: Minha Lista */}
             <TabsContent value="my-list">
-              <ScrollArea className="h-[300px]">
+              {/* Campo de busca na lista */}
+              {myAnimes.length > 0 && (
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Filtrar minha lista..."
+                    value={myListFilter}
+                    onChange={(e) => setMyListFilter(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              )}
+              
+              <ScrollArea className="h-[260px]">
                 {myAnimes.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     Você ainda não tem animes na sua lista
                   </div>
+                ) : filteredMyAnimes.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nenhum anime encontrado
+                  </div>
                 ) : (
                   <div className="space-y-1">
-                    {myAnimes.map(renderAnimeCard)}
+                    {filteredMyAnimes.map(renderAnimeCard)}
                   </div>
                 )}
               </ScrollArea>

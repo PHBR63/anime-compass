@@ -21,7 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { MoreVertical, Trash2, Reply, Star, ExternalLink, SmilePlus, Check, CheckCheck, Globe, Lock, List } from 'lucide-react';
+import { MoreVertical, Trash2, Reply, Star, SmilePlus, Check, CheckCheck, Globe, Lock, List, Eye } from 'lucide-react';
 import { ChatMessageWithSender } from '@/hooks/useChatMessages';
 import { useMessageReactions, useToggleReaction, REACTION_TYPES, ReactionType } from '@/hooks/useChatReactions';
 import { ReadByDetail } from '@/hooks/useReadReceipts';
@@ -37,6 +37,7 @@ interface ChatMessageProps {
   showSenderName: boolean;
   onDelete?: () => void;
   onReply: () => void;
+  onAnimeClick?: (malId: number) => void; // Callback para abrir modal de anime
   isRead?: boolean; // Se a mensagem foi lida pelo destinatário
   readByDetails?: ReadByDetail[]; // Detalhes de quem leu e quando
 }
@@ -49,6 +50,7 @@ export default function ChatMessage({
   showSenderName,
   onDelete,
   onReply,
+  onAnimeClick,
   isRead = false,
   readByDetails = [],
 }: ChatMessageProps) {
@@ -106,84 +108,98 @@ export default function ChatMessage({
     </div>
   );
 
-  // Card de anime compartilhado
+  // Card de anime compartilhado - clicável para abrir modal
   const renderAnimeCard = () => (
-    <Card className="overflow-hidden max-w-xs">
-      <div className="flex">
-        {message.metadata.image_url && (
-          <img
-            src={message.metadata.image_url}
-            alt={message.metadata.title}
-            className="w-20 h-28 object-cover"
-          />
-        )}
-        <CardContent className="p-3 flex-1">
-          <h4 className="font-medium text-sm line-clamp-2 mb-1">
-            {message.metadata.title}
-          </h4>
-          {message.metadata.episodes && (
-            <p className="text-xs text-muted-foreground">
-              {message.metadata.episodes} episódios
-            </p>
-          )}
-          {message.metadata.score && (
-            <div className="flex items-center gap-1 text-xs mt-1">
-              <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
-              <span>{message.metadata.score}</span>
-            </div>
-          )}
-          <Button
-            variant="link"
-            size="sm"
-            className="p-0 h-auto mt-2 text-xs"
-            onClick={() => window.open(`https://myanimelist.net/anime/${message.metadata.mal_id}`, '_blank')}
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Card 
+            className="overflow-hidden max-w-xs cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+            onClick={() => message.metadata.mal_id && onAnimeClick?.(message.metadata.mal_id)}
           >
-            <ExternalLink className="h-3 w-3 mr-1" />
-            Ver no MAL
-          </Button>
-        </CardContent>
-      </div>
-    </Card>
+            <div className="flex">
+              {message.metadata.image_url && (
+                <img
+                  src={message.metadata.image_url}
+                  alt={message.metadata.title}
+                  className="w-20 h-28 object-cover"
+                />
+              )}
+              <CardContent className="p-3 flex-1">
+                <h4 className="font-medium text-sm line-clamp-2 mb-1">
+                  {message.metadata.title}
+                </h4>
+                {message.metadata.episodes && (
+                  <p className="text-xs text-muted-foreground">
+                    {message.metadata.episodes} episódios
+                  </p>
+                )}
+                {message.metadata.score && (
+                  <div className="flex items-center gap-1 text-xs mt-1">
+                    <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
+                    <span>{message.metadata.score}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1 mt-2 text-xs text-primary">
+                  <Eye className="h-3 w-3" />
+                  Ver detalhes
+                </div>
+              </CardContent>
+            </div>
+          </Card>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Clique para ver detalhes e adicionar à lista</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 
-  // Indicação de anime
+  // Indicação de anime - clicável para abrir modal
   const renderRecommendation = () => (
-    <Card className="overflow-hidden max-w-xs border-primary/30 bg-primary/5">
-      <div className="p-2 bg-primary/10 border-b border-primary/20">
-        <p className="text-xs font-medium flex items-center gap-1">
-          <Star className="h-3 w-3 text-primary" />
-          Indicação de Anime
-        </p>
-      </div>
-      <div className="flex">
-        {message.metadata.image_url && (
-          <img
-            src={message.metadata.image_url}
-            alt={message.metadata.title}
-            className="w-20 h-28 object-cover"
-          />
-        )}
-        <CardContent className="p-3 flex-1">
-          <h4 className="font-medium text-sm line-clamp-2 mb-1">
-            {message.metadata.title}
-          </h4>
-          {message.content && (
-            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-              "{message.content}"
-            </p>
-          )}
-          <Button
-            variant="link"
-            size="sm"
-            className="p-0 h-auto mt-2 text-xs"
-            onClick={() => window.open(`https://myanimelist.net/anime/${message.metadata.mal_id}`, '_blank')}
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Card 
+            className="overflow-hidden max-w-xs border-primary/30 bg-primary/5 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+            onClick={() => message.metadata.mal_id && onAnimeClick?.(message.metadata.mal_id)}
           >
-            <ExternalLink className="h-3 w-3 mr-1" />
-            Ver detalhes
-          </Button>
-        </CardContent>
-      </div>
-    </Card>
+            <div className="p-2 bg-primary/10 border-b border-primary/20">
+              <p className="text-xs font-medium flex items-center gap-1">
+                <Star className="h-3 w-3 text-primary" />
+                Indicação de Anime
+              </p>
+            </div>
+            <div className="flex">
+              {message.metadata.image_url && (
+                <img
+                  src={message.metadata.image_url}
+                  alt={message.metadata.title}
+                  className="w-20 h-28 object-cover"
+                />
+              )}
+              <CardContent className="p-3 flex-1">
+                <h4 className="font-medium text-sm line-clamp-2 mb-1">
+                  {message.metadata.title}
+                </h4>
+                {message.content && (
+                  <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                    "{message.content}"
+                  </p>
+                )}
+                <div className="flex items-center gap-1 mt-2 text-xs text-primary">
+                  <Eye className="h-3 w-3" />
+                  Ver detalhes
+                </div>
+              </CardContent>
+            </div>
+          </Card>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Clique para ver detalhes e adicionar à lista</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 
   // Mensagem do sistema
@@ -290,7 +306,7 @@ export default function ChatMessage({
               className="p-0 h-auto text-xs"
               onClick={handleViewList}
             >
-              <ExternalLink className="h-3 w-3 mr-1" />
+              <Eye className="h-3 w-3 mr-1" />
               Ver lista
             </Button>
           ) : (

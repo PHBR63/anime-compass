@@ -184,7 +184,7 @@ export default function ResetPassword() {
         {/* Logo */}
         <div className="text-center mb-6 md:mb-8">
           <div className="flex items-center justify-center mb-4">
-            <Logo variant="full" size="lg" showGlow={true} />
+            <Logo variant="full" size="lg" theme="light" showGlow={true} />
           </div>
           <p className="text-sm md:text-base text-muted-foreground">
             Criar nova senha

@@ -449,9 +449,7 @@ export async function logErrorToDatabase(
     await supabase.rpc("log_error", {
       p_error_message: errorMessage,
       p_error_stack: errorStack || null,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      p_error_context: (errorContext as any) || null,
-      p_error_context: errorContext || null,
+      p_error_context: errorContext ? JSON.parse(JSON.stringify(errorContext)) : null,
       p_url: window.location.href,
       p_user_agent: navigator.userAgent,
     });

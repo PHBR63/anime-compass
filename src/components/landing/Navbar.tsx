@@ -12,7 +12,7 @@ export const Navbar = () => {
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center">
-          <Logo variant="full" size="lg" />
+          <Logo variant="full" size="lg" theme="light" />
         </Link>
 
         {/* Botões de ação */}

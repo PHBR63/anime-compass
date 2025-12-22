@@ -232,7 +232,7 @@ export default function Auth() {
         {/* Logo com estilo oriental */}
         <div className="text-center mb-6 md:mb-8">
           <div className="flex items-center justify-center mb-4">
-            <Logo variant="full" size="xl" showGlow={true} />
+            <Logo variant="full" size="xl" theme="light" showGlow={true} />
           </div>
           <p className="text-sm md:text-base text-muted-foreground font-zen">
             {isLogin ? 'おかえりなさい！' : 'アカウントを作成'}

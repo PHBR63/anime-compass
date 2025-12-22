@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCommunityReviews, useToggleReviewReaction, type Review } from '@/hooks/useReviews';
 import { useAnimeDetails } from '@/hooks/useJikanApi';
 import { useAuth } from '@/hooks/useAuth';
@@ -106,20 +107,29 @@ function AnimePreviewCard({ malId, onClick }: { malId: number; onClick?: () => v
 
   if (isError || !anime) {
     return (
-      <button
-        onClick={onClick}
-        className="flex items-center gap-3 p-4 bg-muted/30 rounded-xl w-full text-left hover:bg-muted/50 transition-colors cursor-pointer"
-      >
-        <div className="w-16 h-24 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-          <Play className="h-6 w-6 text-muted-foreground" />
-        </div>
-        <div>
-          <p className="font-medium">Anime #{malId}</p>
-          <span className="text-xs text-primary">
-            Clique para ver detalhes
-          </span>
-        </div>
-      </button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onClick}
+              className="flex items-center gap-3 p-4 bg-muted/30 rounded-xl w-full text-left hover:bg-muted/50 transition-colors cursor-pointer"
+            >
+              <div className="w-16 h-24 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                <Play className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="font-medium">Anime #{malId}</p>
+                <span className="text-xs text-primary">
+                  Clique para ver detalhes
+                </span>
+              </div>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Clique para ver detalhes e adicionar à lista</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
@@ -127,55 +137,64 @@ function AnimePreviewCard({ malId, onClick }: { malId: number; onClick?: () => v
   const genres = anime.genres?.slice(0, 2).map((g: { name: string }) => g.name) || [];
 
   return (
-    <button
-      onClick={onClick}
-      className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50 hover:border-primary/30 transition-all duration-300 w-full text-left cursor-pointer"
-    >
-      <div className="flex gap-3 p-3">
-        {/* Imagem do anime */}
-        <div className="relative w-16 md:w-20 flex-shrink-0">
-          <img
-            src={anime.images?.jpg?.image_url || anime.images?.jpg?.large_image_url}
-            alt={anime.title}
-            className="w-full h-24 md:h-28 object-cover rounded-lg shadow-md"
-          />
-          {/* Score badge */}
-          {anime.score && (
-            <div className="absolute -top-1 -right-1 flex items-center gap-0.5 bg-background/90 backdrop-blur-sm px-1.5 py-0.5 rounded-full text-xs font-bold shadow-sm border border-border/50">
-              <Star className="h-3 w-3 text-warning fill-warning" />
-              <span>{anime.score}</span>
-            </div>
-          )}
-        </div>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={onClick}
+            className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50 hover:border-primary/30 transition-all duration-300 w-full text-left cursor-pointer"
+          >
+            <div className="flex gap-3 p-3">
+              {/* Imagem do anime */}
+              <div className="relative w-16 md:w-20 flex-shrink-0">
+                <img
+                  src={anime.images?.jpg?.image_url || anime.images?.jpg?.large_image_url}
+                  alt={anime.title}
+                  className="w-full h-24 md:h-28 object-cover rounded-lg shadow-md"
+                />
+                {/* Score badge */}
+                {anime.score && (
+                  <div className="absolute -top-1 -right-1 flex items-center gap-0.5 bg-background/90 backdrop-blur-sm px-1.5 py-0.5 rounded-full text-xs font-bold shadow-sm border border-border/50">
+                    <Star className="h-3 w-3 text-warning fill-warning" />
+                    <span>{anime.score}</span>
+                  </div>
+                )}
+              </div>
 
-        {/* Info do anime */}
-        <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-          <div>
-            <h4 className="font-semibold text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-              {anime.title}
-            </h4>
-            <p className="text-xs text-muted-foreground mt-1">
-              {anime.type} • {anime.episodes ? `${anime.episodes} eps` : 'Em lançamento'}
-            </p>
-          </div>
-          
-          {/* Gêneros */}
-          {genres.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {genres.map((genre: string) => (
-                <Badge 
-                  key={genre} 
-                  variant="secondary" 
-                  className="text-[10px] px-1.5 py-0 h-5 bg-primary/10 text-primary border-0"
-                >
-                  {genre}
-                </Badge>
-              ))}
+              {/* Info do anime */}
+              <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                <div>
+                  <h4 className="font-semibold text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                    {anime.title}
+                  </h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {anime.type} • {anime.episodes ? `${anime.episodes} eps` : 'Em lançamento'}
+                  </p>
+                </div>
+                
+                {/* Gêneros */}
+                {genres.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {genres.map((genre: string) => (
+                      <Badge 
+                        key={genre} 
+                        variant="secondary" 
+                        className="text-[10px] px-1.5 py-0 h-5 bg-primary/10 text-primary border-0"
+                      >
+                        {genre}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-      </div>
-    </button>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Clique para ver detalhes e adicionar à lista</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 

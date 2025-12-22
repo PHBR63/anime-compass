@@ -388,7 +388,10 @@ export function useToggleReviewReaction() {
       }
     },
     onSuccess: (_, variables) => {
+      // Invalida todas as queries relacionadas a reviews para atualizar a UI
       queryClient.invalidateQueries({ queryKey: ['reviews', variables.malId] });
+      queryClient.invalidateQueries({ queryKey: ['communityReviews'] });
+      queryClient.invalidateQueries({ queryKey: ['userReviews'] });
     },
   });
 }

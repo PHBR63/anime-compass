@@ -39,10 +39,10 @@ export default function PublicListView() {
     queryFn: async () => {
       if (!listId) throw new Error('ID da lista não fornecido');
 
-      // Passo 1: Buscar a lista com embed de profile (FK agora aponta para profiles)
+      // Passo 1: Buscar a lista (sem embed de profile para evitar exposição de dados)
       const { data: list, error: listError } = await supabase
         .from('custom_lists')
-        .select('*, profiles:user_id(username, display_name, avatar_url)')
+        .select('*')
         .eq('id', listId)
         .eq('is_public', true)
         .maybeSingle();
@@ -53,7 +53,16 @@ export default function PublicListView() {
       }
       if (!list) throw new Error('Lista não encontrada ou não é pública');
 
-      // Passo 2: Tentar buscar itens com JOIN
+      // Passo 2: Buscar info do dono via função segura (não expõe dados sensíveis)
+      const { data: ownerInfo } = await supabase
+        .rpc('get_public_list_owner_info', { list_id: listId });
+      
+      // Usa dados mínimos ou fallback
+      const ownerData = ownerInfo && ownerInfo.length > 0 
+        ? ownerInfo[0] 
+        : { display_name: 'Usuário', username: null };
+
+      // Passo 3: Tentar buscar itens com JOIN
       const { data: itemsWithJoin, error: joinError } = await supabase
         .from('list_items')
         .select('*, anime_entry:anime_entries(*)')
@@ -62,10 +71,10 @@ export default function PublicListView() {
 
       // Se o JOIN funcionar, retorna direto
       if (!joinError && itemsWithJoin) {
-        return { list, items: itemsWithJoin };
+        return { list, items: itemsWithJoin, owner: ownerData };
       }
 
-      // Passo 3: Fallback - consultas separadas
+      // Passo 4: Fallback - consultas separadas
       console.warn('JOIN falhou, usando fallback com consultas separadas:', joinError);
       
       // Buscar apenas IDs dos itens
@@ -81,7 +90,7 @@ export default function PublicListView() {
       }
 
       if (!itemIds || itemIds.length === 0) {
-        return { list, items: [] };
+        return { list, items: [], owner: ownerData };
       }
 
       // Buscar anime_entries separadamente
@@ -96,7 +105,8 @@ export default function PublicListView() {
         // Retorna itens sem detalhes dos animes
         return {
           list,
-          items: itemIds.map(item => ({ ...item, anime_entry: null }))
+          items: itemIds.map(item => ({ ...item, anime_entry: null })),
+          owner: ownerData
         };
       }
 
@@ -106,7 +116,7 @@ export default function PublicListView() {
         anime_entry: entries?.find(e => e.id === item.anime_entry_id) || null
       }));
 
-      return { list, items };
+      return { list, items, owner: ownerData };
     },
     enabled: !!listId,
     retry: 2,
@@ -163,8 +173,7 @@ export default function PublicListView() {
     );
   }
 
-  const { list, items } = listData as any;
-  const profile = (list as any).profiles as any;
+  const { list, items, owner } = listData as any;
   const entries = items?.map((item: any) => item.anime_entry).filter(Boolean) || [];
   const bannerImages = entries.slice(0, 3).map((e: any) => e.image_url);
 
@@ -220,19 +229,11 @@ export default function PublicListView() {
                   </p>
                 )}
 
-                {/* Info do autor */}
+                {/* Info do autor - usando dados mínimos da função segura */}
                 <div className="flex items-center gap-4 mt-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
-                    {profile?.avatar_url ? (
-                      <img 
-                        src={profile.avatar_url} 
-                        alt={profile.display_name || profile.username}
-                        className="w-6 h-6 rounded-full"
-                      />
-                    ) : (
-                      <User className="h-4 w-4" />
-                    )}
-                    <span>Por {profile?.display_name || profile?.username || 'Usuário'}</span>
+                    <User className="h-4 w-4" />
+                    <span>Por {owner?.display_name || 'Usuário'}</span>
                   </div>
                   <span>•</span>
                   <span>{entries.length} anime{entries.length !== 1 && 's'}</span>

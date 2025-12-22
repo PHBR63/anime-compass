@@ -14,7 +14,8 @@ import {
   MessageCircle,
   Building2,
   MessageSquare,
-  Moon
+  Moon,
+  Shield
 } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useIsAdmin } from '@/hooks/useAdmin';
 import { NotificationsDropdown } from '@/components/notifications/NotificationsDropdown';
 import { useUnreadNotificationsCount } from '@/hooks/useNotifications';
 import { useUnreadMessagesCount } from '@/hooks/useConversations';
@@ -34,6 +36,7 @@ interface NavItem {
   label: string;
   path: string;
   hasBadge?: boolean;
+  adminOnly?: boolean;
   subItems?: { label: string; path: string }[];
 }
 
@@ -54,6 +57,7 @@ const navItems: NavItem[] = [
   { icon: MessageCircle, label: 'Chat', path: '/chat', hasBadge: true },
   { icon: Trophy, label: 'Conquistas', path: '/achievements' },
   { icon: User, label: 'Perfil', path: '/profile' },
+  { icon: Shield, label: 'Admin', path: '/admin', adminOnly: true },
 ];
 
 export function Sidebar() {
@@ -61,6 +65,7 @@ export function Sidebar() {
   const location = useLocation();
   const { signOut, user } = useAuth();
   const { data: profile } = useProfile();
+  const { data: isAdmin } = useIsAdmin();
   const unreadCount = useUnreadNotificationsCount();
   const { data: unreadMessages } = useUnreadMessagesCount();
   const { data: notifPrefs } = useNotificationPreferences();
@@ -161,7 +166,7 @@ export function Sidebar() {
 
           {/* Navigation */}
           <nav className="flex-1 px-3 py-6 space-y-1">
-            {navItems.map((item) => {
+            {navItems.filter(item => !item.adminOnly || isAdmin).map((item) => {
               const isActive = location.pathname === item.path;
               const isSubActive = item.subItems?.some(sub => location.pathname === sub.path);
               const showBadge = item.hasBadge && unreadMessages && unreadMessages > 0;

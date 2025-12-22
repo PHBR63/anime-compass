@@ -22,7 +22,10 @@ const Achievements = lazy(() => import("@/pages/Achievements"));
 const Profile = lazy(() => import("@/pages/Profile"));
 const Chat = lazy(() => import("@/pages/Chat"));
 const Reviews = lazy(() => import("@/pages/Reviews"));
+const Admin = lazy(() => import("@/pages/Admin"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
+
+import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 
 /**
  * Componente que envolve rotas protegidas com AnimatePresence
@@ -103,6 +106,15 @@ export function AnimatedRoutes() {
               <Profile />
             </Suspense>
           </PageTransition>
+        } />
+        <Route path="/admin" element={
+          <AdminProtectedRoute>
+            <PageTransition>
+              <Suspense fallback={<GenericSkeleton />}>
+                <Admin />
+              </Suspense>
+            </PageTransition>
+          </AdminProtectedRoute>
         } />
         <Route path="*" element={
           <PageTransition>

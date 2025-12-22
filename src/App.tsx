@@ -12,6 +12,8 @@ import { WelcomeModal, HelpPanel, TourOverlay, HelpButton } from "@/components/h
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { InstallBanner, OfflineIndicator } from "@/components/pwa";
+import { AnimatedRoutes } from "@/components/animations/AnimatedRoutes";
+import { PageTransition } from "@/components/animations/PageTransition";
 import {
   DashboardSkeleton,
   ListSkeleton,
@@ -27,23 +29,12 @@ import {
  * Cada página será carregada apenas quando acessada
  */
 const Index = lazy(() => import("./pages/Index"));
-const MyList = lazy(() => import("./pages/MyList"));
-const ListDetailPage = lazy(() => import("./pages/ListDetailPage"));
-const Franchises = lazy(() => import("./pages/Franchises"));
-const Studios = lazy(() => import("./pages/Studios"));
-const Discover = lazy(() => import("./pages/Discover"));
-const Social = lazy(() => import("./pages/Social"));
-const Achievements = lazy(() => import("./pages/Achievements"));
-const Profile = lazy(() => import("./pages/Profile"));
 const Auth = lazy(() => import("./pages/Auth"));
 const PublicListView = lazy(() => import("./pages/PublicListView"));
 const PublicProfilePage = lazy(() => import("./pages/PublicProfilePage"));
-const Chat = lazy(() => import("./pages/Chat"));
-const NotFound = lazy(() => import("./pages/NotFound"));
 const Maintenance = lazy(() => import("./pages/Maintenance"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
-const Reviews = lazy(() => import("./pages/Reviews"));
 const Install = lazy(() => import("./pages/Install"));
 
 /**
@@ -217,49 +208,7 @@ const App = () => (
                       <ProtectedRoute>
                         <AnimeEntriesProvider>
                           <MainLayout>
-                            <Suspense fallback={<GenericSkeleton />}>
-                              <Routes>
-                                <Route path="/list" element={
-                                  <Suspense fallback={<ListSkeleton />}>
-                                    <MyList />
-                                  </Suspense>
-                                } />
-                                <Route path="/list/:id" element={
-                                  <Suspense fallback={<ListSkeleton />}>
-                                    <ListDetailPage />
-                                  </Suspense>
-                                } />
-                                <Route path="/list/franchises" element={
-                                  <Suspense fallback={<ListSkeleton />}>
-                                    <Franchises />
-                                  </Suspense>
-                                } />
-                                <Route path="/list/studios" element={
-                                  <Suspense fallback={<ListSkeleton />}>
-                                    <Studios />
-                                  </Suspense>
-                                } />
-                                <Route path="/discover" element={
-                                  <Suspense fallback={<DiscoverSkeleton />}>
-                                    <Discover />
-                                  </Suspense>
-                                } />
-                                <Route path="/reviews" element={<Reviews />} />
-                                <Route path="/social" element={<Social />} />
-                                <Route path="/chat" element={
-                                  <Suspense fallback={<ChatSkeleton />}>
-                                    <Chat />
-                                  </Suspense>
-                                } />
-                                <Route path="/achievements" element={<Achievements />} />
-                                <Route path="/profile" element={
-                                  <Suspense fallback={<ProfileSkeleton />}>
-                                    <Profile />
-                                  </Suspense>
-                                } />
-                                <Route path="*" element={<NotFound />} />
-                              </Routes>
-                            </Suspense>
+                            <AnimatedRoutes />
                           </MainLayout>
                         </AnimeEntriesProvider>
                       </ProtectedRoute>

@@ -13,6 +13,10 @@ export { CountUp } from './CountUp';
 export { AnimatedContent } from './AnimatedContent';
 export { AnimatedList } from './AnimatedList';
 
+// Animações de navegação
+export { PageTransition } from './PageTransition';
+export { AnimatedRoutes } from './AnimatedRoutes';
+
 // Animações interativas
 export { MagneticButton } from './MagneticButton';
 export { SpotlightCard } from './SpotlightCard';

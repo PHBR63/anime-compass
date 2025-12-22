@@ -17,7 +17,9 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
         glow: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/30 hover:shadow-primary/50",
         glass: "backdrop-blur-md bg-card/50 border border-border/50 text-foreground hover:border-primary/40 hover:bg-primary/10",
-        gradient: "bg-gradient-to-r from-primary to-info text-primary-foreground hover:opacity-90 shadow-lg shadow-primary/25",
+        gradient: "bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 shadow-lg shadow-primary/25",
+        torii: "bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg shadow-accent/30 hover:shadow-accent/50",
+        sakura: "bg-primary text-primary-foreground hover:bg-primary/90 border border-primary/20",
       },
       size: {
         default: "h-10 px-4 py-2",

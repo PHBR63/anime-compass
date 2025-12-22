@@ -7,8 +7,12 @@ import ConversationList from '@/components/chat/ConversationList';
 import ChatWindow from '@/components/chat/ChatWindow';
 import NewChatModal from '@/components/chat/NewChatModal';
 import { useIsCompact } from '@/hooks/use-mobile';
+import { WavePattern } from '@/components/backgrounds';
 
-// Página principal do Chat
+/**
+ * Página principal do Chat
+ * Com estética oriental sutil (WavePattern no divisor)
+ */
 export default function Chat() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(
@@ -176,6 +180,11 @@ export default function Chat() {
   // Layout desktop (tela grande > 1024px)
   return (
     <div className="fixed inset-0 md:left-64 flex bg-background z-10">
+      {/* WavePattern sutil no fundo */}
+      <div className="absolute inset-0 pointer-events-none -z-10">
+        <WavePattern opacity={0.05} />
+      </div>
+
       {/* Coluna de conversas - largura fixa, não encolhe */}
       <div className="w-80 xl:w-96 shrink-0 flex flex-col h-full">
         <ConversationList
@@ -187,8 +196,14 @@ export default function Chat() {
         />
       </div>
 
-      {/* Divisor vertical */}
-      <div className="w-px bg-border shrink-0" aria-hidden="true" />
+      {/* Divisor vertical com gradiente oriental */}
+      <div 
+        className="w-px shrink-0" 
+        style={{ 
+          background: 'linear-gradient(to bottom, transparent, hsl(var(--sakura)/0.3), hsl(var(--kintsugi)/0.3), transparent)' 
+        }} 
+        aria-hidden="true" 
+      />
 
       {/* Área do chat - ocupa resto do espaço */}
       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">

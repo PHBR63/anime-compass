@@ -14,10 +14,12 @@ import {
 } from '@/hooks/useJikanApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AnimeDetailModal } from '@/components/anime/AnimeDetailModal';
+import { SakuraPetals, WavePattern } from '@/components/backgrounds';
+import { AnimatedContent, NeonText } from '@/components/animations';
 
 /**
  * Página de descoberta de animes com scroll infinito
- * Otimizada com memoização para evitar re-cálculos desnecessários
+ * Com estética oriental (SakuraPetals, WavePattern, NeonText)
  */
 export default function Discover() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -219,59 +221,73 @@ export default function Discover() {
   const highlightAnimes = useMemo(() => seasonAnimes.slice(0, 3), [seasonAnimes]);
 
   return (
-    <div className="space-y-8 pt-12 md:pt-0 pb-8">
-      {/* Header */}
-      <div className="text-center max-w-2xl mx-auto">
-        <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">
-          Descubra Novos <span className="text-gradient">Animes</span>
-        </h1>
-        <p className="text-muted-foreground">
-          Explore animes reais do MyAnimeList e adicione à sua lista
-        </p>
+    <div className="relative space-y-8 pt-12 md:pt-0 pb-8 min-h-screen">
+      {/* Backgrounds orientais */}
+      <div className="fixed inset-0 -z-10 pointer-events-none opacity-40">
+        <SakuraPetals petalCount={15} opacity={0.5} colors={['hsl(350, 100%, 85%)', 'hsl(var(--primary))']} />
       </div>
+      <div className="fixed inset-0 -z-10 pointer-events-none">
+        <WavePattern opacity={0.08} />
+      </div>
+
+      {/* Header */}
+      <AnimatedContent direction="down" duration={0.5}>
+        <div className="text-center max-w-2xl mx-auto">
+          <h1 className="font-zen text-3xl md:text-4xl font-bold mb-2">
+            Descubra Novos <NeonText color="primary">Animes</NeonText>
+          </h1>
+          <p className="text-muted-foreground">
+            Explore animes reais do MyAnimeList e adicione à sua lista
+          </p>
+        </div>
+      </AnimatedContent>
 
       {/* Barra de pesquisa */}
-      <div className="max-w-2xl mx-auto">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por título..."
-            value={searchQuery}
-            onChange={handleSearchChange}
-            className="pl-12 h-14 text-lg bg-secondary/50 border-border/50 rounded-xl"
-          />
-          {loadingSearch && debouncedQuery && (
-            <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-primary" />
-          )}
+      <AnimatedContent direction="up" delay={0.1}>
+        <div className="max-w-2xl mx-auto">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por título..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="pl-12 h-14 text-lg bg-secondary/50 border-border/50 rounded-xl"
+            />
+            {loadingSearch && debouncedQuery && (
+              <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-primary" />
+            )}
+          </div>
         </div>
-      </div>
+      </AnimatedContent>
 
       {/* Filtros de gênero */}
-      <div className="flex flex-wrap justify-center gap-2">
-        {GENRES.map((genre) => (
-          <Badge
-            key={genre.id}
-            variant={selectedGenre === genre.id ? "default" : "outline"}
-            className={`px-4 py-2 text-sm cursor-pointer transition-colors ${
-              selectedGenre === genre.id 
-                ? 'bg-primary text-primary-foreground' 
-                : 'hover:bg-primary/10 hover:border-primary/50'
-            }`}
-            onClick={() => handleGenreClick(genre.id)}
-          >
-            {genre.name}
-          </Badge>
-        ))}
-        {(isSearching || isFilteringByGenre) && (
-          <Badge
-            variant="secondary"
-            className="px-4 py-2 text-sm cursor-pointer hover:bg-destructive/20"
-            onClick={clearFilters}
-          >
-            Limpar Filtros
-          </Badge>
-        )}
-      </div>
+      <AnimatedContent direction="up" delay={0.2}>
+        <div className="flex flex-wrap justify-center gap-2">
+          {GENRES.map((genre) => (
+            <Badge
+              key={genre.id}
+              variant={selectedGenre === genre.id ? "default" : "outline"}
+              className={`px-4 py-2 text-sm cursor-pointer transition-colors ${
+                selectedGenre === genre.id 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'hover:bg-primary/10 hover:border-primary/50'
+              }`}
+              onClick={() => handleGenreClick(genre.id)}
+            >
+              {genre.name}
+            </Badge>
+          ))}
+          {(isSearching || isFilteringByGenre) && (
+            <Badge
+              variant="secondary"
+              className="px-4 py-2 text-sm cursor-pointer hover:bg-destructive/20"
+              onClick={clearFilters}
+            >
+              Limpar Filtros
+            </Badge>
+          )}
+        </div>
+      </AnimatedContent>
 
       {/* Resultados da pesquisa */}
       {isSearching && (
@@ -279,7 +295,7 @@ export default function Discover() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Search className="h-5 w-5 text-primary" />
-              <h2 className="font-display text-xl font-semibold">
+              <h2 className="font-zen text-xl font-semibold">
                 Resultados para "{debouncedQuery}"
               </h2>
             </div>
@@ -313,7 +329,7 @@ export default function Discover() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Filter className="h-5 w-5 text-primary" />
-              <h2 className="font-display text-xl font-semibold">
+              <h2 className="font-zen text-xl font-semibold">
                 {GENRES.find(g => g.id === selectedGenre)?.name || 'Gênero'}
               </h2>
             </div>
@@ -370,7 +386,7 @@ export default function Discover() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <Tv className="h-5 w-5 text-accent" />
-                  <h2 className="font-display text-xl font-semibold">Temporada Atual</h2>
+                  <h2 className="font-zen text-xl font-semibold">Temporada Atual</h2>
                 </div>
                 <span className="text-sm text-muted-foreground">
                   {seasonAnimes.length} animes
@@ -395,7 +411,7 @@ export default function Discover() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
-                  <h2 className="font-display text-xl font-semibold">Top Animes de Todos os Tempos</h2>
+                  <h2 className="font-zen text-xl font-semibold">Top Animes de Todos os Tempos</h2>
                 </div>
                 <span className="text-sm text-muted-foreground">
                   {topAnimes.length} animes
@@ -426,7 +442,7 @@ export default function Discover() {
             <section>
               <div className="flex items-center gap-2 mb-6">
                 <Sparkles className="h-5 w-5 text-warning" />
-                <h2 className="font-display text-xl font-semibold">Destaques</h2>
+                <h2 className="font-zen text-xl font-semibold">Destaques</h2>
               </div>
               
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -434,7 +450,10 @@ export default function Discover() {
                   <div
                     key={`highlight-${anime.mal_id}`}
                     className="glass-card p-4 flex gap-4 hover:border-primary/30 transition-colors cursor-pointer animate-slide-up"
-                    style={{ animationDelay: `${index * 100}ms` }}
+                    style={{ 
+                      animationDelay: `${index * 100}ms`,
+                      borderImage: 'linear-gradient(135deg, hsl(var(--sakura)/0.3), hsl(var(--kintsugi)/0.3)) 1'
+                    }}
                     onClick={() => handleSelectAnime(anime)}
                   >
                     <img

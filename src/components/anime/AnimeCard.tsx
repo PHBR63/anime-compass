@@ -3,7 +3,9 @@ import { Heart, Star, MoreVertical, PlayCircle, CheckCircle, PauseCircle, Clock,
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useUpdateAnimeEntry, useDeleteAnimeEntry } from '@/hooks/useAnimeEntries';
+import { usePendingSync } from '@/hooks/usePendingSync';
 import { AnimeDetailModal } from './AnimeDetailModal';
+import { SyncPendingBadge } from './SyncPendingBadge';
 import { AnimeCardImage } from '@/components/ui/lazy-image';
 import { SpotlightCard } from '@/components/animations';
 import {
@@ -56,6 +58,11 @@ function AnimeCardComponent({ entry }: AnimeCardProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const updateEntry = useUpdateAnimeEntry();
   const deleteEntry = useDeleteAnimeEntry();
+  const { hasPendingForAnime, getPendingOperationType } = usePendingSync();
+  
+  // Verifica se há operação pendente para este anime
+  const isPending = hasPendingForAnime(entry.id) || hasPendingForAnime(entry.mal_id);
+  const pendingType = getPendingOperationType(entry.id) || getPendingOperationType(entry.mal_id);
   
   // Calcula progresso
   const progress = entry.total_episodes 
@@ -162,7 +169,7 @@ function AnimeCardComponent({ entry }: AnimeCardProps) {
           </div>
 
           {/* Status badge com ícone */}
-          <div className="absolute top-2 md:top-3 left-2 md:left-3">
+          <div className="absolute top-2 md:top-3 left-2 md:left-3 flex items-center gap-1.5">
             <span className={cn(
               "inline-flex items-center gap-1.5 px-2.5 md:px-3 py-1 md:py-1.5 text-[10px] md:text-xs font-bold rounded-full border backdrop-blur-md shadow-lg",
               colors.bg, colors.text, colors.border
@@ -173,6 +180,11 @@ function AnimeCardComponent({ entry }: AnimeCardProps) {
               )} />
               {statusLabels[entry.status]}
             </span>
+            
+            {/* Indicador de sync pendente */}
+            {isPending && (
+              <SyncPendingBadge operationType={pendingType} size="sm" />
+            )}
           </div>
           
           {/* Rating */}

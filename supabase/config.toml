@@ -2,3 +2,9 @@ project_id = "tawcauhcogjnthocdhce"
 
 [functions.get-global-stats]
 verify_jwt = false
+
+[functions.get-recommendations]
+verify_jwt = false
+
+[functions.translate-synopsis]
+verify_jwt = false

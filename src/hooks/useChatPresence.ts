@@ -10,10 +10,11 @@ interface UserPresence {
   typing_in?: string; // ID da conversa onde está digitando
 }
 
-// Interface para usuário digitando com nome
+// Interface para usuário digitando com nome e avatar
 interface TypingUser {
   userId: string;
   displayName: string;
+  avatarUrl?: string;
 }
 
 /**
@@ -50,6 +51,7 @@ export function useChatPresence(conversationId: string | null) {
                 typing.push({
                   userId: presence.userId,
                   displayName: presence.displayName || 'Alguém',
+                  avatarUrl: presence.avatarUrl,
                 });
               }
             }
@@ -80,19 +82,20 @@ export function useChatPresence(conversationId: string | null) {
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          // Buscar nome do usuário atual
+          // Buscar dados do usuário atual
           const { data: profile } = await supabase
             .from('profiles')
-            .select('display_name, username')
+            .select('display_name, username, avatar_url')
             .eq('id', user.id)
             .single();
 
           const displayName = profile?.display_name || profile?.username || 'Usuário';
 
-          // Rastrear presença do usuário atual
+          // Rastrear presença do usuário atual com avatar
           await channel.track({
             userId: user.id,
             displayName,
+            avatarUrl: profile?.avatar_url,
             online_at: new Date().toISOString(),
           });
         }
@@ -108,10 +111,10 @@ export function useChatPresence(conversationId: string | null) {
   const setTyping = useCallback(async (isTyping: boolean) => {
     if (!conversationId || !user || !channelRef.current) return;
 
-    // Buscar nome do usuário atual
+    // Buscar dados do usuário atual
     const { data: profile } = await supabase
       .from('profiles')
-      .select('display_name, username')
+      .select('display_name, username, avatar_url')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -120,6 +123,7 @@ export function useChatPresence(conversationId: string | null) {
     await channelRef.current.track({
       userId: user.id,
       displayName,
+      avatarUrl: profile?.avatar_url,
       online_at: new Date().toISOString(),
       typing_in: isTyping ? conversationId : undefined,
     });

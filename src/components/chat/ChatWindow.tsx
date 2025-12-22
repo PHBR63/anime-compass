@@ -395,16 +395,28 @@ export default function ChatWindow({
             </div>
           ))}
 
-          {/* Indicador de digitação com animação */}
-          {typingText && (
+          {/* Indicador de digitação com animação e avatares */}
+          {typingUsers.length > 0 && (
             <div className="flex items-center gap-2 px-2 py-3">
+              {/* Avatares dos usuários digitando */}
+              <div className="flex -space-x-2">
+                {typingUsers.slice(0, 3).map((typingUser) => (
+                  <Avatar key={typingUser.userId} className="h-8 w-8 border-2 border-background">
+                    <AvatarImage src={typingUser.avatarUrl || undefined} />
+                    <AvatarFallback className="text-xs">
+                      {typingUser.displayName.substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+              
+              {/* Balão com bolinhas animadas */}
               <div className="flex items-center gap-1 bg-muted rounded-2xl px-4 py-2">
                 <div className="flex gap-1">
                   <span className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                   <span className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                   <span className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
-                <span className="text-xs text-muted-foreground ml-2">{typingText}</span>
               </div>
             </div>
           )}

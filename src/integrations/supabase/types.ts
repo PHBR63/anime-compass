@@ -966,6 +966,10 @@ export type Database = {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
       }
+      is_friend_with: {
+        Args: { _friend_id: string; _user_id: string }
+        Returns: boolean
+      }
       log_audit_action: {
         Args: {
           p_action: string

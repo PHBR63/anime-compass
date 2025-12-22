@@ -8,6 +8,8 @@ export { ShinyText } from './ShinyText';
 export { GradientText } from './GradientText';
 export { BlurText } from './BlurText';
 export { CountUp } from './CountUp';
+export { NeonText } from './NeonText';
+export { JapaneseReveal } from './JapaneseReveal';
 
 // Animações de container
 export { AnimatedContent } from './AnimatedContent';
@@ -22,4 +24,4 @@ export { MagneticButton } from './MagneticButton';
 export { SpotlightCard } from './SpotlightCard';
 
 // Re-exporta backgrounds para conveniência
-export { AuroraBackground, BeamsBackground, FloatingLines } from '../backgrounds';
+export { AuroraBackground, BeamsBackground, FloatingLines, SakuraPetals, WavePattern } from '../backgrounds';

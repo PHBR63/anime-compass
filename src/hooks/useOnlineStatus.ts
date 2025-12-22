@@ -1,17 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 
 /**
+ * Função helper para obter status online de forma segura
+ */
+function getOnlineStatus(): boolean {
+  return typeof window !== 'undefined' && typeof navigator !== 'undefined' 
+    ? navigator.onLine 
+    : true;
+}
+
+/**
  * Hook para detectar e monitorar o status de conexão do usuário
  * Útil para mostrar indicadores offline e gerenciar operações pendentes
  */
 export function useOnlineStatus() {
   // Estado inicial baseado no navigator.onLine
-  const [isOnline, setIsOnline] = useState(() => {
-    if (typeof navigator !== 'undefined') {
-      return navigator.onLine;
-    }
-    return true;
-  });
+  const [isOnline, setIsOnline] = useState(true);
 
   // Timestamp da última mudança de status
   const [lastStatusChange, setLastStatusChange] = useState<Date | null>(null);
@@ -39,12 +43,12 @@ export function useOnlineStatus() {
   }, []);
 
   useEffect(() => {
+    // Verificar status inicial no cliente
+    setIsOnline(getOnlineStatus());
+
     // Adicionar listeners
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
-    // Verificar status inicial
-    setIsOnline(navigator.onLine);
 
     return () => {
       window.removeEventListener('online', handleOnline);

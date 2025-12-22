@@ -11,7 +11,6 @@ import {
   Star,
   ChevronDown,
   ChevronUp,
-  ExternalLink,
   Sparkles,
   Filter,
   Search,
@@ -30,6 +29,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { GradientText, AnimatedContent, SpotlightCard } from '@/components/animations';
 import { LightPillarBackground } from '@/components/backgrounds';
+import { AnimeDetailModal } from '@/components/anime/AnimeDetailModal';
 
 /**
  * Formatar data relativa em português
@@ -84,8 +84,10 @@ function ReviewStats({ reviews }: { reviews: Review[] | undefined }) {
 
 /**
  * Card de preview do anime com dados da Jikan API
+ * @param malId - ID do anime no MyAnimeList
+ * @param onClick - Handler para clique no card (abre modal de detalhes)
  */
-function AnimePreviewCard({ malId }: { malId: number }) {
+function AnimePreviewCard({ malId, onClick }: { malId: number; onClick?: () => void }) {
   const { data: response, isLoading, isError } = useAnimeDetails(malId);
   const anime = response?.data;
 
@@ -104,22 +106,20 @@ function AnimePreviewCard({ malId }: { malId: number }) {
 
   if (isError || !anime) {
     return (
-      <div className="flex items-center gap-3 p-4 bg-muted/30 rounded-xl">
+      <button
+        onClick={onClick}
+        className="flex items-center gap-3 p-4 bg-muted/30 rounded-xl w-full text-left hover:bg-muted/50 transition-colors cursor-pointer"
+      >
         <div className="w-16 h-24 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
           <Play className="h-6 w-6 text-muted-foreground" />
         </div>
         <div>
           <p className="font-medium">Anime #{malId}</p>
-          <a 
-            href={`https://myanimelist.net/anime/${malId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-primary hover:underline flex items-center gap-1"
-          >
-            Ver no MAL <ExternalLink className="h-3 w-3" />
-          </a>
+          <span className="text-xs text-primary">
+            Clique para ver detalhes
+          </span>
         </div>
-      </div>
+      </button>
     );
   }
 
@@ -127,7 +127,10 @@ function AnimePreviewCard({ malId }: { malId: number }) {
   const genres = anime.genres?.slice(0, 2).map((g: { name: string }) => g.name) || [];
 
   return (
-    <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50 hover:border-primary/30 transition-all duration-300">
+    <button
+      onClick={onClick}
+      className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border/50 hover:border-primary/30 transition-all duration-300 w-full text-left cursor-pointer"
+    >
       <div className="flex gap-3 p-3">
         {/* Imagem do anime */}
         <div className="relative w-16 md:w-20 flex-shrink-0">
@@ -172,23 +175,15 @@ function AnimePreviewCard({ malId }: { malId: number }) {
           )}
         </div>
       </div>
-      
-      {/* Link para MAL */}
-      <a
-        href={`https://myanimelist.net/anime/${malId}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="absolute inset-0 z-10"
-        aria-label={`Ver ${anime.title} no MyAnimeList`}
-      />
-    </div>
+    </button>
   );
 }
 
 /**
  * Card de review individual para o feed da comunidade
+ * @param onAnimeClick - Handler para clique no card do anime
  */
-function CommunityReviewCard({ review, index }: { review: Review; index: number }) {
+function CommunityReviewCard({ review, index, onAnimeClick }: { review: Review; index: number; onAnimeClick: (malId: number) => void }) {
   const { user } = useAuth();
   const toggleReaction = useToggleReviewReaction();
   const [showSpoiler, setShowSpoiler] = useState(false);
@@ -264,9 +259,9 @@ function CommunityReviewCard({ review, index }: { review: Review; index: number 
         {/* Corpo do card - Layout em grid para desktop */}
         <div className="p-4 md:p-5">
           <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-4 lg:gap-5">
-            {/* Card do Anime */}
+            {/* Card do Anime - clicável para abrir modal */}
             <div className="lg:order-1">
-              <AnimePreviewCard malId={review.mal_id} />
+              <AnimePreviewCard malId={review.mal_id} onClick={() => onAnimeClick(review.mal_id)} />
             </div>
 
             {/* Conteúdo da Review */}
@@ -448,6 +443,7 @@ function ReviewSkeleton() {
 export default function Reviews() {
   const [orderBy, setOrderBy] = useState<'recent' | 'popular'>('recent');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMalId, setSelectedMalId] = useState<number | null>(null);
   const { data: reviews, isLoading } = useCommunityReviews({ orderBy, limit: 50 });
 
   // Filtra reviews pelo termo de busca
@@ -526,7 +522,12 @@ export default function Reviews() {
         ) : filteredReviews && filteredReviews.length > 0 ? (
           <div className="grid gap-4 md:gap-6">
             {filteredReviews.map((review, index) => (
-              <CommunityReviewCard key={review.id} review={review} index={index} />
+              <CommunityReviewCard 
+                key={review.id} 
+                review={review} 
+                index={index} 
+                onAnimeClick={(malId) => setSelectedMalId(malId)}
+              />
             ))}
           </div>
         ) : (
@@ -558,6 +559,13 @@ export default function Reviews() {
           </AnimatedContent>
         )}
       </div>
+
+      {/* Modal de detalhes do anime */}
+      <AnimeDetailModal
+        open={!!selectedMalId}
+        onOpenChange={(open) => !open && setSelectedMalId(null)}
+        malId={selectedMalId || 0}
+      />
     </div>
   );
 }

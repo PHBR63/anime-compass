@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   useReceivedRecommendations, 
   useRespondToRecommendation 
@@ -70,27 +71,45 @@ export function ReceivedRecommendations() {
               key={rec.id}
               className="flex gap-3 rounded-lg bg-primary/5 border border-primary/20 p-3"
             >
-              {/* Imagem clicável para abrir modal */}
-              <button
-                onClick={() => setSelectedMalId(rec.mal_id)}
-                className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                <img 
-                  src={rec.anime_image || '/placeholder.svg'}
-                  alt={rec.anime_title}
-                  className="h-20 w-14 rounded object-cover"
-                />
-              </button>
+              {/* Imagem clicável para abrir modal com tooltip */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setSelectedMalId(rec.mal_id)}
+                      className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                    >
+                      <img 
+                        src={rec.anime_image || '/placeholder.svg'}
+                        alt={rec.anime_title}
+                        className="h-20 w-14 rounded object-cover"
+                      />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Clique para ver detalhes</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <div className="flex-1 min-w-0 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    {/* Título clicável para abrir modal */}
-                    <button
-                      onClick={() => setSelectedMalId(rec.mal_id)}
-                      className="font-medium text-sm line-clamp-1 hover:text-primary transition-colors text-left"
-                    >
-                      {rec.anime_title}
-                    </button>
+                    {/* Título clicável para abrir modal com tooltip */}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => setSelectedMalId(rec.mal_id)}
+                            className="font-medium text-sm line-clamp-1 hover:text-primary transition-colors text-left"
+                          >
+                            {rec.anime_title}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Clique para ver detalhes</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <div className="flex items-center gap-2 mt-1">
                       <Avatar className="h-5 w-5">
                         <AvatarImage src={rec.from_user?.avatar_url || undefined} />
@@ -147,25 +166,43 @@ export function ReceivedRecommendations() {
               key={rec.id}
               className="flex gap-3 rounded-lg bg-muted/30 p-3"
             >
-              {/* Imagem clicável para abrir modal */}
-              <button
-                onClick={() => setSelectedMalId(rec.mal_id)}
-                className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                <img 
-                  src={rec.anime_image || '/placeholder.svg'}
-                  alt={rec.anime_title}
-                  className="h-16 w-12 rounded object-cover"
-                />
-              </button>
+              {/* Imagem clicável para abrir modal com tooltip */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => setSelectedMalId(rec.mal_id)}
+                      className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                    >
+                      <img 
+                        src={rec.anime_image || '/placeholder.svg'}
+                        alt={rec.anime_title}
+                        className="h-16 w-12 rounded object-cover"
+                      />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Clique para ver detalhes</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <div className="flex-1 min-w-0">
-                {/* Título clicável para abrir modal */}
-                <button
-                  onClick={() => setSelectedMalId(rec.mal_id)}
-                  className="font-medium text-sm line-clamp-1 hover:text-primary transition-colors text-left"
-                >
-                  {rec.anime_title}
-                </button>
+                {/* Título clicável para abrir modal com tooltip */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setSelectedMalId(rec.mal_id)}
+                        className="font-medium text-sm line-clamp-1 hover:text-primary transition-colors text-left"
+                      >
+                        {rec.anime_title}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Clique para ver detalhes</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <p className="text-xs text-muted-foreground">
                   Indicado por {rec.from_user?.display_name || rec.from_user?.username}
                 </p>

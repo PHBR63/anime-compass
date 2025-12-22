@@ -130,32 +130,38 @@ export function useRealtimeNotifications() {
       case 'friend_request':
         return {
           title: '👋 Nova solicitação de amizade',
-          body: notification.message || `${data.friend_name || 'Alguém'} quer ser seu amigo!`
+          body: notification.message || `${data.friend_name || 'Alguém'} quer ser seu amigo!`,
+          type: notification.type,
         };
       case 'friend_accepted':
         return {
           title: '🎉 Amizade aceita!',
-          body: notification.message || `${data.friend_name || 'Alguém'} aceitou sua solicitação!`
+          body: notification.message || `${data.friend_name || 'Alguém'} aceitou sua solicitação!`,
+          type: notification.type,
         };
       case 'review_like':
         return {
           title: '❤️ Sua review recebeu um like!',
-          body: notification.message || `Alguém curtiu sua review de ${data.anime_title || 'um anime'}`
+          body: notification.message || `Alguém curtiu sua review de ${data.anime_title || 'um anime'}`,
+          type: notification.type,
         };
       case 'achievement':
         return {
           title: '🏆 Nova conquista desbloqueada!',
-          body: notification.message || notification.title
+          body: notification.message || notification.title,
+          type: notification.type,
         };
       case 'system':
         return {
           title: '📢 ' + notification.title,
-          body: notification.message || ''
+          body: notification.message || '',
+          type: notification.type,
         };
       default:
         return {
           title: notification.title,
-          body: notification.message || ''
+          body: notification.message || '',
+          type: notification.type,
         };
     }
   }, []);
@@ -174,21 +180,23 @@ export function useRealtimeNotifications() {
           table: 'notifications',
           filter: `user_id=eq.${user.id}`,
         },
-        (payload) => {
+        async (payload) => {
           const newNotification = payload.new as Notification;
           
           // Atualizar cache do React Query
           queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
 
-          // Mostrar toast com a notificação
-          toast({
-            title: newNotification.title,
-            description: newNotification.message || undefined,
-          });
+          // Mostrar toast com a notificação (só se a janela estiver em foco)
+          if (document.hasFocus()) {
+            toast({
+              title: newNotification.title,
+              description: newNotification.message || undefined,
+            });
+          }
 
           // Enviar push notification se habilitado
           if (isEnabled) {
-            const { title, body } = getPushContent(newNotification);
+            const { title, body, type } = getPushContent(newNotification);
             
             // Passa configurações de "não perturbe"
             const doNotDisturb = preferences ? {
@@ -197,10 +205,14 @@ export function useRealtimeNotifications() {
               end: preferences.do_not_disturb_end,
             } : undefined;
             
-            sendNotification(title, {
+            await sendNotification(title, {
               body,
               tag: `notification-${newNotification.type}-${newNotification.id}`,
-              data: newNotification.data,
+              data: {
+                ...newNotification.data,
+                type,
+                notificationId: newNotification.id,
+              },
             }, doNotDisturb);
           }
         }

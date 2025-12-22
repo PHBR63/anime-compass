@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { sendNotificationViaSW, isServiceWorkerReady, listenToNotificationClicks } from '@/lib/serviceWorkerMessaging';
+import { useNavigate } from 'react-router-dom';
 
 /**
  * Verifica se o horário atual está dentro do período de "não perturbe"
@@ -33,11 +35,20 @@ export function isInDoNotDisturbPeriod(
 
 /**
  * Hook para gerenciar notificações push do navegador
- * Solicita permissão e envia notificações quando novas mensagens chegam
+ * Suporta notificações via Service Worker para funcionar em background
  */
 export function usePushNotifications() {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSupported, setIsSupported] = useState(false);
+  const [swReady, setSwReady] = useState(false);
+  
+  // Tentar usar navigate se disponível (dentro de Router)
+  let navigate: ((path: string) => void) | null = null;
+  try {
+    navigate = useNavigate();
+  } catch {
+    // Não está dentro de um Router, ignore
+  }
 
   // Verificar suporte e permissão atual
   useEffect(() => {
@@ -47,7 +58,21 @@ export function usePushNotifications() {
     if (supported) {
       setPermission(Notification.permission);
     }
+    
+    // Verificar se SW está pronto
+    setSwReady(isServiceWorkerReady());
   }, []);
+
+  // Escutar cliques em notificações do SW
+  useEffect(() => {
+    const cleanup = listenToNotificationClicks(({ targetUrl }) => {
+      if (navigate) {
+        navigate(targetUrl);
+      }
+    });
+    
+    return cleanup;
+  }, [navigate]);
 
   // Solicitar permissão do usuário
   const requestPermission = useCallback(async () => {
@@ -67,11 +92,11 @@ export function usePushNotifications() {
   }, [isSupported]);
 
   // Enviar notificação (recebe parâmetros de "não perturbe" opcionalmente)
-  const sendNotification = useCallback((
+  const sendNotification = useCallback(async (
     title: string, 
-    options?: NotificationOptions,
+    options?: NotificationOptions & { data?: Record<string, unknown> },
     doNotDisturb?: { enabled: boolean; start?: string; end?: string }
-  ) => {
+  ): Promise<Notification | null> => {
     if (!isSupported || permission !== 'granted') {
       return null;
     }
@@ -87,10 +112,20 @@ export function usePushNotifications() {
       return null;
     }
 
+    // Tentar enviar via Service Worker primeiro (funciona em background)
+    if (swReady) {
+      const sent = await sendNotificationViaSW(title, options);
+      if (sent) {
+        console.log('[usePushNotifications] Notificação enviada via SW');
+        return null; // Retorna null pois o SW gerencia a notificação
+      }
+    }
+
+    // Fallback: notificação direta (só funciona com aba visível)
     try {
       const notification = new Notification(title, {
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-96x96.png',
         ...options,
       });
 
@@ -108,8 +143,7 @@ export function usePushNotifications() {
       console.error('[usePushNotifications] Erro ao enviar notificação:', error);
       return null;
     }
-  }, [isSupported, permission]);
-
+  }, [isSupported, permission, swReady]);
   // Enviar notificação de nova mensagem
   const notifyNewMessage = useCallback((
     senderName: string, 

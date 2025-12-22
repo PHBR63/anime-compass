@@ -15,7 +15,8 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.png", "robots.txt", "og-image.png"],
+      includeAssets: ["favicon.png", "robots.txt", "og-image.png", "custom-sw.js"],
+      injectRegister: 'auto',
       manifest: {
         name: "AniCheck - Organize sua jornada anime",
         short_name: "AniCheck",

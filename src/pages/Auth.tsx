@@ -155,7 +155,7 @@ export default function Auth() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-primary font-zen">読み込み中...</div>
+        <div className="animate-pulse text-primary font-zen">Carregando...</div>
       </div>
     );
   }
@@ -211,7 +211,7 @@ export default function Auth() {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-sakura font-zen">
-                  あなたは招待されました！
+                  Você foi convidado!
                 </p>
                 <div className="flex items-center gap-2 mt-1">
                   <Avatar className="h-5 w-5">
@@ -235,9 +235,6 @@ export default function Auth() {
             <Logo variant="full" size="xl" theme="light" showGlow={true} />
           </div>
           <p className="text-sm md:text-base text-muted-foreground font-zen">
-            {isLogin ? 'おかえりなさい！' : 'アカウントを作成'}
-          </p>
-          <p className="text-xs text-muted-foreground/70 mt-1">
             {isLogin ? 'Bem-vindo de volta!' : 'Crie sua conta'}
           </p>
         </div>
@@ -345,10 +342,10 @@ export default function Auth() {
               {isLoading ? (
                 <span className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  {isLogin ? '入っています...' : 'アカウント作成中...'}
+                  {isLogin ? 'Entrando...' : 'Criando conta...'}
                 </span>
               ) : (
-                isLogin ? '入る (Entrar)' : 'アカウント作成 (Criar Conta)'
+                isLogin ? 'Entrar' : 'Criar Conta'
               )}
             </Button>
 
@@ -391,9 +388,9 @@ export default function Auth() {
               className="text-sm text-muted-foreground hover:text-sakura transition-colors"
             >
               {isLogin ? (
-                <>Não tem uma conta? <span className="text-sakura font-medium font-zen">登録する</span></>
+                <>Não tem uma conta? <span className="text-sakura font-medium">Cadastre-se</span></>
               ) : (
-                <>Já tem uma conta? <span className="text-sakura font-medium font-zen">ログイン</span></>
+                <>Já tem uma conta? <span className="text-sakura font-medium">Entrar</span></>
               )}
             </button>
           </div>
@@ -401,7 +398,7 @@ export default function Auth() {
 
         {/* Decoração inferior */}
         <div className="mt-6 text-center">
-          <p className="text-xs text-muted-foreground/50 font-zen">✧ アニチェック ✧</p>
+          <p className="text-xs text-muted-foreground/50 font-zen">✧ AniCheck ✧</p>
         </div>
       </div>
     </div>

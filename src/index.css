@@ -66,7 +66,7 @@
 
   /* Tema Claro - Manhã de Primavera Oriental */
   .light {
-    --background: 30 30% 98%;
+    --background: 30 25% 97%;
     --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
@@ -75,46 +75,46 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 350 70% 55%;
+    --primary: 350 70% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 350 30% 96%;
-    --secondary-foreground: 350 70% 35%;
+    --secondary: 350 25% 94%;
+    --secondary-foreground: 350 60% 30%;
 
-    --muted: 350 20% 94%;
-    --muted-foreground: 222 20% 40%;
+    --muted: 350 15% 92%;
+    --muted-foreground: 222 25% 35%;
 
-    --accent: 0 70% 55%;
+    --accent: 0 70% 50%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 50%;
+    --destructive: 0 84% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 350 20% 88%;
-    --input: 350 20% 92%;
-    --ring: 350 70% 55%;
+    --border: 350 20% 85%;
+    --input: 350 15% 90%;
+    --ring: 350 70% 50%;
 
-    /* Cores orientais - versão clara */
-    --sakura: 350 85% 70%;
-    --sakura-dark: 350 80% 60%;
-    --bamboo: 120 35% 40%;
-    --indigo-jp: 235 45% 50%;
-    --kintsugi: 45 90% 45%;
-    --torii: 0 75% 45%;
-    --ink: 222 30% 20%;
+    /* Cores orientais - versão clara com melhor contraste */
+    --sakura: 350 75% 55%;
+    --sakura-dark: 350 70% 45%;
+    --bamboo: 120 40% 35%;
+    --indigo-jp: 235 50% 45%;
+    --kintsugi: 45 85% 40%;
+    --torii: 0 75% 42%;
+    --ink: 222 35% 15%;
 
-    --glass-bg: 0 0% 100% / 0.8;
-    --glass-border: 222 47% 11% / 0.08;
+    --glass-bg: 0 0% 100% / 0.85;
+    --glass-border: 350 30% 70% / 0.2;
 
-    --gradient-primary: linear-gradient(135deg, hsl(350 70% 55%), hsl(0 70% 55%));
-    --gradient-accent: linear-gradient(135deg, hsl(0 70% 55%), hsl(350 70% 55%));
-    --gradient-dark: linear-gradient(180deg, hsl(30 30% 98%), hsl(350 25% 95%));
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(350 20% 98%));
+    --gradient-primary: linear-gradient(135deg, hsl(350 70% 50%), hsl(0 70% 50%));
+    --gradient-accent: linear-gradient(135deg, hsl(0 70% 50%), hsl(350 70% 50%));
+    --gradient-dark: linear-gradient(180deg, hsl(30 25% 97%), hsl(350 20% 94%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(350 15% 97%));
     
     /* Gradientes orientais - versão clara */
-    --gradient-sakura: linear-gradient(135deg, hsl(350 85% 80%), hsl(350 75% 70%));
-    --gradient-torii: linear-gradient(135deg, hsl(0 75% 55%), hsl(0 65% 45%));
-    --gradient-kintsugi: linear-gradient(135deg, hsl(45 90% 55%), hsl(35 85% 50%));
+    --gradient-sakura: linear-gradient(135deg, hsl(350 70% 65%), hsl(350 65% 55%));
+    --gradient-torii: linear-gradient(135deg, hsl(0 75% 50%), hsl(0 70% 42%));
+    --gradient-kintsugi: linear-gradient(135deg, hsl(45 85% 50%), hsl(35 80% 42%));
   }
 }
 
@@ -309,6 +309,38 @@
 
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-muted-foreground/50;
+  }
+  
+  /* Ajustes específicos para tema claro */
+  .light .glass-card {
+    box-shadow: 
+      0 4px 20px -4px hsl(var(--sakura) / 0.12),
+      0 1px 3px hsl(var(--foreground) / 0.05);
+  }
+  
+  .light .anime-card:hover {
+    box-shadow: 0 20px 40px -15px hsl(var(--sakura) / 0.25);
+  }
+  
+  /* Status badges mais vibrantes no tema claro */
+  .light .status-watching {
+    @apply bg-sakura/15 text-sakura border-sakura/40;
+  }
+
+  .light .status-completed {
+    @apply bg-emerald-500/15 text-emerald-600 border-emerald-500/40;
+  }
+
+  .light .status-paused {
+    @apply bg-amber-500/15 text-amber-600 border-amber-500/40;
+  }
+
+  .light .status-dropped {
+    @apply bg-destructive/15 text-destructive border-destructive/40;
+  }
+
+  .light .status-planned {
+    @apply bg-violet-500/15 text-violet-600 border-violet-500/40;
   }
 }
 

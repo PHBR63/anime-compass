@@ -207,6 +207,45 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          new_data: Json | null
+          old_data: Json | null
+          record_id: string | null
+          table_name: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string | null
+          table_name: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string | null
+          table_name?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       chat_message_reactions: {
         Row: {
           created_at: string
@@ -467,6 +506,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      error_logs: {
+        Row: {
+          created_at: string
+          error_context: Json | null
+          error_message: string
+          error_stack: string | null
+          id: string
+          url: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_context?: Json | null
+          error_message: string
+          error_stack?: string | null
+          id?: string
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_context?: Json | null
+          error_message?: string
+          error_stack?: string | null
+          id?: string
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       friendships: {
         Row: {
@@ -858,6 +930,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_remove_user_role: {
+        Args: {
+          p_role: Database["public"]["Enums"]["app_role"]
+          p_target_user_id: string
+        }
+        Returns: boolean
+      }
+      admin_set_user_role: {
+        Args: {
+          p_new_role: Database["public"]["Enums"]["app_role"]
+          p_target_user_id: string
+        }
+        Returns: boolean
+      }
       check_and_unlock_achievements: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -879,6 +965,26 @@ export type Database = {
       is_conversation_participant: {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
+      }
+      log_audit_action: {
+        Args: {
+          p_action: string
+          p_new_data?: Json
+          p_old_data?: Json
+          p_record_id?: string
+          p_table_name: string
+        }
+        Returns: string
+      }
+      log_error: {
+        Args: {
+          p_error_context?: Json
+          p_error_message: string
+          p_error_stack?: string
+          p_url?: string
+          p_user_agent?: string
+        }
+        Returns: string
       }
     }
     Enums: {

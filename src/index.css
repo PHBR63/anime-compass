@@ -132,19 +132,19 @@
     );
   }
 
-  /* Glow effects */
+  /* Glow effects - paleta oriental */
   .glow-primary {
-    box-shadow: 0 0 30px hsl(var(--glow-primary) / 0.3),
-                0 0 60px hsl(var(--glow-primary) / 0.1);
+    box-shadow: 0 0 30px hsl(var(--sakura) / 0.3),
+                0 0 60px hsl(var(--sakura) / 0.1);
   }
 
   .glow-accent {
-    box-shadow: 0 0 30px hsl(var(--glow-accent) / 0.3),
-                0 0 60px hsl(var(--glow-accent) / 0.1);
+    box-shadow: 0 0 30px hsl(var(--torii) / 0.3),
+                0 0 60px hsl(var(--torii) / 0.1);
   }
 
   .glow-text {
-    text-shadow: 0 0 20px hsl(var(--glow-primary) / 0.5);
+    text-shadow: 0 0 20px hsl(var(--sakura) / 0.5);
   }
 
   /* Animated gradient border */
@@ -164,9 +164,9 @@
     opacity: 1;
   }
 
-  /* Status badges */
+  /* Status badges - paleta oriental */
   .status-watching {
-    @apply bg-primary/20 text-primary border-primary/30;
+    @apply bg-sakura/20 text-sakura border-sakura/30;
   }
 
   .status-completed {
@@ -192,7 +192,7 @@
 
   .link-underline::after {
     content: '';
-    @apply absolute bottom-0 left-0 w-full h-[2px] bg-primary scale-x-0 origin-right transition-transform duration-300;
+    @apply absolute bottom-0 left-0 w-full h-[2px] bg-sakura scale-x-0 origin-right transition-transform duration-300;
   }
 
   .link-underline:hover::after {
@@ -217,7 +217,7 @@
 
   .anime-card:hover {
     @apply -translate-y-2;
-    box-shadow: 0 20px 40px -15px hsl(var(--glow-primary) / 0.3);
+    box-shadow: 0 20px 40px -15px hsl(var(--sakura) / 0.3);
   }
 
   .anime-card::after {
@@ -225,7 +225,7 @@
     @apply absolute inset-0 opacity-0 transition-opacity duration-300 pointer-events-none;
     background: linear-gradient(
       to top,
-      hsl(var(--primary) / 0.3),
+      hsl(var(--sakura) / 0.3),
       transparent 50%
     );
   }
@@ -317,10 +317,10 @@
 
 @keyframes pulse-glow {
   0%, 100% { 
-    box-shadow: 0 0 20px hsl(var(--glow-primary) / 0.3);
+    box-shadow: 0 0 20px hsl(var(--sakura) / 0.3);
   }
   50% { 
-    box-shadow: 0 0 40px hsl(var(--glow-primary) / 0.5);
+    box-shadow: 0 0 40px hsl(var(--sakura) / 0.5);
   }
 }
 

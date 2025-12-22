@@ -829,6 +829,13 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      get_public_list_owner_info: {
+        Args: { list_id: string }
+        Returns: {
+          display_name: string
+          username: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

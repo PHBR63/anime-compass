@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MessageSquare, AlertTriangle, ThumbsUp, ThumbsDown, Trash2, Edit, ChevronDown, ChevronUp, User } from 'lucide-react';
+import { MessageSquare, AlertTriangle, ThumbsUp, ThumbsDown, Trash2, Edit, ChevronDown, ChevronUp, User, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -18,6 +18,8 @@ import { ReviewForm } from './ReviewForm';
 import { useAnimeReviews, useDeleteReview, useToggleReviewReaction, type Review } from '@/hooks/useReviews';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { ModerationActionsMenu } from '@/components/moderation/ModerationActionsMenu';
+import { useIsModerator } from '@/hooks/useModeration';
 
 interface ReviewsListProps {
   malId: number;
@@ -52,6 +54,9 @@ function ReviewItem({ review, malId, onEdit }: { review: Review; malId: number; 
   const contentPreview = review.content.length > 300 && !expanded 
     ? review.content.slice(0, 300) + '...' 
     : review.content;
+  
+  // Verificar se a review está oculta (moderação)
+  const isHidden = (review as any).is_hidden;
 
   const handleReaction = (isLike: boolean) => {
     if (!user) return;
@@ -60,7 +65,10 @@ function ReviewItem({ review, malId, onEdit }: { review: Review; malId: number; 
 
   return (
     <>
-      <div className="glass-card rounded-lg p-4 space-y-3">
+      <div className={cn(
+        "glass-card rounded-lg p-4 space-y-3",
+        isHidden && "opacity-60 border-warning/30"
+      )}>
         {/* Header */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -76,8 +84,14 @@ function ReviewItem({ review, malId, onEdit }: { review: Review; malId: number; 
             </div>
           </div>
           
-          {/* Rating e badges */}
+          {/* Rating, badges e menu de moderação */}
           <div className="flex items-center gap-2">
+            {isHidden && (
+              <Badge variant="outline" className="text-warning border-warning/30 gap-1">
+                <EyeOff className="h-3 w-3" />
+                Oculta
+              </Badge>
+            )}
             {review.has_spoilers && (
               <Badge variant="outline" className="text-warning border-warning/30 gap-1">
                 <AlertTriangle className="h-3 w-3" />
@@ -88,6 +102,15 @@ function ReviewItem({ review, malId, onEdit }: { review: Review; malId: number; 
               <div className="flex items-center gap-1">
                 <StarRating rating={Number(review.rating)} size="sm" readonly />
               </div>
+            )}
+            {/* Menu de moderação - visível para mods/admins ou qualquer usuário (para denunciar) */}
+            {user && (
+              <ModerationActionsMenu
+                type="review"
+                targetId={review.id}
+                userId={review.user_id}
+                isHidden={isHidden}
+              />
             )}
           </div>
         </div>

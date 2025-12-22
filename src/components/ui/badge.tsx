@@ -13,8 +13,10 @@ const badgeVariants = cva(
         destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
         outline: "text-foreground border-border",
         success: "border-transparent bg-green-500/20 text-green-400 border-green-500/30",
-        warning: "border-transparent bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-        info: "border-transparent bg-primary/20 text-primary border-primary/30",
+        warning: "border-transparent bg-amber-500/20 text-amber-400 border-amber-500/30",
+        info: "border-transparent bg-sakura/20 text-sakura border-sakura/30",
+        sakura: "border-transparent bg-sakura/20 text-sakura border-sakura/30",
+        torii: "border-transparent bg-torii/20 text-torii border-torii/30",
       },
     },
     defaultVariants: {

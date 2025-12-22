@@ -41,6 +41,7 @@ export default function Auth() {
   const [username, setUsername] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null); // Erro persistente para feedback visual
   const [rememberMe, setRememberMe] = useState(() => {
     // Recupera preferência salva
     return localStorage.getItem(REMEMBER_ME_KEY) === 'true';
@@ -64,15 +65,27 @@ export default function Auth() {
     }
   }, [user, loading, navigate, from]);
 
+  // Limpa o erro quando usuário começa a digitar
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    if (loginError) setLoginError(null);
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    if (loginError) setLoginError(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setLoginError(null); // Limpa erro anterior
 
     try {
       if (isLogin) {
         const validation = loginSchema.safeParse({ email, password });
         if (!validation.success) {
-          toast.error(validation.error.errors[0].message);
+          toast.error(validation.error.errors[0].message, { duration: 5000 });
           setIsLoading(false);
           return;
         }
@@ -82,11 +95,13 @@ export default function Auth() {
         
         const { error } = await signIn(email, password, rememberMe);
         if (error) {
-          if (error.message.includes('Invalid login credentials')) {
-            toast.error('Email ou senha incorretos');
-          } else {
-            toast.error(error.message);
-          }
+          // Mensagem amigável para credenciais inválidas
+          const errorMsg = error.message.includes('Invalid login credentials')
+            ? 'Email ou senha incorretos. Verifique suas credenciais.'
+            : error.message;
+          
+          setLoginError(errorMsg); // Erro persistente para feedback visual
+          toast.error(errorMsg, { duration: 7000 }); // Toast com duração maior
         } else {
           toast.success('Login realizado com sucesso!');
           navigate(from, { replace: true });
@@ -231,14 +246,16 @@ export default function Auth() {
             <div className="space-y-2">
               <Label htmlFor="email" className="text-foreground/80">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${loginError ? 'text-destructive' : 'text-muted-foreground'}`} />
                 <Input
                   id="email"
                   type="email"
                   placeholder="seu@email.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 bg-background/50 border-border/50 focus:border-primary"
+                  onChange={handleEmailChange}
+                  className={`pl-10 bg-background/50 focus:border-primary ${
+                    loginError ? 'border-destructive/50 focus:border-destructive' : 'border-border/50'
+                  }`}
                 />
               </div>
             </div>
@@ -246,14 +263,16 @@ export default function Auth() {
             <div className="space-y-2">
               <Label htmlFor="password" className="text-foreground/80">Senha</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${loginError ? 'text-destructive' : 'text-muted-foreground'}`} />
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10 bg-background/50 border-border/50 focus:border-primary"
+                  onChange={handlePasswordChange}
+                  className={`pl-10 pr-10 bg-background/50 focus:border-primary ${
+                    loginError ? 'border-destructive/50 focus:border-destructive' : 'border-border/50'
+                  }`}
                 />
                 <button
                   type="button"
@@ -266,6 +285,20 @@ export default function Auth() {
               {/* Indicador de força da senha apenas no cadastro */}
               {!isLogin && <PasswordStrengthIndicator password={password} />}
             </div>
+
+            {/* Mensagem de erro inline para login */}
+            {isLogin && loginError && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg animate-in fade-in slide-in-from-top-1 duration-200">
+                <p className="text-sm text-destructive font-medium">{loginError}</p>
+                <button 
+                  type="button"
+                  onClick={() => navigate('/forgot-password')}
+                  className="text-sm text-primary hover:underline mt-2 flex items-center gap-1"
+                >
+                  Esqueceu sua senha? Clique aqui para redefinir
+                </button>
+              </div>
+            )}
 
             {!isLogin && (
               <div className="space-y-2">

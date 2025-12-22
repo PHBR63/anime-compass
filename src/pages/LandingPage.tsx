@@ -58,7 +58,7 @@ const LandingPage = () => {
         <footer className="py-8 border-t border-border/40 relative">
           <div className="container mx-auto px-4 text-center">
             <p className="text-sm text-muted-foreground font-zen">
-              © 2024 AniCheck. Feito com 💜 para otakus. ✧ アニチェック ✧
+              © 2024 AniCheck. Feito com 💜 para otakus. ✧ AniCheck ✧
             </p>
           </div>
         </footer>

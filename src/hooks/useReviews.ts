@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
@@ -77,11 +78,36 @@ export function useAnimeReviews(malId: number) {
   });
 }
 
-// Hook para buscar todas as reviews da comunidade (feed público)
+// Hook para buscar todas as reviews da comunidade (feed público) com realtime
 export function useCommunityReviews(options?: { limit?: number; orderBy?: 'recent' | 'popular' }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const limit = options?.limit || 50;
   const orderBy = options?.orderBy || 'recent';
+
+  // Configurar listener realtime para atualizações de reviews (likes, etc)
+  useEffect(() => {
+    const channel = supabase
+      .channel('reviews-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'reviews',
+        },
+        () => {
+          // Invalidar queries para atualizar a UI
+          queryClient.invalidateQueries({ queryKey: ['communityReviews'] });
+          queryClient.invalidateQueries({ queryKey: ['reviews'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   return useQuery({
     queryKey: ['communityReviews', orderBy, limit],

@@ -106,7 +106,14 @@ export default function ChatWindow({
 
   const typingText = getTypingUsersText();
 
-  // Auto-scroll para última mensagem (somente quando novas mensagens chegam)
+  // Scroll para última mensagem ao entrar na conversa
+  useEffect(() => {
+    if (scrollRef.current && messages.length > 0 && !isLoading) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [conversation?.id, isLoading]); // Executa quando muda de conversa ou termina de carregar
+
+  // Auto-scroll para última mensagem quando novas mensagens chegam
   useEffect(() => {
     // Verificar se chegou nova mensagem
     if (messages.length > prevMessagesLength.current) {
@@ -128,14 +135,14 @@ export default function ChatWindow({
         notifyNewMessage(senderName, messageContent, conversation?.id);
       }
       
-      // Scroll para baixo
+      // Scroll para baixo sempre que chegar nova mensagem
       if (scrollRef.current) {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
       }
     }
     
     prevMessagesLength.current = messages.length;
-  }, [messages, user?.id, playNotification, notifyNewMessage, conversation?.id]);
+  }, [messages, user?.id, playNotification, notifyNewMessage, conversation?.id, conversation?.type]);
 
   // Carregar mais mensagens antigas
   const handleLoadMore = async () => {

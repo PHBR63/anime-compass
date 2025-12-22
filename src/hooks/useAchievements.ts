@@ -27,6 +27,7 @@ interface UserStats {
   reviewCount: number;
   friendCount: number;
   listCount: number;
+  inviteCount: number;
 }
 
 // Hook principal para buscar conquistas com progresso e atualização em tempo real
@@ -201,12 +202,20 @@ async function fetchUserStats(userId: string): Promise<UserStats> {
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId);
 
+  // Buscar contagem de convites aceitos
+  const { count: inviteCount } = await supabase
+    .from('user_invites')
+    .select('*', { count: 'exact', head: true })
+    .eq('inviter_id', userId)
+    .eq('status', 'accepted');
+
   return {
     animeCount: animeCount || 0,
     completedCount: completedCount || 0,
     reviewCount: reviewCount || 0,
     friendCount: friendCount || 0,
     listCount: listCount || 0,
+    inviteCount: inviteCount || 0,
   };
 }
 
@@ -229,6 +238,9 @@ function calculateProgress(achievement: Achievement, stats: UserStats): Achievem
       break;
     case 'list_count':
       current = stats.listCount;
+      break;
+    case 'invite_count':
+      current = stats.inviteCount;
       break;
     default:
       current = 0;

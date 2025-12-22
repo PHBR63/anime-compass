@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useCheckInviteCode, useAcceptInvite } from '@/hooks/useInvites';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Mail, Lock, User, Sparkles, ShieldAlert } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Sparkles, ShieldAlert, Gift, UserPlus } from 'lucide-react';
 import { z } from 'zod';
 import { PasswordStrengthIndicator, isPasswordStrong } from '@/components/auth/PasswordStrengthIndicator';
 
@@ -29,7 +31,10 @@ const signupSchema = loginSchema.extend({
 });
 
 export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
+  const [searchParams] = useSearchParams();
+  const inviteCode = searchParams.get('invite');
+  
+  const [isLogin, setIsLogin] = useState(!inviteCode); // Se tem convite, começa no cadastro
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -44,6 +49,10 @@ export default function Auth() {
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Verificar código de convite
+  const { data: inviteData } = useCheckInviteCode(inviteCode);
+  const acceptInvite = useAcceptInvite();
   
   // Obtém a rota de origem para redirecionar após login
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
@@ -105,6 +114,22 @@ export default function Auth() {
             toast.error(error.message);
           }
         } else {
+          // Se tem código de convite, aceitar convite após criar conta
+          if (inviteCode) {
+            // Aguarda um pouco para o usuário ser criado e busca o ID
+            const { supabase } = await import('@/integrations/supabase/client');
+            const { data: { user: newUser } } = await supabase.auth.getUser();
+            if (newUser) {
+              try {
+                await acceptInvite.mutateAsync({
+                  inviteCode,
+                  userId: newUser.id,
+                });
+              } catch (inviteError) {
+                console.error('Erro ao aceitar convite:', inviteError);
+              }
+            }
+          }
           toast.success('Conta criada com sucesso!');
           navigate(from, { replace: true });
         }
@@ -133,11 +158,41 @@ export default function Auth() {
       
       <div className="w-full max-w-sm md:max-w-md relative z-10">
         {/* Mensagem de acesso restrito quando redirecionado */}
-        {from !== '/' && (
+        {from !== '/' && !inviteCode && (
           <div className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 flex items-center gap-3">
             <ShieldAlert className="w-5 h-5 text-destructive flex-shrink-0" />
             <p className="text-sm text-destructive">
               Faça login para acessar este conteúdo protegido.
+            </p>
+          </div>
+        )}
+
+        {/* Banner de convite */}
+        {inviteData && !isLogin && (
+          <div className="mb-6 p-4 rounded-lg bg-primary/10 border border-primary/20">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/20">
+                <Gift className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-primary">
+                  Você foi convidado!
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Avatar className="h-5 w-5">
+                    <AvatarImage src={(inviteData as any).profiles?.avatar_url} />
+                    <AvatarFallback className="text-xs">
+                      {((inviteData as any).profiles?.display_name || 'U').substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs text-muted-foreground">
+                    {(inviteData as any).profiles?.display_name || (inviteData as any).profiles?.username || 'Um usuário'} te convidou para o AniCheck
+                  </span>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Crie sua conta para se tornar amigo automaticamente!
             </p>
           </div>
         )}

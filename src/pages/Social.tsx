@@ -3,6 +3,7 @@ import { PendingRequests } from '@/components/social/PendingRequests';
 import { FriendsList } from '@/components/social/FriendsList';
 import { ReceivedRecommendations } from '@/components/social/ReceivedRecommendations';
 import { SocialTabs } from '@/components/social/SocialTabs';
+import { InviteSection } from '@/components/invites/InviteSection';
 
 // Página social com sistema completo de amizades, ranking e estatísticas
 export default function Social() {
@@ -31,8 +32,10 @@ export default function Social() {
       {/* Grid principal */}
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Lista de amigos */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 space-y-6">
           <FriendsList />
+          {/* Seção de convites */}
+          <InviteSection />
         </div>
 
         {/* Abas: Ranking, Em Alta, Em Comum */}

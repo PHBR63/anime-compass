@@ -274,7 +274,7 @@ export default function Profile() {
         ].map((stat, i) => (
           <AnimatedContent key={i} direction="up" delay={stat.delay} duration={0.4}>
             <div className="glass-card p-4 text-center">
-              <stat.icon className={`h-6 w-6 ${i === 3 ? 'text-warning' : 'text-primary'} mx-auto mb-2`} />
+              <stat.icon className={`h-6 w-6 ${i === 3 ? 'text-torii' : 'text-sakura'} mx-auto mb-2`} />
               <p className="text-2xl font-bold">
                 {statsLoading ? (
                   <Skeleton className="h-8 w-12 mx-auto" />
@@ -350,7 +350,7 @@ export default function Profile() {
       <AnimatedContent direction="up" delay={0.8} duration={0.5}>
         <div className="space-y-4">
           <h3 className="font-zen text-lg font-semibold flex items-center gap-2">
-            <Settings className="h-5 w-5 text-primary" />
+            <Settings className="h-5 w-5 text-sakura" />
             Configurações de Notificações
           </h3>
           <PushCategoriesCard />

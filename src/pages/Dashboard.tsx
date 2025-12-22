@@ -59,9 +59,10 @@ export default function Dashboard() {
   return (
     <div className="relative space-y-6 md:space-y-8 pt-14 md:pt-0">
       {/* Aurora Background - efeito visual premium */}
+      {/* Aurora Background - efeito visual premium oriental */}
       <div className="fixed inset-0 -z-10 opacity-25">
         <AuroraBackground 
-          colorStops={['hsl(350, 100%, 85%)', 'hsl(280, 100%, 65%)', 'hsl(183, 100%, 50%)']}
+          colorStops={['hsl(350, 100%, 85%)', 'hsl(350, 80%, 70%)', 'hsl(0, 75%, 50%)']}
           speed={0.5}
           blend={0.4}
         />
@@ -102,7 +103,7 @@ export default function Dashboard() {
           </div>
           
           <Link to="/discover" className="shrink-0">
-            <Button className="w-full sm:w-fit bg-gradient-to-r from-sakura to-primary hover:from-sakura/90 hover:to-primary/90">
+            <Button variant="sakura" className="w-full sm:w-fit">
               <Sparkles className="h-4 w-4" />
               発見する (Descobrir)
             </Button>
@@ -217,7 +218,7 @@ export default function Dashboard() {
                 Você ainda não está assistindo nenhum anime
               </p>
               <Link to="/discover">
-                <Button className="bg-gradient-to-r from-sakura to-primary hover:from-sakura/90 hover:to-primary/90">
+                <Button variant="torii">
                   <Plus className="h-4 w-4 mr-2" />
                   アニメを追加
                 </Button>

@@ -18,10 +18,10 @@ export function MainLayout({ children }: MainLayoutProps) {
   
   return (
     <div className="min-h-screen bg-background">
-      {/* Background effects - reduzido em mobile para performance */}
-      <div className="fixed inset-0 bg-grid opacity-20 md:opacity-30 pointer-events-none" />
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[400px] md:w-[800px] h-[300px] md:h-[600px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="fixed bottom-0 right-0 w-[300px] md:w-[600px] h-[200px] md:h-[400px] bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+      {/* Background effects - tons orientais sakura/torii */}
+      <div className="fixed inset-0 bg-grid opacity-10 md:opacity-15 pointer-events-none" />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[400px] md:w-[800px] h-[300px] md:h-[600px] bg-sakura/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="fixed bottom-0 right-0 w-[300px] md:w-[600px] h-[200px] md:h-[400px] bg-torii/5 rounded-full blur-3xl pointer-events-none" />
       
       <Sidebar />
       

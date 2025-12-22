@@ -124,8 +124,8 @@ export function Sidebar() {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="ml-auto flex items-center justify-center w-7 h-7 rounded-full bg-primary/20 animate-pulse">
-                      <Moon className="h-4 w-4 text-primary" />
+                    <div className="ml-auto flex items-center justify-center w-7 h-7 rounded-full bg-sakura/20 animate-pulse">
+                      <Moon className="h-4 w-4 text-sakura" />
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
@@ -143,7 +143,7 @@ export function Sidebar() {
           {user && (
             <div className="px-4 py-4 border-b border-border/50">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-sakura/20 flex items-center justify-center">
                   {profile?.avatar_url ? (
                     <img 
                       src={profile.avatar_url} 
@@ -151,7 +151,7 @@ export function Sidebar() {
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
-                    <User className="h-5 w-5 text-primary" />
+                    <User className="h-5 w-5 text-sakura" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -186,13 +186,13 @@ export function Sidebar() {
                     className={cn(
                       "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group relative",
                       isActive || isSubActive
-                        ? "bg-primary/10 text-primary border border-primary/20"
+                        ? "bg-sakura/10 text-sakura border border-sakura/20"
                         : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                     )}
                   >
                     <item.icon className={cn(
                       "h-5 w-5 transition-transform duration-200 group-hover:scale-110",
-                      (isActive || isSubActive) && "text-primary"
+                      (isActive || isSubActive) && "text-sakura"
                     )} />
                     <span className="font-medium">{item.label}</span>
                     
@@ -217,7 +217,7 @@ export function Sidebar() {
                     )}
                     
                     {isActive && !showBadge && !item.subItems && (
-                      <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                      <div className="ml-auto w-1.5 h-1.5 rounded-full bg-sakura animate-pulse" />
                     )}
                   </NavLink>
                   
@@ -234,13 +234,13 @@ export function Sidebar() {
                             className={cn(
                               "flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors",
                               isSubItemActive
-                                ? "bg-primary/10 text-primary"
+                                ? "bg-sakura/10 text-sakura"
                                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                             )}
                           >
                             <div className={cn(
                               "w-1.5 h-1.5 rounded-full",
-                              isSubItemActive ? "bg-primary" : "bg-muted-foreground/50"
+                              isSubItemActive ? "bg-sakura" : "bg-muted-foreground/50"
                             )} />
                             {subItem.label}
                           </NavLink>
@@ -259,7 +259,7 @@ export function Sidebar() {
               <NotificationsDropdown />
               <span className="text-sm text-muted-foreground">Notificações</span>
               {unreadCount > 0 && (
-                <span className="ml-auto bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+                <span className="ml-auto bg-torii text-white text-xs px-2 py-0.5 rounded-full">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}

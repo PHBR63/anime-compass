@@ -767,10 +767,68 @@
 }
 
 /* ========================================
-   OTIMIZAÇÕES MOBILE / PWA
+   SAKURA SPINNER - PÉTALAS GIRANDO
    ======================================== */
 
-/* Áreas de toque mínimas para acessibilidade */
+/* Animação de órbita das pétalas */
+@keyframes sakura-orbit {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Animação de flutuação da pétala individual */
+@keyframes sakura-petal-float {
+  0%, 100% {
+    opacity: 0.7;
+    transform: translateX(-50%) scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.1);
+  }
+}
+
+/* Container de órbita de cada pétala */
+.sakura-petal-orbit {
+  animation: sakura-orbit 2s linear infinite;
+}
+
+/* Forma da pétala de sakura */
+.sakura-petal {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--sakura)) 0%,
+    hsl(var(--sakura-dark)) 50%,
+    hsl(var(--torii) / 0.6) 100%
+  );
+  border-radius: 50% 0 50% 50%;
+  transform: translateX(-50%) rotate(45deg);
+  animation: sakura-petal-float 1.5s ease-in-out infinite;
+  box-shadow: 
+    0 2px 8px hsl(var(--sakura) / 0.4),
+    inset 0 1px 2px hsl(0 0% 100% / 0.3);
+}
+
+/* Variação para tema claro */
+.light .sakura-petal {
+  background: linear-gradient(
+    135deg,
+    hsl(350 80% 75%) 0%,
+    hsl(350 70% 60%) 50%,
+    hsl(0 70% 50% / 0.7) 100%
+  );
+  box-shadow: 
+    0 2px 8px hsl(var(--sakura) / 0.3),
+    inset 0 1px 2px hsl(0 0% 100% / 0.5);
+}
+
+/* ========================================
+   OTIMIZAÇÕES MOBILE / PWA
+   ======================================== */
 @layer utilities {
   .touch-target {
     min-height: 44px;

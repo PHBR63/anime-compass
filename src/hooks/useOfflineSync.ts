@@ -13,6 +13,8 @@ import {
   type PendingOperation,
   type OperationType,
 } from '@/lib/offlineQueue';
+import { incrementalSync, hasServerUpdates } from '@/lib/incrementalSync';
+import { getLastSyncTime } from '@/lib/offlineCache';
 
 /**
  * Hook para gerenciar sincronização de operações offline
@@ -121,6 +123,10 @@ export function useOfflineSync() {
     // Limpa operações que falharam muitas vezes
     const clearedCount = await clearFailedOperations(user.id);
     
+    // Após sincronizar operações pendentes, faz sincronização incremental
+    // para obter atualizações do servidor
+    const incrementalResult = await incrementalSync(user.id);
+    
     // Atualiza contagem e invalida queries
     await updatePendingCount();
     
@@ -132,9 +138,15 @@ export function useOfflineSync() {
     setLastSyncTime(new Date());
     setIsSyncing(false);
     
+    // Calcula total de atualizações
+    const totalUpdates = incrementalResult.added + incrementalResult.updated;
+    
     // Notifica o usuário
-    if (successCount > 0) {
-      toast.success(`${successCount} operação(ões) sincronizada(s) com sucesso!`);
+    if (successCount > 0 || totalUpdates > 0) {
+      const messages: string[] = [];
+      if (successCount > 0) messages.push(`${successCount} operação(ões) enviada(s)`);
+      if (totalUpdates > 0) messages.push(`${totalUpdates} atualização(ões) recebida(s)`);
+      toast.success(messages.join(', '));
     }
     if (failCount > 0 && clearedCount === 0) {
       toast.warning(`${failCount} operação(ões) ainda pendente(s). Tentaremos novamente.`);
@@ -163,15 +175,34 @@ export function useOfflineSync() {
 
   // Sincroniza automaticamente quando volta online
   useEffect(() => {
-    if (justCameOnline && pendingCount > 0) {
+    if (justCameOnline && user) {
       // Pequeno delay para garantir que a conexão está estável
-      const timer = setTimeout(() => {
-        syncAll();
+      const timer = setTimeout(async () => {
+        // Se tem operações pendentes, sincroniza tudo
+        if (pendingCount > 0) {
+          syncAll();
+        } else {
+          // Se não tem operações pendentes, apenas faz sync incremental
+          const hasUpdates = await hasServerUpdates(user.id);
+          if (hasUpdates) {
+            setIsSyncing(true);
+            const result = await incrementalSync(user.id);
+            queryClient.invalidateQueries({ queryKey: ['anime-entries'] });
+            queryClient.invalidateQueries({ queryKey: ['user-stats'] });
+            setLastSyncTime(new Date());
+            setIsSyncing(false);
+            
+            const totalUpdates = result.added + result.updated;
+            if (totalUpdates > 0) {
+              toast.success(`${totalUpdates} atualização(ões) sincronizada(s)`);
+            }
+          }
+        }
       }, 2000);
       
       return () => clearTimeout(timer);
     }
-  }, [justCameOnline, pendingCount, syncAll]);
+  }, [justCameOnline, pendingCount, syncAll, user, queryClient]);
 
   return {
     pendingCount,

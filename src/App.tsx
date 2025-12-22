@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AnimeEntriesProvider } from "@/contexts/AnimeEntriesContext";
 import { AchievementCelebrationProvider } from "@/contexts/AchievementCelebrationContext";
@@ -155,79 +156,81 @@ if (typeof window !== "undefined") {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <AchievementCelebrationProvider>
-        <HelpProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            {/* Efeito de cursor com rastro de tinta - estilo sumi-e */}
-            <InkCursor />
-            {/* Componentes PWA */}
-            <OfflineIndicator />
-            <InstallBanner />
-            {/* Componentes globais de ajuda */}
-            <WelcomeModal />
-            <HelpPanel />
-            <TourOverlay />
-            <HelpButton />
-            <BrowserRouter>
-              {/* Handler para cliques em notificações do SW */}
-              <NotificationClickHandler />
-              {/* Prefetcher de rotas relacionadas */}
-              <RoutePrefetcher />
-              <Suspense fallback={<GenericSkeleton />}>
-                <Routes>
-                  {/* Rotas públicas */}
-                  <Route path="/auth" element={
-                    <Suspense fallback={<AuthSkeleton />}>
-                      <Auth />
-                    </Suspense>
-                  } />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route path="/maintenance" element={<Maintenance />} />
-                  <Route path="/install" element={<Install />} />
-                  <Route path="/u/:username" element={
-                    <Suspense fallback={<ProfileSkeleton />}>
-                      <PublicProfilePage />
-                    </Suspense>
-                  } />
-                  <Route path="/shared/list/:listId" element={
-                    <Suspense fallback={<ListSkeleton />}>
-                      <PublicListView />
-                    </Suspense>
-                  } />
-                  
-                  {/* Rota pública - Landing/Dashboard */}
-                  <Route path="/" element={
-                    <Suspense fallback={<DashboardSkeleton />}>
-                      <Index />
-                    </Suspense>
-                  } />
-                  
-                  {/* Rotas protegidas com Provider de AnimeEntries */}
-                  <Route
-                    path="/*"
-                    element={
-                      <ProtectedRoute>
-                        <AnimeEntriesProvider>
-                          <MainLayout>
-                            <AnimatedRoutes />
-                          </MainLayout>
-                        </AnimeEntriesProvider>
-                      </ProtectedRoute>
-                    }
-                  />
-                </Routes>
-              </Suspense>
-            </BrowserRouter>
-          </TooltipProvider>
-        </HelpProvider>
-      </AchievementCelebrationProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+  <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AchievementCelebrationProvider>
+          <HelpProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              {/* Efeito de cursor com rastro de tinta - estilo sumi-e */}
+              <InkCursor />
+              {/* Componentes PWA */}
+              <OfflineIndicator />
+              <InstallBanner />
+              {/* Componentes globais de ajuda */}
+              <WelcomeModal />
+              <HelpPanel />
+              <TourOverlay />
+              <HelpButton />
+              <BrowserRouter>
+                {/* Handler para cliques em notificações do SW */}
+                <NotificationClickHandler />
+                {/* Prefetcher de rotas relacionadas */}
+                <RoutePrefetcher />
+                <Suspense fallback={<GenericSkeleton />}>
+                  <Routes>
+                    {/* Rotas públicas */}
+                    <Route path="/auth" element={
+                      <Suspense fallback={<AuthSkeleton />}>
+                        <Auth />
+                      </Suspense>
+                    } />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/maintenance" element={<Maintenance />} />
+                    <Route path="/install" element={<Install />} />
+                    <Route path="/u/:username" element={
+                      <Suspense fallback={<ProfileSkeleton />}>
+                        <PublicProfilePage />
+                      </Suspense>
+                    } />
+                    <Route path="/shared/list/:listId" element={
+                      <Suspense fallback={<ListSkeleton />}>
+                        <PublicListView />
+                      </Suspense>
+                    } />
+                    
+                    {/* Rota pública - Landing/Dashboard */}
+                    <Route path="/" element={
+                      <Suspense fallback={<DashboardSkeleton />}>
+                        <Index />
+                      </Suspense>
+                    } />
+                    
+                    {/* Rotas protegidas com Provider de AnimeEntries */}
+                    <Route
+                      path="/*"
+                      element={
+                        <ProtectedRoute>
+                          <AnimeEntriesProvider>
+                            <MainLayout>
+                              <AnimatedRoutes />
+                            </MainLayout>
+                          </AnimeEntriesProvider>
+                        </ProtectedRoute>
+                      }
+                    />
+                  </Routes>
+                </Suspense>
+              </BrowserRouter>
+            </TooltipProvider>
+          </HelpProvider>
+        </AchievementCelebrationProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;

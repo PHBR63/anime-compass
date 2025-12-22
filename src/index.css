@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 @layer base {
+  /* Tema Escuro (padrão) - Noite Oriental */
   :root {
     --background: 222 47% 6%;
     --foreground: 210 40% 98%;
@@ -62,6 +63,59 @@
     --gradient-torii: linear-gradient(135deg, hsl(0 80% 50%), hsl(0 70% 40%));
     --gradient-kintsugi: linear-gradient(135deg, hsl(45 100% 50%), hsl(35 90% 45%));
   }
+
+  /* Tema Claro - Manhã de Primavera Oriental */
+  .light {
+    --background: 30 30% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 350 70% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 350 30% 96%;
+    --secondary-foreground: 350 70% 35%;
+
+    --muted: 350 20% 94%;
+    --muted-foreground: 222 20% 40%;
+
+    --accent: 0 70% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 350 20% 88%;
+    --input: 350 20% 92%;
+    --ring: 350 70% 55%;
+
+    /* Cores orientais - versão clara */
+    --sakura: 350 85% 70%;
+    --sakura-dark: 350 80% 60%;
+    --bamboo: 120 35% 40%;
+    --indigo-jp: 235 45% 50%;
+    --kintsugi: 45 90% 45%;
+    --torii: 0 75% 45%;
+    --ink: 222 30% 20%;
+
+    --glass-bg: 0 0% 100% / 0.8;
+    --glass-border: 222 47% 11% / 0.08;
+
+    --gradient-primary: linear-gradient(135deg, hsl(350 70% 55%), hsl(0 70% 55%));
+    --gradient-accent: linear-gradient(135deg, hsl(0 70% 55%), hsl(350 70% 55%));
+    --gradient-dark: linear-gradient(180deg, hsl(30 30% 98%), hsl(350 25% 95%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(350 20% 98%));
+    
+    /* Gradientes orientais - versão clara */
+    --gradient-sakura: linear-gradient(135deg, hsl(350 85% 80%), hsl(350 75% 70%));
+    --gradient-torii: linear-gradient(135deg, hsl(0 75% 55%), hsl(0 65% 45%));
+    --gradient-kintsugi: linear-gradient(135deg, hsl(45 90% 55%), hsl(35 85% 50%));
+  }
 }
 
 @layer base {
@@ -80,6 +134,7 @@
     background: var(--gradient-dark);
     min-height: 100vh;
     min-height: 100dvh; /* Dynamic viewport height para mobile */
+    transition: background 0.3s ease, color 0.3s ease;
     
     /* Safe area insets para dispositivos com notch */
     padding-top: env(safe-area-inset-top);
@@ -114,12 +169,17 @@
 }
 
 @layer components {
-  /* Glass morphism card */
+  /* Glass morphism card - adapta para tema claro/escuro */
   .glass-card {
     @apply relative overflow-hidden rounded-xl;
     background: hsl(var(--glass-bg));
     backdrop-filter: blur(20px);
     border: 1px solid hsl(var(--glass-border));
+  }
+  
+  /* Light mode: adiciona sombra suave para profundidade */
+  .light .glass-card {
+    box-shadow: 0 4px 20px -4px hsl(var(--sakura) / 0.1);
   }
 
   .glass-card::before {

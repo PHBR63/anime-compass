@@ -1,7 +1,7 @@
 # 🎌 AniCheck - Gerenciador de Animes
 
 <div align="center">
-  <img src="src/assets/logo.png" alt="AniCheck Logo" width="120" />
+  <img src="src/assets/logo-full.png" alt="AniCheck Logo" width="200" />
   
   **Organize sua jornada pelo mundo dos animes**
   

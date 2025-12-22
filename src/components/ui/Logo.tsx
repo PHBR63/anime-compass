@@ -1,106 +1,102 @@
 import { cn } from '@/lib/utils';
 
+// Importa as imagens do logo
+import logoIcon from '@/assets/logo-icon.png';
+import logoText from '@/assets/logo-text.png';
+import logoFull from '@/assets/logo-full.png';
+
 interface LogoProps {
   className?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  /**
+   * Variante do logo:
+   * - icon: Apenas o ícone Torii com check
+   * - text: Apenas o texto "AniCheck"
+   * - full: Logo completo com ícone e texto
+   */
+  variant?: 'icon' | 'text' | 'full';
+  /**
+   * Tamanho do logo
+   */
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  /**
+   * Exibir efeito de glow ao redor do logo
+   */
   showGlow?: boolean;
 }
 
 /**
- * Logo SVG vetorial do AniCheck
- * Substitui a imagem PNG de 1.4MB por SVG otimizado (~2KB)
+ * Componente Logo do AniCheck
+ * Usa as imagens PNG coloridas do projeto
  */
-export function Logo({ className, size = 'md', showGlow = true }: LogoProps) {
-  // Tamanhos predefinidos para consistência
-  const sizeClasses = {
-    sm: 'w-6 h-6',
-    md: 'w-8 h-8',
-    lg: 'w-12 h-12',
-    xl: 'w-16 h-16',
+export function Logo({ 
+  className, 
+  variant = 'icon', 
+  size = 'md', 
+  showGlow = false 
+}: LogoProps) {
+  // Tamanhos predefinidos para o ícone
+  const iconSizeClasses = {
+    sm: 'h-6 w-auto',
+    md: 'h-8 w-auto',
+    lg: 'h-12 w-auto',
+    xl: 'h-16 w-auto',
+    '2xl': 'h-20 w-auto',
   };
 
+  // Tamanhos predefinidos para o texto
+  const textSizeClasses = {
+    sm: 'h-4 w-auto',
+    md: 'h-5 w-auto',
+    lg: 'h-7 w-auto',
+    xl: 'h-9 w-auto',
+    '2xl': 'h-12 w-auto',
+  };
+
+  // Tamanhos predefinidos para logo completo
+  const fullSizeClasses = {
+    sm: 'h-8 w-auto',
+    md: 'h-10 w-auto',
+    lg: 'h-14 w-auto',
+    xl: 'h-20 w-auto',
+    '2xl': 'h-28 w-auto',
+  };
+
+  // Seleciona a imagem e classe baseado na variante
+  const getImageConfig = () => {
+    switch (variant) {
+      case 'text':
+        return { src: logoText, sizeClass: textSizeClasses[size], alt: 'AniCheck' };
+      case 'full':
+        return { src: logoFull, sizeClass: fullSizeClasses[size], alt: 'AniCheck Logo' };
+      case 'icon':
+      default:
+        return { src: logoIcon, sizeClass: iconSizeClasses[size], alt: 'AniCheck Icon' };
+    }
+  };
+
+  const { src, sizeClass, alt } = getImageConfig();
+
   return (
-    <div className={cn('relative', sizeClasses[size], className)}>
+    <div className={cn('relative inline-flex items-center', className)}>
       {/* Efeito de glow */}
       {showGlow && (
-        <div className="absolute inset-0 blur-lg bg-primary/40 rounded-full" />
+        <div 
+          className="absolute inset-0 blur-lg bg-primary/40 rounded-full scale-110"
+          aria-hidden="true" 
+        />
       )}
       
-      {/* Logo SVG */}
-      <svg
-        viewBox="0 0 64 64"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="relative w-full h-full"
-      >
-        {/* Background circle com gradiente */}
-        <defs>
-          <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(var(--primary))" />
-            <stop offset="100%" stopColor="hsl(var(--primary) / 0.7)" />
-          </linearGradient>
-          <linearGradient id="checkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(var(--primary-foreground))" />
-            <stop offset="100%" stopColor="hsl(var(--primary-foreground) / 0.9)" />
-          </linearGradient>
-          {/* Glow filter para efeito neon */}
-          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        </defs>
-        
-        {/* Círculo base */}
-        <circle
-          cx="32"
-          cy="32"
-          r="28"
-          fill="url(#logoGradient)"
-          className="drop-shadow-lg"
-        />
-        
-        {/* Anel decorativo externo */}
-        <circle
-          cx="32"
-          cy="32"
-          r="30"
-          fill="none"
-          stroke="hsl(var(--primary))"
-          strokeWidth="1"
-          strokeOpacity="0.3"
-        />
-        
-        {/* Letra A estilizada com check integrado */}
-        <g filter="url(#glow)">
-          {/* Base do A */}
-          <path
-            d="M32 14L18 46H24L27 38H37L40 46H46L32 14Z"
-            fill="url(#checkGradient)"
-          />
-          {/* Barra do A */}
-          <path
-            d="M28.5 33L32 22L35.5 33H28.5Z"
-            fill="hsl(var(--primary))"
-          />
-          {/* Check mark no canto */}
-          <path
-            d="M42 24L46 28L54 18"
-            stroke="hsl(var(--primary-foreground))"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-        </g>
-        
-        {/* Pontos decorativos (representando estrelas/anime) */}
-        <circle cx="12" cy="20" r="2" fill="hsl(var(--primary-foreground))" opacity="0.6" />
-        <circle cx="52" cy="44" r="1.5" fill="hsl(var(--primary-foreground))" opacity="0.4" />
-        <circle cx="14" cy="48" r="1" fill="hsl(var(--primary-foreground))" opacity="0.3" />
-      </svg>
+      {/* Imagem do logo */}
+      <img
+        src={src}
+        alt={alt}
+        className={cn(
+          'relative object-contain',
+          sizeClass
+        )}
+        loading="eager"
+        decoding="async"
+      />
     </div>
   );
 }

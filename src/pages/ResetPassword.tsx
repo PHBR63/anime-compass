@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Lock, Sparkles, Eye, EyeOff, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Lock, Eye, EyeOff, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { z } from 'zod';
 import { PasswordStrengthIndicator, isPasswordStrong } from '@/components/auth/PasswordStrengthIndicator';
+import { Logo } from '@/components/ui/Logo';
 
 // Schema de validação para nova senha - alinhado com o indicador (8 caracteres)
 const passwordSchema = z.object({
@@ -182,9 +183,8 @@ export default function ResetPassword() {
       <div className="w-full max-w-sm md:max-w-md relative z-10">
         {/* Logo */}
         <div className="text-center mb-6 md:mb-8">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-primary animate-glow" />
-            <h1 className="text-3xl md:text-4xl font-bold text-gradient">AniCheck</h1>
+          <div className="flex items-center justify-center mb-4">
+            <Logo variant="full" size="lg" showGlow={true} />
           </div>
           <p className="text-sm md:text-base text-muted-foreground">
             Criar nova senha

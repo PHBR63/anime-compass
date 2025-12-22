@@ -29,7 +29,7 @@ import { useAnimeDetails } from '@/hooks/useJikanApi';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { GradientText, AnimatedContent, SpotlightCard } from '@/components/animations';
-import { ParticlesBackground } from '@/components/backgrounds';
+import { LightPillarBackground } from '@/components/backgrounds';
 
 /**
  * Formatar data relativa em português
@@ -465,8 +465,8 @@ export default function Reviews() {
 
   return (
     <div className="relative min-h-screen">
-      {/* Background com partículas */}
-      <ParticlesBackground />
+      {/* Background com efeito Light Pillar */}
+      <LightPillarBackground count={8} speed={0.7} intensity={0.25} />
       
       <div className="relative z-10 space-y-6 pt-12 md:pt-0 pb-8">
         {/* Header */}

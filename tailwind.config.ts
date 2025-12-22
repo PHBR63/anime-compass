@@ -97,6 +97,18 @@ export default {
           from: { opacity: "0", transform: "scale(0.95)" },
           to: { opacity: "1", transform: "scale(1)" },
         },
+        "light-pillar": {
+          "0%": { 
+            transform: "translateY(-100%) translateX(-5px)", 
+            opacity: "0" 
+          },
+          "10%": { opacity: "1" },
+          "90%": { opacity: "1" },
+          "100%": { 
+            transform: "translateY(100vh) translateX(5px)", 
+            opacity: "0" 
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -107,6 +119,7 @@ export default {
         "slide-in-right": "slide-in-right 0.5s ease-out",
         "fade-in": "fade-in 0.3s ease-out",
         "scale-in": "scale-in 0.3s ease-out",
+        "light-pillar": "light-pillar 8s linear infinite",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

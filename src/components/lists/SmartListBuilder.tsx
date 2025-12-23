@@ -3,6 +3,7 @@ import {
   Sparkles, Lock, Globe, Filter, Layers, List, 
   X, RefreshCw, ChevronDown, ChevronUp 
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,7 +32,8 @@ import {
 import { FranchiseListView } from './FranchiseGroupView';
 import { FranchiseSearch } from './FranchiseSearch';
 import { SmartListStats } from './SmartListStats';
-import { SmartListTemplates, SMART_LIST_TEMPLATES, type SmartListTemplate } from './SmartListTemplates';
+import { MissingAnimeSuggestion } from './MissingAnimeSuggestion';
+import { SmartListTemplates, type SmartListTemplate } from './SmartListTemplates';
 import type { Database } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 
@@ -48,17 +50,17 @@ const statusLabels: Record<AnimeStatus, string> = {
 
 // Labels para tipos de anime
 const animeTypeLabels = {
-  main: 'Série Principal',
+  main: 'Série',
   season: 'Temporada',
   movie: 'Filme',
-  special: 'OVA/Especial',
+  special: 'OVA',
 };
 
 // Labels para tamanho de franquia
 const franchiseSizeLabels = {
-  small: 'Curtas (<25 eps)',
-  medium: 'Médias (25-50 eps)',
-  large: 'Longas (50+ eps)',
+  small: 'Curtas (<25)',
+  medium: 'Médias (25-50)',
+  large: 'Longas (50+)',
 };
 
 interface SmartListBuilderProps {
@@ -67,8 +69,8 @@ interface SmartListBuilderProps {
 }
 
 /**
- * Construtor de listas inteligentes com detecção de franquias
- * Versão melhorada com busca, estatísticas e mais filtros
+ * Construtor de listas inteligentes com layout em 2 colunas
+ * Inclui detecção de franquias, estatísticas em tempo real e animações
  */
 export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps) {
   const [name, setName] = useState('');
@@ -95,7 +97,6 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
   
   // Estado de seções colapsáveis
   const [isFiltersOpen, setIsFiltersOpen] = useState(true);
-  const [isStatsOpen, setIsStatsOpen] = useState(true);
 
   const { data: entries } = useAnimeEntries();
   const createList = useCreateList();
@@ -239,12 +240,10 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
       const allSelected = allEntries.every(e => prev.has(e.id));
       
       if (allSelected) {
-        // Desmarcar todas
         const newSet = new Set(prev);
         allEntries.forEach(e => newSet.delete(e.id));
         return newSet;
       } else {
-        // Selecionar todas
         const newSet = new Set(prev);
         allEntries.forEach(e => newSet.add(e.id));
         return newSet;
@@ -353,384 +352,396 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
         compact
       />
 
-      {/* Nome da lista */}
-      <div className="space-y-2">
-        <Label htmlFor="smart-name">Nome da Lista *</Label>
-        <Input
-          id="smart-name"
-          placeholder="Ex: Favoritos 5 Estrelas"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            setSelectedTemplateId(undefined);
-          }}
-        />
-      </div>
-
-      {/* Modo de visualização */}
-      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'individual' | 'franchise')}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="individual" className="gap-2">
-            <List className="h-4 w-4" />
-            Individual
-          </TabsTrigger>
-          <TabsTrigger value="franchise" className="gap-2">
-            <Layers className="h-4 w-4" />
-            Por Franquia
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Seção de Filtros Colapsável */}
-        <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen} className="mt-4">
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="w-full flex items-center justify-between p-2 h-auto"
-            >
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Filter className="h-4 w-4" />
-                Critérios de Seleção
-                {hasActiveFilters && (
-                  <Badge variant="secondary" className="text-[10px] h-5">
-                    Filtros ativos
-                  </Badge>
-                )}
-              </div>
-              {isFiltersOpen ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
-          </CollapsibleTrigger>
-          
-          <CollapsibleContent>
-            <div className="space-y-4 p-4 rounded-lg bg-secondary/30 border border-border/50">
-              {/* Botão limpar filtros */}
-              {hasActiveFilters && (
-                <div className="flex justify-end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs gap-1"
-                    onClick={handleClearFilters}
-                  >
-                    <RefreshCw className="h-3 w-3" />
-                    Limpar filtros
-                  </Button>
-                </div>
-              )}
-
-              {/* Filtro por Status */}
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Status</Label>
-                <div className="flex flex-wrap gap-2">
-                  {(['watching', 'completed', 'paused', 'dropped', 'not_started'] as AnimeStatus[]).map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => handleStatusToggle(status)}
-                      className={cn(
-                        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer",
-                        selectedStatuses.includes(status)
-                          ? 'border-transparent bg-primary text-primary-foreground'
-                          : 'border-border bg-transparent text-foreground hover:bg-secondary'
-                      )}
-                    >
-                      {statusLabels[status]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Filtro por Tipo de Anime */}
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Tipo de Conteúdo</Label>
-                <div className="flex flex-wrap gap-2">
-                  {(['main', 'season', 'movie', 'special'] as const).map((type) => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => handleTypeToggle(type)}
-                      className={cn(
-                        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer",
-                        selectedTypes.has(type)
-                          ? 'border-transparent bg-primary text-primary-foreground'
-                          : 'border-border bg-transparent text-foreground hover:bg-secondary'
-                      )}
-                    >
-                      {animeTypeLabels[type]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Filtro por Nota */}
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">
-                  Nota mínima: {minRating > 0 ? `${minRating} estrelas` : 'Qualquer'}
-                </Label>
-                <Slider
-                  value={[minRating]}
-                  onValueChange={([value]) => {
-                    setMinRating(value);
-                    setSelectedTemplateId(undefined);
-                  }}
-                  max={5}
-                  step={1}
-                  className="w-full"
-                />
-              </div>
-
-              {/* Apenas Favoritos */}
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="only-favorites"
-                  checked={onlyFavorites}
-                  onCheckedChange={(checked) => {
-                    setOnlyFavorites(checked === true);
-                    setSelectedTemplateId(undefined);
-                  }}
-                />
-                <Label htmlFor="only-favorites" className="text-sm cursor-pointer">
-                  Apenas favoritos
-                </Label>
-              </div>
-
-              {/* Critérios de Franquia (apenas no modo franquia) */}
-              {viewMode === 'franchise' && (
-                <>
-                  <div className="space-y-2 pt-2 border-t border-border/30">
-                    <Label className="text-xs text-muted-foreground">Critério de Franquia</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { value: null, label: 'Todas' },
-                        { value: 'completed', label: 'Completas' },
-                        { value: 'in_progress', label: 'Em Andamento' },
-                        { value: 'nearly_complete', label: 'Quase Completas' },
-                        { value: 'multi_season', label: 'Multi-temporada' },
-                        { value: 'high_rated', label: 'Nota Alta (4+)' },
-                        { value: 'abandoned', label: 'Abandonadas' },
-                      ].map(({ value, label }) => (
-                        <button
-                          key={value || 'all'}
-                          type="button"
-                          onClick={() => setFranchiseCriteria(value)}
-                          className={cn(
-                            "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer",
-                            franchiseCriteria === value
-                              ? 'border-transparent bg-primary text-primary-foreground'
-                              : 'border-border bg-transparent text-foreground hover:bg-secondary'
-                          )}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Filtro por tamanho de franquia */}
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Tamanho da Franquia</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { value: null, label: 'Qualquer' },
-                        { value: 'small' as const, label: franchiseSizeLabels.small },
-                        { value: 'medium' as const, label: franchiseSizeLabels.medium },
-                        { value: 'large' as const, label: franchiseSizeLabels.large },
-                      ].map(({ value, label }) => (
-                        <button
-                          key={value || 'any'}
-                          type="button"
-                          onClick={() => setFranchiseSize(value)}
-                          className={cn(
-                            "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer",
-                            franchiseSize === value
-                              ? 'border-transparent bg-primary text-primary-foreground'
-                              : 'border-border bg-transparent text-foreground hover:bg-secondary'
-                          )}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Seção de Estatísticas */}
-        <Collapsible open={isStatsOpen} onOpenChange={setIsStatsOpen} className="mt-4">
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="w-full flex items-center justify-between p-2 h-auto"
-            >
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Sparkles className="h-4 w-4" />
-                Estatísticas
-                {selectedEntries.length > 0 && (
-                  <Badge variant="secondary" className="text-[10px] h-5">
-                    {selectedEntries.length} animes
-                  </Badge>
-                )}
-              </div>
-              {isStatsOpen ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
-          </CollapsibleTrigger>
-          
-          <CollapsibleContent>
-            <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
-              <SmartListStats entries={selectedEntries} />
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Preview dos resultados */}
-        <TabsContent value="individual" className="mt-4">
+      {/* Layout em 2 colunas */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        {/* Coluna Esquerda - Filtros e Preview */}
+        <div className="lg:col-span-3 space-y-4">
+          {/* Nome da lista */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">
-                Preview ({selectedEntries.length} anime{selectedEntries.length !== 1 && 's'})
-              </Label>
-              {selectedIds.size > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 text-xs gap-1"
-                  onClick={() => setSelectedIds(new Set())}
+            <Label htmlFor="smart-name">Nome da Lista *</Label>
+            <Input
+              id="smart-name"
+              placeholder="Ex: Favoritos 5 Estrelas"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setSelectedTemplateId(undefined);
+              }}
+            />
+          </div>
+
+          {/* Modo de visualização */}
+          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'individual' | 'franchise')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="individual" className="gap-2">
+                <List className="h-4 w-4" />
+                Individual
+              </TabsTrigger>
+              <TabsTrigger value="franchise" className="gap-2">
+                <Layers className="h-4 w-4" />
+                Por Franquia
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Seção de Filtros Colapsável */}
+            <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen} className="mt-4">
+              <CollapsibleTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  className="w-full flex items-center justify-between p-2 h-auto"
                 >
-                  <X className="h-3 w-3" />
-                  Limpar seleção
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Filter className="h-4 w-4" />
+                    Filtros
+                    {hasActiveFilters && (
+                      <Badge variant="secondary" className="text-[10px] h-5">
+                        Ativos
+                      </Badge>
+                    )}
+                  </div>
+                  {isFiltersOpen ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
                 </Button>
-              )}
-            </div>
-            
-            {filteredEntries.length > 0 ? (
-              <ScrollArea className="h-48 rounded-md border bg-secondary/20">
-                <div className="p-2 space-y-1">
-                  {filteredEntries.slice(0, 20).map((entry) => (
-                    <div 
-                      key={entry.id} 
-                      className={cn(
-                        "flex items-center gap-2 text-sm p-1.5 rounded hover:bg-secondary/50 transition-colors",
-                        (selectedIds.size === 0 || selectedIds.has(entry.id)) && "bg-primary/5"
-                      )}
-                    >
-                      <Checkbox
-                        checked={selectedIds.size === 0 || selectedIds.has(entry.id)}
-                        onCheckedChange={() => handleToggleEntry(entry.id)}
-                      />
-                      <img 
-                        src={entry.image_url || '/placeholder.svg'} 
-                        alt={entry.title}
-                        className="w-7 h-10 rounded object-cover flex-shrink-0"
-                      />
-                      <span className="truncate flex-1">{entry.title}</span>
-                      <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {entry.rating && (
-                          <span className="text-xs text-yellow-500">★ {entry.rating}</span>
-                        )}
-                        <Badge variant="outline" className="text-[10px] h-5">
-                          {statusLabels[entry.status as AnimeStatus]}
-                        </Badge>
-                      </div>
+              </CollapsibleTrigger>
+              
+              <CollapsibleContent>
+                <div className="space-y-3 p-3 rounded-lg bg-secondary/30 border border-border/50">
+                  {/* Botão limpar filtros */}
+                  {hasActiveFilters && (
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs gap-1"
+                        onClick={handleClearFilters}
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        Limpar
+                      </Button>
                     </div>
-                  ))}
-                  {filteredEntries.length > 20 && (
-                    <p className="text-xs text-muted-foreground text-center py-2">
-                      +{filteredEntries.length - 20} mais animes...
-                    </p>
+                  )}
+
+                  {/* Filtro por Status */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(['watching', 'completed', 'paused', 'dropped', 'not_started'] as AnimeStatus[]).map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => handleStatusToggle(status)}
+                          className={cn(
+                            "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer",
+                            selectedStatuses.includes(status)
+                              ? 'border-transparent bg-primary text-primary-foreground'
+                              : 'border-border bg-transparent text-foreground hover:bg-secondary'
+                          )}
+                        >
+                          {statusLabels[status]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Filtro por Tipo de Anime */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Tipo</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(['main', 'season', 'movie', 'special'] as const).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => handleTypeToggle(type)}
+                          className={cn(
+                            "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer",
+                            selectedTypes.has(type)
+                              ? 'border-transparent bg-primary text-primary-foreground'
+                              : 'border-border bg-transparent text-foreground hover:bg-secondary'
+                          )}
+                        >
+                          {animeTypeLabels[type]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Filtro por Nota */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      Nota mínima: {minRating > 0 ? `${minRating}★` : 'Qualquer'}
+                    </Label>
+                    <Slider
+                      value={[minRating]}
+                      onValueChange={([value]) => {
+                        setMinRating(value);
+                        setSelectedTemplateId(undefined);
+                      }}
+                      max={5}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+
+                  {/* Apenas Favoritos */}
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="only-favorites"
+                      checked={onlyFavorites}
+                      onCheckedChange={(checked) => {
+                        setOnlyFavorites(checked === true);
+                        setSelectedTemplateId(undefined);
+                      }}
+                    />
+                    <Label htmlFor="only-favorites" className="text-xs cursor-pointer">
+                      Apenas favoritos
+                    </Label>
+                  </div>
+
+                  {/* Critérios de Franquia (apenas no modo franquia) */}
+                  {viewMode === 'franchise' && (
+                    <>
+                      <div className="space-y-1.5 pt-2 border-t border-border/30">
+                        <Label className="text-xs text-muted-foreground">Critério de Franquia</Label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { value: null, label: 'Todas' },
+                            { value: 'completed', label: 'Completas' },
+                            { value: 'in_progress', label: 'Em Andamento' },
+                            { value: 'nearly_complete', label: 'Quase' },
+                            { value: 'multi_season', label: 'Multi-temp' },
+                            { value: 'high_rated', label: '4+ ★' },
+                            { value: 'abandoned', label: 'Abandonadas' },
+                          ].map(({ value, label }) => (
+                            <button
+                              key={value || 'all'}
+                              type="button"
+                              onClick={() => setFranchiseCriteria(value)}
+                              className={cn(
+                                "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer",
+                                franchiseCriteria === value
+                                  ? 'border-transparent bg-primary text-primary-foreground'
+                                  : 'border-border bg-transparent text-foreground hover:bg-secondary'
+                              )}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Filtro por tamanho de franquia */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Tamanho</Label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { value: null, label: 'Qualquer' },
+                            { value: 'small' as const, label: franchiseSizeLabels.small },
+                            { value: 'medium' as const, label: franchiseSizeLabels.medium },
+                            { value: 'large' as const, label: franchiseSizeLabels.large },
+                          ].map(({ value, label }) => (
+                            <button
+                              key={value || 'any'}
+                              type="button"
+                              onClick={() => setFranchiseSize(value)}
+                              className={cn(
+                                "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer",
+                                franchiseSize === value
+                                  ? 'border-transparent bg-primary text-primary-foreground'
+                                  : 'border-border bg-transparent text-foreground hover:bg-secondary'
+                              )}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
-              </ScrollArea>
-            ) : (
-              <div className="h-40 rounded-md border bg-secondary/20 flex items-center justify-center">
-                <p className="text-sm text-muted-foreground">
-                  {hasActiveFilters ? 'Nenhum anime encontrado' : 'Selecione filtros para ver o preview'}
-                </p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
+              </CollapsibleContent>
+            </Collapsible>
 
-        <TabsContent value="franchise" className="mt-4">
-          <div className="space-y-3">
-            {/* Busca de franquias */}
-            <FranchiseSearch
-              franchiseGroups={franchiseGroups}
-              selectedIds={selectedIds}
-              onToggleEntry={handleToggleEntry}
-              onToggleFranchise={handleToggleFranchise}
-              onSelectAllFiltered={handleSelectAllFiltered}
-              placeholder="Buscar franquia por nome..."
-            />
-            
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">
-                {franchiseGroups.length} franquia{franchiseGroups.length !== 1 && 's'} ({selectedEntries.length} animes)
-              </Label>
-              {selectedIds.size > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 text-xs gap-1"
-                  onClick={() => setSelectedIds(new Set())}
-                >
-                  <X className="h-3 w-3" />
-                  Limpar seleção
-                </Button>
-              )}
-            </div>
-            
-            {franchiseGroups.length > 0 ? (
-              <ScrollArea className="h-56 rounded-md border bg-secondary/20 p-2">
-                <FranchiseListView
-                  groups={franchiseGroups}
+            {/* Preview dos resultados - Individual */}
+            <TabsContent value="individual" className="mt-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">
+                    Preview ({selectedEntries.length} animes)
+                  </Label>
+                  {selectedIds.size > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs gap-1"
+                      onClick={() => setSelectedIds(new Set())}
+                    >
+                      <X className="h-3 w-3" />
+                      Limpar
+                    </Button>
+                  )}
+                </div>
+                
+                {filteredEntries.length > 0 ? (
+                  <ScrollArea className="h-52 rounded-md border bg-secondary/20">
+                    <div className="p-2 space-y-1">
+                      <AnimatePresence mode="popLayout">
+                        {filteredEntries.slice(0, 25).map((entry, index) => (
+                          <motion.div 
+                            key={entry.id} 
+                            className={cn(
+                              "flex items-center gap-2 text-sm p-1.5 rounded hover:bg-secondary/50 transition-colors cursor-pointer",
+                              (selectedIds.size === 0 || selectedIds.has(entry.id)) && "bg-primary/5"
+                            )}
+                            onClick={() => handleToggleEntry(entry.id)}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 10, scale: 0.9 }}
+                            transition={{ duration: 0.15, delay: index * 0.01 }}
+                            layout
+                          >
+                            <Checkbox
+                              checked={selectedIds.size === 0 || selectedIds.has(entry.id)}
+                              onCheckedChange={() => handleToggleEntry(entry.id)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <img 
+                              src={entry.image_url || '/placeholder.svg'} 
+                              alt={entry.title}
+                              className="w-6 h-8 rounded object-cover flex-shrink-0"
+                            />
+                            <span className="truncate flex-1 text-xs">{entry.title}</span>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {entry.rating && (
+                                <span className="text-[10px] text-yellow-500">★{entry.rating}</span>
+                              )}
+                              <Badge variant="outline" className="text-[9px] h-4 px-1">
+                                {statusLabels[entry.status as AnimeStatus]}
+                              </Badge>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                      {filteredEntries.length > 25 && (
+                        <p className="text-xs text-muted-foreground text-center py-2">
+                          +{filteredEntries.length - 25} animes...
+                        </p>
+                      )}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="h-40 rounded-md border bg-secondary/20 flex items-center justify-center">
+                    <p className="text-sm text-muted-foreground">
+                      {hasActiveFilters ? 'Nenhum anime encontrado' : 'Selecione filtros'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* Preview dos resultados - Franquia */}
+            <TabsContent value="franchise" className="mt-4">
+              <div className="space-y-3">
+                {/* Busca de franquias */}
+                <FranchiseSearch
+                  franchiseGroups={franchiseGroups}
                   selectedIds={selectedIds}
                   onToggleEntry={handleToggleEntry}
                   onToggleFranchise={handleToggleFranchise}
-                  maxVisible={15}
+                  onSelectAllFiltered={handleSelectAllFiltered}
+                  placeholder="Buscar franquia..."
                 />
-              </ScrollArea>
-            ) : (
-              <div className="h-40 rounded-md border bg-secondary/20 flex items-center justify-center">
-                <p className="text-sm text-muted-foreground">
-                  {hasActiveFilters ? 'Nenhuma franquia encontrada' : 'Selecione filtros para ver franquias'}
-                </p>
+                
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">
+                    {franchiseGroups.length} franquias ({selectedEntries.length} animes)
+                  </Label>
+                  {selectedIds.size > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs gap-1"
+                      onClick={() => setSelectedIds(new Set())}
+                    >
+                      <X className="h-3 w-3" />
+                      Limpar
+                    </Button>
+                  )}
+                </div>
+                
+                {franchiseGroups.length > 0 ? (
+                  <ScrollArea className="h-48 rounded-md border bg-secondary/20 p-2">
+                    <FranchiseListView
+                      groups={franchiseGroups}
+                      selectedIds={selectedIds}
+                      onToggleEntry={handleToggleEntry}
+                      onToggleFranchise={handleToggleFranchise}
+                      maxVisible={15}
+                    />
+                  </ScrollArea>
+                ) : (
+                  <div className="h-40 rounded-md border bg-secondary/20 flex items-center justify-center">
+                    <p className="text-sm text-muted-foreground">
+                      {hasActiveFilters ? 'Nenhuma franquia encontrada' : 'Selecione filtros'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Coluna Direita - Estatísticas */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="sticky top-0 space-y-4">
+            {/* Card de estatísticas */}
+            <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Estatísticas</span>
+                <Badge variant="secondary" className="text-[10px] h-5 ml-auto">
+                  {selectedEntries.length} animes
+                </Badge>
+              </div>
+              <SmartListStats entries={selectedEntries} compact />
+            </div>
+
+            {/* Sugestão de animes faltando */}
+            {viewMode === 'franchise' && selectedIds.size > 0 && (
+              <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+                <MissingAnimeSuggestion
+                  franchiseGroups={franchiseGroups}
+                  selectedIds={selectedIds}
+                />
               </div>
             )}
-          </div>
-        </TabsContent>
-      </Tabs>
 
-      {/* Toggle público/privado */}
-      <div className="flex items-center justify-between py-2">
-        <div className="flex items-center gap-2">
-          {isPublic ? (
-            <Globe className="h-4 w-4 text-green-500" />
-          ) : (
-            <Lock className="h-4 w-4 text-muted-foreground" />
-          )}
-          <Label htmlFor="smart-public" className="cursor-pointer text-sm">
-            {isPublic ? 'Lista Pública' : 'Lista Privada'}
-          </Label>
+            {/* Toggle público/privado */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
+              <div className="flex items-center gap-2">
+                {isPublic ? (
+                  <Globe className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Lock className="h-4 w-4 text-muted-foreground" />
+                )}
+                <Label htmlFor="smart-public" className="cursor-pointer text-sm">
+                  {isPublic ? 'Pública' : 'Privada'}
+                </Label>
+              </div>
+              <Switch
+                id="smart-public"
+                checked={isPublic}
+                onCheckedChange={setIsPublic}
+              />
+            </div>
+          </div>
         </div>
-        <Switch
-          id="smart-public"
-          checked={isPublic}
-          onCheckedChange={setIsPublic}
-        />
       </div>
 
       {/* Botões de ação */}
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="flex justify-end gap-2 pt-2 border-t border-border/30">
         <Button variant="outline" onClick={onCancel}>
           Cancelar
         </Button>

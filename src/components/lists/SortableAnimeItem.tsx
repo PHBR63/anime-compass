@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { GripVertical, X, PlayCircle, CheckCircle, PauseCircle, Clock, XCircle, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { vibrate } from '@/hooks/useHapticFeedback';
 import type { Database } from '@/integrations/supabase/types';
 
 type AnimeEntry = Database['public']['Tables']['anime_entries']['Row'];
@@ -109,10 +110,11 @@ export const SortableAnimeItem = forwardRef<HTMLDivElement, SortableAnimeItemPro
           isOverlay && "shadow-2xl ring-2 ring-primary/50 bg-card border-primary"
         )}
       >
-        {/* Alça de arrasto com animação */}
+        {/* Alça de arrasto com animação e feedback háptico */}
         <motion.button
           {...attributes}
           {...listeners}
+          onTouchStart={() => vibrate('selection')}
           whileHover={{ scale: 1.1, backgroundColor: 'hsl(var(--primary) / 0.15)' }}
           whileTap={{ scale: 0.95 }}
           className={cn(

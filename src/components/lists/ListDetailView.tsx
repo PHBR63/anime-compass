@@ -41,6 +41,7 @@ import { SortableAnimeItem } from './SortableAnimeItem';
 import { EditListModal } from './EditListModal';
 import { AddAnimesToListModal } from './AddAnimesToListModal';
 import { useListItems, useRemoveFromList, useReorderListItems } from '@/hooks/useCustomLists';
+import { useHapticFeedback } from '@/hooks/useHapticFeedback';
 import type { CustomList } from '@/hooks/useCustomLists';
 
 import { toast } from 'sonner';
@@ -109,6 +110,7 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
   const { data: items, isLoading } = useListItems(list.id);
   const removeFromList = useRemoveFromList();
   const reorderItems = useReorderListItems();
+  const haptic = useHapticFeedback();
 
   // URL de compartilhamento
   const shareUrl = `${window.location.origin}/shared/list/${list.id}`;
@@ -242,12 +244,13 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
   // Pegar imagens para o banner
   const bannerImages = entries.slice(0, 3).map((e: any) => e.image_url);
 
-  // Handler para início do drag
+  // Handler para início do drag - com feedback háptico
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
+    haptic.medium(); // Vibração média ao iniciar arrasto
   };
 
-  // Handler para drag end
+  // Handler para drag end - com feedback háptico
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
@@ -260,6 +263,9 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
         const newOrder = arrayMove(sortedItems, oldIndex, newIndex);
         const newItemIds = newOrder.map((item: any) => item.itemId);
 
+        // Vibração de sucesso ao soltar em nova posição
+        haptic.success();
+
         // Atualizar no banco
         reorderItems.mutate(
           { listId: list.id, itemIds: newItemIds },
@@ -270,12 +276,16 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
           }
         );
       }
+    } else {
+      // Vibração leve se soltou no mesmo lugar
+      haptic.light();
     }
   };
 
-  // Handler para cancelar drag
+  // Handler para cancelar drag - com feedback háptico
   const handleDragCancel = () => {
     setActiveId(null);
+    haptic.light(); // Vibração leve ao cancelar
   };
 
   // Handler para remover item

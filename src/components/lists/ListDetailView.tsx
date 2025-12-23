@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { ArrowLeft, Globe, Lock, Pencil, GripVertical, LayoutGrid, Share2, Check, Copy, Plus, ArrowUpDown, Star, Calendar, Clock, Hash, SortAsc, SortDesc, List, Search, X, CalendarDays, Filter, Eye, Pause, CheckCircle2, XCircle, Play } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   DndContext,
   closestCenter,
@@ -10,6 +11,7 @@ import {
   DragEndEvent,
   DragStartEvent,
   DragOverlay,
+  MeasuringStrategy,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -545,12 +547,27 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
           // Modo Grid normal
           <AnimeGrid entries={entries} />
         ) : (
-          // Modo Reordenar com Drag-and-Drop
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4 bg-secondary/50 p-3 rounded-lg">
-              <GripVertical className="h-4 w-4" />
+          // Modo Reordenar com Drag-and-Drop animado
+          <motion.div 
+            className="space-y-3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <motion.div 
+              className="flex items-center gap-2 text-sm text-muted-foreground mb-4 bg-secondary/50 p-3 rounded-lg"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <motion.div
+                animate={{ x: [0, 3, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <GripVertical className="h-4 w-4" />
+              </motion.div>
               <span>Arraste os itens para reordenar a lista</span>
-            </div>
+            </motion.div>
             
             <DndContext
               sensors={sensors}
@@ -558,50 +575,89 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onDragCancel={handleDragCancel}
+              measuring={{
+                droppable: {
+                  strategy: MeasuringStrategy.Always,
+                },
+              }}
             >
               <SortableContext
                 items={sortedItems.map((item: any) => item.itemId)}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-2">
-                  {sortedItems.map((item: any, index: number) => (
-                    <div 
-                      key={item.itemId} 
-                      className={`flex items-center gap-2 transition-opacity ${activeId && activeId !== item.itemId ? 'opacity-60' : ''}`}
-                    >
-                      <span className="w-6 text-center text-sm text-muted-foreground font-medium">
-                        {index + 1}
-                      </span>
-                      <div className="flex-1">
-                        <SortableAnimeItem
-                          id={item.itemId}
-                          anime={item.anime}
-                          onRemove={() => handleRemove(item.animeEntryId)}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                  <AnimatePresence mode="popLayout">
+                    {sortedItems.map((item: any, index: number) => (
+                      <motion.div 
+                        key={item.itemId} 
+                        layout
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ 
+                          opacity: activeId && activeId !== item.itemId ? 0.5 : 1,
+                          x: 0,
+                          scale: activeId && activeId !== item.itemId ? 0.98 : 1,
+                        }}
+                        exit={{ opacity: 0, x: 20, scale: 0.9 }}
+                        transition={{
+                          layout: { type: 'spring', stiffness: 350, damping: 25 },
+                          opacity: { duration: 0.2 },
+                          scale: { duration: 0.2 },
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <motion.span 
+                          className="w-6 text-center text-sm text-muted-foreground font-medium"
+                          animate={{
+                            scale: activeId === item.itemId ? 1.2 : 1,
+                            color: activeId === item.itemId ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                          }}
+                        >
+                          {index + 1}
+                        </motion.span>
+                        <div className="flex-1">
+                          <SortableAnimeItem
+                            id={item.itemId}
+                            anime={item.anime}
+                            onRemove={() => handleRemove(item.animeEntryId)}
+                          />
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
                 </div>
               </SortableContext>
 
-              {/* Overlay para o item sendo arrastado */}
-              <DragOverlay adjustScale={false}>
+              {/* Overlay animado para o item sendo arrastado */}
+              <DragOverlay dropAnimation={{
+                duration: 250,
+                easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+              }}>
                 {activeItem ? (
-                  <div className="flex items-center gap-2 opacity-95">
-                    <span className="w-6 text-center text-sm text-muted-foreground font-medium">
+                  <motion.div 
+                    className="flex items-center gap-2"
+                    initial={{ scale: 1, rotate: 0 }}
+                    animate={{ 
+                      scale: 1.02, 
+                      rotate: 1,
+                      boxShadow: '0 20px 40px -10px rgba(0,0,0,0.3)',
+                    }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  >
+                    <span className="w-6 text-center text-sm text-primary font-bold">
                       •
                     </span>
-                    <div className="flex-1 shadow-2xl ring-2 ring-primary rounded-xl">
+                    <div className="flex-1">
                       <SortableAnimeItem
                         id={activeItem.itemId}
                         anime={activeItem.anime}
+                        isOverlay
                       />
                     </div>
-                  </div>
+                  </motion.div>
                 ) : null}
               </DragOverlay>
             </DndContext>
-          </div>
+          </motion.div>
         )
       ) : (
         <div className="glass-card p-8 text-center">

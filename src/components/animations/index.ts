@@ -17,6 +17,7 @@ export { AnimatedList } from './AnimatedList';
 
 // Animações de navegação
 export { PageTransition } from './PageTransition';
+export { SakuraPageTransition } from './SakuraTransition';
 export { AnimatedRoutes } from './AnimatedRoutes';
 
 // Animações interativas

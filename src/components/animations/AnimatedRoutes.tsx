@@ -1,9 +1,8 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
-import { Suspense, lazy, ReactNode } from "react";
-import { PageTransition } from "./PageTransition";
+import { Suspense, lazy } from "react";
+import { SakuraPageTransition } from "./SakuraTransition";
 import {
-  DashboardSkeleton,
   ListSkeleton,
   DiscoverSkeleton,
   ProfileSkeleton,
@@ -40,99 +39,99 @@ export function AnimatedRoutes() {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/list" element={
-          <PageTransition>
+          <SakuraPageTransition>
             <Suspense fallback={<ListSkeleton />}>
               <MyList />
             </Suspense>
-          </PageTransition>
+          </SakuraPageTransition>
         } />
         <Route path="/list/:id" element={
-          <PageTransition>
+          <SakuraPageTransition>
             <Suspense fallback={<ListSkeleton />}>
               <ListDetailPage />
             </Suspense>
-          </PageTransition>
+          </SakuraPageTransition>
         } />
         <Route path="/list/franchises" element={
-          <PageTransition>
+          <SakuraPageTransition>
             <Suspense fallback={<ListSkeleton />}>
               <Franchises />
             </Suspense>
-          </PageTransition>
+          </SakuraPageTransition>
         } />
         <Route path="/list/studios" element={
-          <PageTransition>
+          <SakuraPageTransition>
             <Suspense fallback={<ListSkeleton />}>
               <Studios />
             </Suspense>
-          </PageTransition>
+          </SakuraPageTransition>
         } />
         <Route path="/discover" element={
-          <PageTransition>
+          <SakuraPageTransition>
             <Suspense fallback={<DiscoverSkeleton />}>
               <Discover />
             </Suspense>
-          </PageTransition>
+          </SakuraPageTransition>
         } />
         <Route path="/reviews" element={
-          <PageTransition>
+          <SakuraPageTransition>
             <Suspense fallback={<GenericSkeleton />}>
               <Reviews />
             </Suspense>
-          </PageTransition>
+          </SakuraPageTransition>
         } />
         <Route path="/social" element={
-          <PageTransition>
+          <SakuraPageTransition>
             <Suspense fallback={<GenericSkeleton />}>
               <Social />
             </Suspense>
-          </PageTransition>
+          </SakuraPageTransition>
         } />
         <Route path="/chat" element={
-          <PageTransition>
+          <SakuraPageTransition>
             <Suspense fallback={<ChatSkeleton />}>
               <Chat />
             </Suspense>
-          </PageTransition>
+          </SakuraPageTransition>
         } />
         <Route path="/achievements" element={
-          <PageTransition>
+          <SakuraPageTransition>
             <Suspense fallback={<GenericSkeleton />}>
               <Achievements />
             </Suspense>
-          </PageTransition>
+          </SakuraPageTransition>
         } />
         <Route path="/profile" element={
-          <PageTransition>
+          <SakuraPageTransition>
             <Suspense fallback={<ProfileSkeleton />}>
               <Profile />
             </Suspense>
-          </PageTransition>
+          </SakuraPageTransition>
         } />
         <Route path="/admin" element={
           <AdminProtectedRoute>
-            <PageTransition>
+            <SakuraPageTransition>
               <Suspense fallback={<GenericSkeleton />}>
                 <Admin />
               </Suspense>
-            </PageTransition>
+            </SakuraPageTransition>
           </AdminProtectedRoute>
         } />
         <Route path="/moderation" element={
           <ModeratorProtectedRoute>
-            <PageTransition>
+            <SakuraPageTransition>
               <Suspense fallback={<GenericSkeleton />}>
                 <Moderation />
               </Suspense>
-            </PageTransition>
+            </SakuraPageTransition>
           </ModeratorProtectedRoute>
         } />
         <Route path="*" element={
-          <PageTransition>
+          <SakuraPageTransition>
             <Suspense fallback={<GenericSkeleton />}>
               <NotFound />
             </Suspense>
-          </PageTransition>
+          </SakuraPageTransition>
         } />
       </Routes>
     </AnimatePresence>

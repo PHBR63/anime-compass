@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Globe, Lock, Pencil, GripVertical, LayoutGrid, Share2, Check, Copy, Plus, ArrowUpDown, Star, Calendar, Clock, Hash, SortAsc, SortDesc, List, Search, X } from 'lucide-react';
+import { ArrowLeft, Globe, Lock, Pencil, GripVertical, LayoutGrid, Share2, Check, Copy, Plus, ArrowUpDown, Star, Calendar, Clock, Hash, SortAsc, SortDesc, List, Search, X, CalendarDays } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -8,6 +8,8 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -49,7 +51,7 @@ interface ListDetailViewProps {
 type ViewMode = 'grid' | 'reorder';
 
 // Tipos de ordenação disponíveis
-type SortField = 'custom' | 'title' | 'rating' | 'episodes' | 'status' | 'added_date';
+type SortField = 'custom' | 'title' | 'rating' | 'episodes' | 'status' | 'added_date' | 'year';
 type SortDirection = 'asc' | 'desc';
 
 interface SortOption {
@@ -66,6 +68,7 @@ const sortOptions: SortOption[] = [
   { field: 'episodes', label: 'Episódios', icon: Hash },
   { field: 'status', label: 'Status', icon: Clock },
   { field: 'added_date', label: 'Data de adição', icon: Calendar },
+  { field: 'year', label: 'Ano', icon: CalendarDays },
 ];
 
 /**
@@ -79,6 +82,7 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
   const [sortField, setSortField] = useState<SortField>('custom');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeId, setActiveId] = useState<string | null>(null);
   const { data: items, isLoading } = useListItems(list.id);
   const removeFromList = useRemoveFromList();
   const reorderItems = useReorderListItems();
@@ -98,17 +102,18 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
     }
   };
 
-  // Sensores para drag-and-drop
+  // Sensores para drag-and-drop com melhor UX
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5, // Menor distância para ativar mais rápido
       },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
 
   // Mapeamento de ordem de status
   const statusOrder: Record<string, number> = {
@@ -164,6 +169,12 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
           case 'added_date':
             comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
             break;
+          case 'year':
+            // Extrair ano do started_at ou created_at do anime
+            const yearA = a.anime.started_at ? new Date(a.anime.started_at).getFullYear() : 0;
+            const yearB = b.anime.started_at ? new Date(b.anime.started_at).getFullYear() : 0;
+            comparison = yearA - yearB;
+            break;
         }
         
         return sortDirection === 'asc' ? comparison : -comparison;
@@ -172,6 +183,12 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
 
     return sorted;
   }, [items, sortField, sortDirection, searchQuery]);
+
+  // Item ativo para o DragOverlay
+  const activeItem = useMemo(() => {
+    if (!activeId) return null;
+    return sortedItems?.find((item: any) => item.itemId === activeId);
+  }, [activeId, sortedItems]);
 
   // Handler para mudar ordenação
   const handleSortChange = (field: SortField) => {
@@ -194,9 +211,15 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
   // Pegar imagens para o banner
   const bannerImages = entries.slice(0, 3).map((e: any) => e.image_url);
 
+  // Handler para início do drag
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
   // Handler para drag end
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveId(null);
     
     if (over && active.id !== over.id) {
       const oldIndex = sortedItems.findIndex((item: any) => item.itemId === active.id);
@@ -217,6 +240,11 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
         );
       }
     }
+  };
+
+  // Handler para cancelar drag
+  const handleDragCancel = () => {
+    setActiveId(null);
   };
 
   // Handler para remover item
@@ -450,15 +478,17 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
         ) : (
           // Modo Reordenar com Drag-and-Drop
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4 bg-secondary/50 p-3 rounded-lg">
               <GripVertical className="h-4 w-4" />
-              <span>Arraste os itens para reordenar</span>
+              <span>Arraste os itens para reordenar a lista</span>
             </div>
             
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
             >
               <SortableContext
                 items={sortedItems.map((item: any) => item.itemId)}
@@ -466,7 +496,10 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
               >
                 <div className="space-y-2">
                   {sortedItems.map((item: any, index: number) => (
-                    <div key={item.itemId} className="flex items-center gap-2">
+                    <div 
+                      key={item.itemId} 
+                      className={`flex items-center gap-2 transition-opacity ${activeId && activeId !== item.itemId ? 'opacity-60' : ''}`}
+                    >
                       <span className="w-6 text-center text-sm text-muted-foreground font-medium">
                         {index + 1}
                       </span>
@@ -481,6 +514,23 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
                   ))}
                 </div>
               </SortableContext>
+
+              {/* Overlay para o item sendo arrastado */}
+              <DragOverlay adjustScale={false}>
+                {activeItem ? (
+                  <div className="flex items-center gap-2 opacity-95">
+                    <span className="w-6 text-center text-sm text-muted-foreground font-medium">
+                      •
+                    </span>
+                    <div className="flex-1 shadow-2xl ring-2 ring-primary rounded-xl">
+                      <SortableAnimeItem
+                        id={activeItem.itemId}
+                        anime={activeItem.anime}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+              </DragOverlay>
             </DndContext>
           </div>
         )

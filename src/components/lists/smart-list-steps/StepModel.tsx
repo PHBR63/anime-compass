@@ -216,7 +216,7 @@ export function StepModel({ onSelectTemplate, onSkip, selectedTemplateId }: Step
 
   return (
     <motion.div 
-      className="space-y-4 pb-2"
+      className="space-y-4 pb-4"
       variants={containerVariants}
       initial="hidden"
       animate="visible"

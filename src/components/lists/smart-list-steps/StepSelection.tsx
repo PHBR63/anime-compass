@@ -70,7 +70,7 @@ export function StepSelection({
   const allSelected = selectedIds.size === totalAvailable && totalAvailable > 0;
 
   return (
-    <div className="space-y-4 pb-2">
+    <div className="space-y-4 pb-4">
       {/* Header com contador e ações */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">

@@ -1,24 +1,42 @@
 /**
  * Service Worker customizado para push notifications em background
  * Este arquivo é injetado pelo Vite PWA plugin junto com o SW gerado pelo Workbox
+ * 
+ * IMPORTANTE: skipWaiting é controlado pelo Workbox config, não aqui
  */
 
-// Força o novo SW a assumir controle imediatamente
+// Flag para evitar múltiplas ativações
+let isActivating = false;
+
+// Evento de instalação - NÃO chamar skipWaiting aqui (já é feito pelo Workbox)
 self.addEventListener('install', (event) => {
-  console.log('[SW] Instalando nova versão...');
-  self.skipWaiting();
+  console.log('[SW] Nova versão instalada');
+  // Deixar o Workbox controlar o skipWaiting via config
 });
 
-// Assume controle de todas as páginas imediatamente
+// Assume controle de todas as páginas quando ativado
 self.addEventListener('activate', (event) => {
+  // Prevenir múltiplas ativações simultâneas
+  if (isActivating) {
+    console.log('[SW] Ativação já em andamento, ignorando...');
+    return;
+  }
+  
+  isActivating = true;
   console.log('[SW] Nova versão ativada!');
+  
   event.waitUntil(
     Promise.all([
-      // Limpar caches antigos
+      // Limpar caches antigos (exceto os atuais)
       caches.keys().then((cacheNames) => {
         return Promise.all(
           cacheNames
-            .filter((cacheName) => cacheName.startsWith('workbox-') && cacheName !== 'workbox-precache-v2')
+            .filter((cacheName) => {
+              // Manter apenas caches atuais do Workbox
+              return cacheName.startsWith('workbox-') && 
+                     !cacheName.includes('precache') && 
+                     !cacheName.includes('runtime');
+            })
             .map((cacheName) => {
               console.log('[SW] Removendo cache antigo:', cacheName);
               return caches.delete(cacheName);
@@ -27,11 +45,13 @@ self.addEventListener('activate', (event) => {
       }),
       // Assumir controle de todos os clientes
       self.clients.claim(),
-    ])
+    ]).finally(() => {
+      isActivating = false;
+    })
   );
 });
 
-// Escuta mensagens do cliente para exibir notificações ou ações
+// Escuta mensagens do cliente
 self.addEventListener('message', (event) => {
   // Comando para pular espera e ativar imediatamente
   if (event.data && event.data.type === 'SKIP_WAITING') {
@@ -54,7 +74,7 @@ self.addEventListener('message', (event) => {
     });
   }
 
-  // Notificar cliente que atualização foi aplicada
+  // Notificar cliente sobre versão
   if (event.data && event.data.type === 'GET_VERSION') {
     event.ports?.[0]?.postMessage({ version: '1.0.0', updated: true });
   }

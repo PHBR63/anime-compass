@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useAnimeEntries } from '@/hooks/useAnimeEntries';
 import { useCreateList, useAddToList } from '@/hooks/useCustomLists';
@@ -48,10 +49,33 @@ interface SmartListBuilderProps {
  * Construtor de listas inteligentes com sistema de etapas (wizard)
  * 4 etapas: Modelo → Filtros → Seleção → Finalizar
  */
+/**
+ * Variantes de animação para transições fluidas entre etapas
+ * Direção: 1 = avançando, -1 = voltando
+ */
+const stepVariants: Variants = {
+  initial: (direction: number) => ({
+    opacity: 0,
+    x: direction > 0 ? 40 : -40,
+    scale: 0.98,
+  }),
+  animate: {
+    opacity: 1,
+    x: 0,
+    scale: 1,
+  },
+  exit: (direction: number) => ({
+    opacity: 0,
+    x: direction > 0 ? -40 : 40,
+    scale: 0.98,
+  }),
+};
+
 export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps) {
-  // Estado da etapa atual
+  // Estado da etapa atual e direção de navegação
   const [currentStep, setCurrentStep] = useState<StepId>('model');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | undefined>();
+  const directionRef = useRef<number>(1); // 1 = avançando, -1 = voltando
   
   // Estado dos filtros
   const [filters, setFilters] = useState<FilterState>({
@@ -265,14 +289,23 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
   
   const goToNextStep = useCallback(() => {
     if (currentStepIndex < STEPS.length - 1) {
+      directionRef.current = 1; // Avançando
       setCurrentStep(STEPS[currentStepIndex + 1].id);
     }
   }, [currentStepIndex]);
 
   const goToPrevStep = useCallback(() => {
     if (currentStepIndex > 0) {
+      directionRef.current = -1; // Voltando
       setCurrentStep(STEPS[currentStepIndex - 1].id);
     }
+  }, [currentStepIndex]);
+  
+  // Handler para navegação direta pelos indicadores
+  const goToStep = useCallback((stepId: StepId) => {
+    const targetIndex = STEPS.findIndex(s => s.id === stepId);
+    directionRef.current = targetIndex > currentStepIndex ? 1 : -1;
+    setCurrentStep(stepId);
   }, [currentStepIndex]);
 
   const canProceed = useMemo(() => {
@@ -297,18 +330,18 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
         {STEPS.map((step, index) => (
           <div key={step.id} className="flex items-center">
             <button
-              onClick={() => setCurrentStep(step.id)}
+              onClick={() => goToStep(step.id)}
               className={cn(
-                "flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                "flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
                 currentStep === step.id
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm"
                   : index < currentStepIndex
                     ? "bg-primary/20 text-primary hover:bg-primary/30"
                     : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
               )}
             >
               <span className={cn(
-                "w-5 h-5 flex items-center justify-center rounded-full text-[10px]",
+                "w-5 h-5 flex items-center justify-center rounded-full text-[10px] transition-colors duration-200",
                 index < currentStepIndex ? "bg-primary/30" : "bg-background/50"
               )}>
                 {index < currentStepIndex ? <Check className="h-3 w-3" /> : step.icon}
@@ -317,24 +350,32 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
             </button>
             
             {index < STEPS.length - 1 && (
-              <div className={cn(
-                "w-4 sm:w-8 h-0.5 mx-1",
-                index < currentStepIndex ? "bg-primary/50" : "bg-border"
-              )} />
+              <motion.div 
+                className={cn(
+                  "w-4 sm:w-8 h-0.5 mx-1 transition-colors duration-300",
+                  index < currentStepIndex ? "bg-primary/50" : "bg-border"
+                )}
+                layoutId={`step-line-${index}`}
+              />
             )}
           </div>
         ))}
       </div>
 
-      {/* Conteúdo da etapa atual - com scroll */}
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">
-        <AnimatePresence mode="wait">
+      {/* Conteúdo da etapa atual - com scroll fluido */}
+      <ScrollArea className="flex-1 min-h-0 pr-3">
+        <AnimatePresence mode="wait" custom={directionRef.current}>
           <motion.div
             key={currentStep}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
+            custom={directionRef.current}
+            variants={stepVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ 
+              duration: 0.3, 
+              ease: [0.4, 0, 0.2, 1],
+            }}
             className="pb-4"
           >
             {currentStep === 'model' && (
@@ -381,7 +422,7 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
             )}
           </motion.div>
         </AnimatePresence>
-      </div>
+      </ScrollArea>
 
       {/* Navegação - fixo no rodapé (exceto na última etapa) */}
       {currentStep !== 'finish' && (

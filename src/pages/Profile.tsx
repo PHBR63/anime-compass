@@ -25,6 +25,7 @@ import { ExportAnimeList } from '@/components/profile/ExportAnimeList';
 import { PushCategoriesCard } from '@/components/notifications/PushCategoriesCard';
 import { NotificationPreferencesCard } from '@/components/notifications/NotificationPreferencesCard';
 import { DoNotDisturbSettings } from '@/components/notifications/DoNotDisturbSettings';
+import { AppUpdateSettings } from '@/components/pwa/AppUpdateSettings';
 import { SessionExpiredCard, isSessionExpiredError } from '@/components/ui/SessionExpiredCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
@@ -356,6 +357,7 @@ export default function Profile() {
           <PushCategoriesCard />
           <NotificationPreferencesCard />
           <DoNotDisturbSettings />
+          <AppUpdateSettings />
         </div>
       </AnimatedContent>
 

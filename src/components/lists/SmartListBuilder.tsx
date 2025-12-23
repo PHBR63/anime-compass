@@ -291,9 +291,9 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
   }, [currentStep, filters.name, selectedEntries.length]);
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      {/* Indicador de progresso */}
-      <div className="flex items-center justify-center gap-1 sm:gap-2 mb-4 px-2">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+      {/* Indicador de progresso - fixo no topo */}
+      <div className="flex items-center justify-center gap-1 sm:gap-2 pb-4 flex-shrink-0">
         {STEPS.map((step, index) => (
           <div key={step.id} className="flex items-center">
             <button
@@ -326,8 +326,8 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
         ))}
       </div>
 
-      {/* Conteúdo da etapa atual */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-1">
+      {/* Conteúdo da etapa atual - com scroll */}
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStep}
@@ -335,7 +335,7 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2 }}
-            className="h-full"
+            className="pb-2"
           >
             {currentStep === 'model' && (
               <StepModel
@@ -383,9 +383,9 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
         </AnimatePresence>
       </div>
 
-      {/* Navegação (exceto na última etapa que tem seus próprios botões) */}
+      {/* Navegação - fixo no rodapé (exceto na última etapa) */}
       {currentStep !== 'finish' && (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t border-border/50">
+        <div className="flex items-center justify-between pt-4 mt-auto border-t border-border/50 flex-shrink-0 bg-background">
           <Button
             variant="outline"
             size="sm"

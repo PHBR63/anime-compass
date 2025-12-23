@@ -187,7 +187,7 @@ export function StepModel({ onSelectTemplate, onSkip, selectedTemplateId }: Step
   }, []);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-2">
       {/* Header */}
       <div className="text-center space-y-1">
         <h3 className="font-medium">Escolha um modelo para começar</h3>

@@ -291,7 +291,7 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
   }, [currentStep, filters.name, selectedEntries.length]);
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden">
+    <div className="flex flex-col h-full min-h-0">
       {/* Indicador de progresso - fixo no topo */}
       <div className="flex items-center justify-center gap-1 sm:gap-2 pb-4 flex-shrink-0">
         {STEPS.map((step, index) => (
@@ -327,7 +327,7 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
       </div>
 
       {/* Conteúdo da etapa atual - com scroll */}
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStep}
@@ -335,7 +335,7 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2 }}
-            className="pb-2"
+            className="pb-4"
           >
             {currentStep === 'model' && (
               <StepModel

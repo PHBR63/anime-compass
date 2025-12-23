@@ -109,7 +109,7 @@ export function StepFilters({ filters, onFiltersChange, totalAnimes }: StepFilte
     selectedTypes.size < 4;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-2">
       {/* Nome da lista */}
       <div className="space-y-2">
         <Label htmlFor="smart-name" className="text-sm font-medium">

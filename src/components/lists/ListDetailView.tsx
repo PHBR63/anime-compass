@@ -18,6 +18,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  rectSortingStrategy,
 } from '@dnd-kit/sortable';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +39,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { AnimeGrid } from '@/components/anime/AnimeGrid';
 import { SortableAnimeItem } from './SortableAnimeItem';
+import { SortableAnimeCard } from './SortableAnimeCard';
 import { EditListModal } from './EditListModal';
 import { AddAnimesToListModal } from './AddAnimesToListModal';
 import { useListItems, useRemoveFromList, useReorderListItems } from '@/hooks/useCustomLists';
@@ -554,8 +556,98 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
         </div>
       ) : entries.length > 0 ? (
         viewMode === 'grid' ? (
-          // Modo Grid normal
-          <AnimeGrid entries={entries} />
+          // Modo Grid com Drag-and-Drop animado
+          <motion.div 
+            className="space-y-3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <motion.div 
+              className="flex items-center gap-2 text-sm text-muted-foreground mb-4 bg-secondary/50 p-3 rounded-lg"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <motion.div
+                animate={{ y: [0, -2, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <GripVertical className="h-4 w-4" />
+              </motion.div>
+              <span>Passe o mouse sobre os cards e arraste para reordenar</span>
+            </motion.div>
+            
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
+              measuring={{
+                droppable: {
+                  strategy: MeasuringStrategy.Always,
+                },
+              }}
+            >
+              <SortableContext
+                items={sortedItems.map((item: any) => item.itemId)}
+                strategy={rectSortingStrategy}
+              >
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+                  <AnimatePresence mode="popLayout">
+                    {sortedItems.map((item: any) => (
+                      <motion.div 
+                        key={item.itemId} 
+                        layout
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ 
+                          opacity: activeId && activeId !== item.itemId ? 0.6 : 1,
+                          scale: activeId && activeId !== item.itemId ? 0.97 : 1,
+                        }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{
+                          layout: { type: 'spring', stiffness: 350, damping: 30 },
+                          opacity: { duration: 0.2 },
+                          scale: { duration: 0.2 },
+                        }}
+                      >
+                        <SortableAnimeCard
+                          id={item.itemId}
+                          entry={item.anime}
+                          onRemove={() => handleRemove(item.animeEntryId)}
+                        />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              </SortableContext>
+
+              {/* Overlay animado para o item sendo arrastado no grid */}
+              <DragOverlay dropAnimation={{
+                duration: 300,
+                easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
+              }}>
+                {activeItem ? (
+                  <motion.div 
+                    className="w-[160px] sm:w-[180px] lg:w-[200px]"
+                    initial={{ scale: 1, rotate: 0 }}
+                    animate={{ 
+                      scale: 1.08, 
+                      rotate: 2,
+                    }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                  >
+                    <SortableAnimeCard
+                      id={activeItem.itemId}
+                      entry={activeItem.anime}
+                      isOverlay
+                    />
+                  </motion.div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </motion.div>
         ) : (
           // Modo Reordenar com Drag-and-Drop animado
           <motion.div 

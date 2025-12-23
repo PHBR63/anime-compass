@@ -1,19 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
-import { 
-  Sparkles, Lock, Globe, Filter, Layers, List, 
-  X, RefreshCw, ChevronDown, ChevronUp 
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Slider } from '@/components/ui/slider';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAnimeEntries } from '@/hooks/useAnimeEntries';
 import { useCreateList, useAddToList } from '@/hooks/useCustomLists';
 import { 
@@ -27,41 +15,29 @@ import {
   getFranchisesBySize,
   detectAnimeType,
   type AnimeEntry,
-  type FranchiseGroup 
 } from '@/lib/franchiseDetector';
-import { FranchiseListView } from './FranchiseGroupView';
-import { FranchiseSearch } from './FranchiseSearch';
-import { SmartListStats } from './SmartListStats';
-import { MissingAnimeSuggestion } from './MissingAnimeSuggestion';
-import { SmartListTemplates, type SmartListTemplate } from './SmartListTemplates';
+import { 
+  StepModel, 
+  StepFilters, 
+  StepSelection, 
+  StepFinish,
+  type SmartListTemplate,
+  type FilterState,
+} from './smart-list-steps';
 import type { Database } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 
 type AnimeStatus = Database['public']['Enums']['anime_status'];
 
-// Labels para os status
-const statusLabels: Record<AnimeStatus, string> = {
-  watching: 'Assistindo',
-  completed: 'Completo',
-  paused: 'Pausado',
-  dropped: 'Dropado',
-  not_started: 'Planejado',
-};
+// Etapas do wizard
+const STEPS = [
+  { id: 'model', label: 'Modelo', icon: '1' },
+  { id: 'filters', label: 'Filtros', icon: '2' },
+  { id: 'selection', label: 'Seleção', icon: '3' },
+  { id: 'finish', label: 'Finalizar', icon: '4' },
+] as const;
 
-// Labels para tipos de anime
-const animeTypeLabels = {
-  main: 'Série',
-  season: 'Temporada',
-  movie: 'Filme',
-  special: 'OVA',
-};
-
-// Labels para tamanho de franquia
-const franchiseSizeLabels = {
-  small: 'Curtas (<25)',
-  medium: 'Médias (25-50)',
-  large: 'Longas (50+)',
-};
+type StepId = typeof STEPS[number]['id'];
 
 interface SmartListBuilderProps {
   onSuccess: () => void;
@@ -69,56 +45,51 @@ interface SmartListBuilderProps {
 }
 
 /**
- * Construtor de listas inteligentes com layout em 2 colunas
- * Inclui detecção de franquias, estatísticas em tempo real e animações
+ * Construtor de listas inteligentes com sistema de etapas (wizard)
+ * 4 etapas: Modelo → Filtros → Seleção → Finalizar
  */
 export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps) {
-  const [name, setName] = useState('');
-  const [isPublic, setIsPublic] = useState(false);
+  // Estado da etapa atual
+  const [currentStep, setCurrentStep] = useState<StepId>('model');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | undefined>();
   
-  // Modo de visualização
-  const [viewMode, setViewMode] = useState<'individual' | 'franchise'>('individual');
+  // Estado dos filtros
+  const [filters, setFilters] = useState<FilterState>({
+    name: '',
+    viewMode: 'individual',
+    selectedStatuses: [],
+    minRating: 0,
+    onlyFavorites: false,
+    selectedTypes: new Set(['main', 'season', 'movie', 'special']),
+    franchiseCriteria: null,
+    franchiseSize: null,
+  });
   
-  // Filtros básicos
-  const [selectedStatuses, setSelectedStatuses] = useState<AnimeStatus[]>([]);
-  const [minRating, setMinRating] = useState(0);
-  const [onlyFavorites, setOnlyFavorites] = useState(false);
-  
-  // Filtros de tipo
-  const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set(['main', 'season', 'movie', 'special']));
-  
-  // Filtros de franquia
-  const [franchiseCriteria, setFranchiseCriteria] = useState<string | null>(null);
-  const [franchiseSize, setFranchiseSize] = useState<'small' | 'medium' | 'large' | null>(null);
-  
-  // Seleção manual de entradas
+  // Outros estados
+  const [isPublic, setIsPublic] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  
-  // Estado de seções colapsáveis
-  const [isFiltersOpen, setIsFiltersOpen] = useState(true);
 
   const { data: entries } = useAnimeEntries();
   const createList = useCreateList();
   const addToList = useAddToList();
 
-  // Filtrar animes baseado nos critérios básicos
+  // Filtrar animes baseado nos critérios
   const filteredEntries = useMemo(() => {
     if (!entries) return [];
 
     return entries.filter((entry) => {
       // Filtro por status
-      if (selectedStatuses.length > 0 && !selectedStatuses.includes(entry.status)) {
+      if (filters.selectedStatuses.length > 0 && !filters.selectedStatuses.includes(entry.status)) {
         return false;
       }
 
       // Filtro por nota mínima
-      if (minRating > 0 && (!entry.rating || entry.rating < minRating)) {
+      if (filters.minRating > 0 && (!entry.rating || entry.rating < filters.minRating)) {
         return false;
       }
 
       // Filtro por favoritos
-      if (onlyFavorites && !entry.is_favorite) {
+      if (filters.onlyFavorites && !entry.is_favorite) {
         return false;
       }
 
@@ -129,48 +100,48 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
       
       // Filtro por tipo de anime
       const type = detectAnimeType(entry.title);
-      if (!selectedTypes.has(type)) {
+      if (!filters.selectedTypes.has(type)) {
         return false;
       }
 
       return true;
     }) as AnimeEntry[];
-  }, [entries, selectedStatuses, minRating, onlyFavorites, selectedTypes]);
+  }, [entries, filters]);
 
   // Agrupar por franquia
   const franchiseGroups = useMemo(() => {
     let groups = groupByFranchise(filteredEntries);
     
     // Aplicar critério de franquia
-    if (franchiseCriteria === 'completed') {
+    if (filters.franchiseCriteria === 'completed') {
       groups = getCompletedFranchises(groups);
-    } else if (franchiseCriteria === 'in_progress') {
+    } else if (filters.franchiseCriteria === 'in_progress') {
       groups = getInProgressFranchises(groups);
-    } else if (franchiseCriteria === 'multi_season') {
+    } else if (filters.franchiseCriteria === 'multi_season') {
       groups = getMultiSeasonFranchises(groups);
-    } else if (franchiseCriteria === 'high_rated') {
+    } else if (filters.franchiseCriteria === 'high_rated') {
       groups = getHighRatedFranchises(groups, 4);
-    } else if (franchiseCriteria === 'nearly_complete') {
+    } else if (filters.franchiseCriteria === 'nearly_complete') {
       groups = getNearlyCompleteFranchises(groups);
-    } else if (franchiseCriteria === 'abandoned') {
+    } else if (filters.franchiseCriteria === 'abandoned') {
       groups = getAbandonedFranchises(groups);
     }
     
     // Aplicar filtro de tamanho
-    if (franchiseSize) {
-      groups = getFranchisesBySize(groups, franchiseSize);
+    if (filters.franchiseSize) {
+      groups = getFranchisesBySize(groups, filters.franchiseSize);
     }
     
     return groups;
-  }, [filteredEntries, franchiseCriteria, franchiseSize]);
+  }, [filteredEntries, filters.franchiseCriteria, filters.franchiseSize]);
 
   // Entradas finais baseadas no modo
   const finalEntries = useMemo(() => {
-    if (viewMode === 'franchise') {
+    if (filters.viewMode === 'franchise') {
       return franchiseGroups.flatMap(g => g.entries);
     }
     return filteredEntries;
-  }, [viewMode, franchiseGroups, filteredEntries]);
+  }, [filters.viewMode, franchiseGroups, filteredEntries]);
 
   // Entradas selecionadas
   const selectedEntries = useMemo(() => {
@@ -180,29 +151,43 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
     return finalEntries.filter(e => selectedIds.has(e.id));
   }, [finalEntries, selectedIds]);
 
-  // Handler para toggle de status
-  const handleStatusToggle = useCallback((status: AnimeStatus) => {
-    setSelectedStatuses((prev) =>
-      prev.includes(status)
-        ? prev.filter((s) => s !== status)
-        : [...prev, status]
-    );
+  // Verifica se há filtros ativos
+  const hasActiveFilters = filters.selectedStatuses.length > 0 || 
+    filters.minRating > 0 || 
+    filters.onlyFavorites || 
+    filters.franchiseCriteria !== null || 
+    filters.franchiseSize !== null ||
+    filters.selectedTypes.size < 4;
+
+  // Handler para atualizar filtros
+  const handleFiltersChange = useCallback((newFilters: Partial<FilterState>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
     setSelectedIds(new Set());
     setSelectedTemplateId(undefined);
   }, []);
 
-  // Handler para toggle de tipo
-  const handleTypeToggle = useCallback((type: string) => {
-    setSelectedTypes((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(type)) {
-        newSet.delete(type);
-      } else {
-        newSet.add(type);
-      }
-      return newSet;
-    });
+  // Handler para selecionar template
+  const handleSelectTemplate = useCallback((template: SmartListTemplate) => {
+    setSelectedTemplateId(template.id);
+    
+    const newFilters: Partial<FilterState> = {
+      name: template.name,
+      selectedStatuses: (template.criteria.statuses || []) as AnimeStatus[],
+      minRating: template.criteria.minRating || 0,
+      onlyFavorites: template.criteria.onlyFavorites || false,
+      viewMode: template.criteria.franchiseMode || 'individual',
+      franchiseCriteria: template.criteria.franchiseCriteria || null,
+      franchiseSize: template.criteria.franchiseSize || null,
+      selectedTypes: template.criteria.animeTypes 
+        ? new Set(template.criteria.animeTypes)
+        : new Set(['main', 'season', 'movie', 'special']),
+    };
+    
+    setFilters(prev => ({ ...prev, ...newFilters }));
     setSelectedIds(new Set());
+    
+    // Avança para a próxima etapa
+    setCurrentStep('filters');
   }, []);
 
   // Handler para toggle de entrada individual
@@ -234,7 +219,7 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
     });
   }, []);
 
-  // Handler para selecionar/desmarcar todas as franquias filtradas
+  // Handler para selecionar/desmarcar todas
   const handleSelectAllFiltered = useCallback((allEntries: AnimeEntry[]) => {
     setSelectedIds((prev) => {
       const allSelected = allEntries.every(e => prev.has(e.id));
@@ -251,73 +236,13 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
     });
   }, []);
 
-  // Handler para selecionar template
-  const handleSelectTemplate = useCallback((template: SmartListTemplate) => {
-    setSelectedTemplateId(template.id);
-    setName(template.name);
-    
-    const { criteria } = template;
-    
-    if (criteria.statuses) {
-      setSelectedStatuses(criteria.statuses as AnimeStatus[]);
-    } else {
-      setSelectedStatuses([]);
-    }
-    
-    if (criteria.minRating !== undefined) {
-      setMinRating(criteria.minRating);
-    } else {
-      setMinRating(0);
-    }
-    
-    setOnlyFavorites(criteria.onlyFavorites || false);
-    
-    if (criteria.franchiseMode) {
-      setViewMode(criteria.franchiseMode);
-    } else {
-      setViewMode('individual');
-    }
-    
-    if (criteria.franchiseCriteria) {
-      setFranchiseCriteria(criteria.franchiseCriteria);
-    } else {
-      setFranchiseCriteria(null);
-    }
-    
-    if (criteria.franchiseSize) {
-      setFranchiseSize(criteria.franchiseSize);
-    } else {
-      setFranchiseSize(null);
-    }
-    
-    if (criteria.animeTypes) {
-      setSelectedTypes(new Set(criteria.animeTypes));
-    } else {
-      setSelectedTypes(new Set(['main', 'season', 'movie', 'special']));
-    }
-    
-    setSelectedIds(new Set());
-  }, []);
-
-  // Handler para limpar todos os filtros
-  const handleClearFilters = useCallback(() => {
-    setSelectedStatuses([]);
-    setMinRating(0);
-    setOnlyFavorites(false);
-    setSelectedTypes(new Set(['main', 'season', 'movie', 'special']));
-    setFranchiseCriteria(null);
-    setFranchiseSize(null);
-    setSelectedIds(new Set());
-    setSelectedTemplateId(undefined);
-  }, []);
-
-  // Handler para criar lista inteligente
+  // Handler para criar lista
   const handleCreate = async () => {
-    if (!name.trim() || selectedEntries.length === 0) return;
+    if (!filters.name.trim() || selectedEntries.length === 0) return;
 
     try {
       const newList = await createList.mutateAsync({
-        name: name.trim(),
+        name: filters.name.trim(),
         description: `Lista inteligente com ${selectedEntries.length} animes`,
         is_public: isPublic,
       });
@@ -335,425 +260,156 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
     }
   };
 
-  // Verifica se há filtros ativos
-  const hasActiveFilters = selectedStatuses.length > 0 || 
-    minRating > 0 || 
-    onlyFavorites || 
-    franchiseCriteria !== null || 
-    franchiseSize !== null ||
-    selectedTypes.size < 4;
+  // Navegação entre etapas
+  const currentStepIndex = STEPS.findIndex(s => s.id === currentStep);
+  
+  const goToNextStep = useCallback(() => {
+    if (currentStepIndex < STEPS.length - 1) {
+      setCurrentStep(STEPS[currentStepIndex + 1].id);
+    }
+  }, [currentStepIndex]);
+
+  const goToPrevStep = useCallback(() => {
+    if (currentStepIndex > 0) {
+      setCurrentStep(STEPS[currentStepIndex - 1].id);
+    }
+  }, [currentStepIndex]);
+
+  const canProceed = useMemo(() => {
+    switch (currentStep) {
+      case 'model':
+        return true;
+      case 'filters':
+        return filters.name.trim().length > 0;
+      case 'selection':
+        return selectedEntries.length > 0;
+      case 'finish':
+        return true;
+      default:
+        return false;
+    }
+  }, [currentStep, filters.name, selectedEntries.length]);
 
   return (
-    <div className="space-y-4">
-      {/* Templates rápidos */}
-      <SmartListTemplates 
-        onSelectTemplate={handleSelectTemplate}
-        selectedTemplateId={selectedTemplateId}
-        compact
-      />
-
-      {/* Layout em 2 colunas */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Coluna Esquerda - Filtros e Preview */}
-        <div className="lg:col-span-3 space-y-4">
-          {/* Nome da lista */}
-          <div className="space-y-2">
-            <Label htmlFor="smart-name">Nome da Lista *</Label>
-            <Input
-              id="smart-name"
-              placeholder="Ex: Favoritos 5 Estrelas"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setSelectedTemplateId(undefined);
-              }}
-            />
-          </div>
-
-          {/* Modo de visualização */}
-          <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'individual' | 'franchise')}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="individual" className="gap-2">
-                <List className="h-4 w-4" />
-                Individual
-              </TabsTrigger>
-              <TabsTrigger value="franchise" className="gap-2">
-                <Layers className="h-4 w-4" />
-                Por Franquia
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Seção de Filtros Colapsável */}
-            <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen} className="mt-4">
-              <CollapsibleTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  className="w-full flex items-center justify-between p-2 h-auto"
-                >
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <Filter className="h-4 w-4" />
-                    Filtros
-                    {hasActiveFilters && (
-                      <Badge variant="secondary" className="text-[10px] h-5">
-                        Ativos
-                      </Badge>
-                    )}
-                  </div>
-                  {isFiltersOpen ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4" />
-                  )}
-                </Button>
-              </CollapsibleTrigger>
-              
-              <CollapsibleContent>
-                <div className="space-y-3 p-3 rounded-lg bg-secondary/30 border border-border/50">
-                  {/* Botão limpar filtros */}
-                  {hasActiveFilters && (
-                    <div className="flex justify-end">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 text-xs gap-1"
-                        onClick={handleClearFilters}
-                      >
-                        <RefreshCw className="h-3 w-3" />
-                        Limpar
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Filtro por Status */}
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Status</Label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(['watching', 'completed', 'paused', 'dropped', 'not_started'] as AnimeStatus[]).map((status) => (
-                        <button
-                          key={status}
-                          type="button"
-                          onClick={() => handleStatusToggle(status)}
-                          className={cn(
-                            "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer",
-                            selectedStatuses.includes(status)
-                              ? 'border-transparent bg-primary text-primary-foreground'
-                              : 'border-border bg-transparent text-foreground hover:bg-secondary'
-                          )}
-                        >
-                          {statusLabels[status]}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Filtro por Tipo de Anime */}
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Tipo</Label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(['main', 'season', 'movie', 'special'] as const).map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => handleTypeToggle(type)}
-                          className={cn(
-                            "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer",
-                            selectedTypes.has(type)
-                              ? 'border-transparent bg-primary text-primary-foreground'
-                              : 'border-border bg-transparent text-foreground hover:bg-secondary'
-                          )}
-                        >
-                          {animeTypeLabels[type]}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Filtro por Nota */}
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">
-                      Nota mínima: {minRating > 0 ? `${minRating}★` : 'Qualquer'}
-                    </Label>
-                    <Slider
-                      value={[minRating]}
-                      onValueChange={([value]) => {
-                        setMinRating(value);
-                        setSelectedTemplateId(undefined);
-                      }}
-                      max={5}
-                      step={1}
-                      className="w-full"
-                    />
-                  </div>
-
-                  {/* Apenas Favoritos */}
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="only-favorites"
-                      checked={onlyFavorites}
-                      onCheckedChange={(checked) => {
-                        setOnlyFavorites(checked === true);
-                        setSelectedTemplateId(undefined);
-                      }}
-                    />
-                    <Label htmlFor="only-favorites" className="text-xs cursor-pointer">
-                      Apenas favoritos
-                    </Label>
-                  </div>
-
-                  {/* Critérios de Franquia (apenas no modo franquia) */}
-                  {viewMode === 'franchise' && (
-                    <>
-                      <div className="space-y-1.5 pt-2 border-t border-border/30">
-                        <Label className="text-xs text-muted-foreground">Critério de Franquia</Label>
-                        <div className="flex flex-wrap gap-1.5">
-                          {[
-                            { value: null, label: 'Todas' },
-                            { value: 'completed', label: 'Completas' },
-                            { value: 'in_progress', label: 'Em Andamento' },
-                            { value: 'nearly_complete', label: 'Quase' },
-                            { value: 'multi_season', label: 'Multi-temp' },
-                            { value: 'high_rated', label: '4+ ★' },
-                            { value: 'abandoned', label: 'Abandonadas' },
-                          ].map(({ value, label }) => (
-                            <button
-                              key={value || 'all'}
-                              type="button"
-                              onClick={() => setFranchiseCriteria(value)}
-                              className={cn(
-                                "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer",
-                                franchiseCriteria === value
-                                  ? 'border-transparent bg-primary text-primary-foreground'
-                                  : 'border-border bg-transparent text-foreground hover:bg-secondary'
-                              )}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Filtro por tamanho de franquia */}
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground">Tamanho</Label>
-                        <div className="flex flex-wrap gap-1.5">
-                          {[
-                            { value: null, label: 'Qualquer' },
-                            { value: 'small' as const, label: franchiseSizeLabels.small },
-                            { value: 'medium' as const, label: franchiseSizeLabels.medium },
-                            { value: 'large' as const, label: franchiseSizeLabels.large },
-                          ].map(({ value, label }) => (
-                            <button
-                              key={value || 'any'}
-                              type="button"
-                              onClick={() => setFranchiseSize(value)}
-                              className={cn(
-                                "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer",
-                                franchiseSize === value
-                                  ? 'border-transparent bg-primary text-primary-foreground'
-                                  : 'border-border bg-transparent text-foreground hover:bg-secondary'
-                              )}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Preview dos resultados - Individual */}
-            <TabsContent value="individual" className="mt-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">
-                    Preview ({selectedEntries.length} animes)
-                  </Label>
-                  {selectedIds.size > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-xs gap-1"
-                      onClick={() => setSelectedIds(new Set())}
-                    >
-                      <X className="h-3 w-3" />
-                      Limpar
-                    </Button>
-                  )}
-                </div>
-                
-                {filteredEntries.length > 0 ? (
-                  <ScrollArea className="h-52 rounded-md border bg-secondary/20">
-                    <div className="p-2 space-y-1">
-                      <AnimatePresence mode="popLayout">
-                        {filteredEntries.slice(0, 25).map((entry, index) => (
-                          <motion.div 
-                            key={entry.id} 
-                            className={cn(
-                              "flex items-center gap-2 text-sm p-1.5 rounded hover:bg-secondary/50 transition-colors cursor-pointer",
-                              (selectedIds.size === 0 || selectedIds.has(entry.id)) && "bg-primary/5"
-                            )}
-                            onClick={() => handleToggleEntry(entry.id)}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 10, scale: 0.9 }}
-                            transition={{ duration: 0.15, delay: index * 0.01 }}
-                            layout
-                          >
-                            <Checkbox
-                              checked={selectedIds.size === 0 || selectedIds.has(entry.id)}
-                              onCheckedChange={() => handleToggleEntry(entry.id)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                            <img 
-                              src={entry.image_url || '/placeholder.svg'} 
-                              alt={entry.title}
-                              className="w-6 h-8 rounded object-cover flex-shrink-0"
-                            />
-                            <span className="truncate flex-1 text-xs">{entry.title}</span>
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              {entry.rating && (
-                                <span className="text-[10px] text-yellow-500">★{entry.rating}</span>
-                              )}
-                              <Badge variant="outline" className="text-[9px] h-4 px-1">
-                                {statusLabels[entry.status as AnimeStatus]}
-                              </Badge>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </AnimatePresence>
-                      {filteredEntries.length > 25 && (
-                        <p className="text-xs text-muted-foreground text-center py-2">
-                          +{filteredEntries.length - 25} animes...
-                        </p>
-                      )}
-                    </div>
-                  </ScrollArea>
-                ) : (
-                  <div className="h-40 rounded-md border bg-secondary/20 flex items-center justify-center">
-                    <p className="text-sm text-muted-foreground">
-                      {hasActiveFilters ? 'Nenhum anime encontrado' : 'Selecione filtros'}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            {/* Preview dos resultados - Franquia */}
-            <TabsContent value="franchise" className="mt-4">
-              <div className="space-y-3">
-                {/* Busca de franquias */}
-                <FranchiseSearch
-                  franchiseGroups={franchiseGroups}
-                  selectedIds={selectedIds}
-                  onToggleEntry={handleToggleEntry}
-                  onToggleFranchise={handleToggleFranchise}
-                  onSelectAllFiltered={handleSelectAllFiltered}
-                  placeholder="Buscar franquia..."
-                />
-                
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-muted-foreground">
-                    {franchiseGroups.length} franquias ({selectedEntries.length} animes)
-                  </Label>
-                  {selectedIds.size > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-xs gap-1"
-                      onClick={() => setSelectedIds(new Set())}
-                    >
-                      <X className="h-3 w-3" />
-                      Limpar
-                    </Button>
-                  )}
-                </div>
-                
-                {franchiseGroups.length > 0 ? (
-                  <ScrollArea className="h-48 rounded-md border bg-secondary/20 p-2">
-                    <FranchiseListView
-                      groups={franchiseGroups}
-                      selectedIds={selectedIds}
-                      onToggleEntry={handleToggleEntry}
-                      onToggleFranchise={handleToggleFranchise}
-                      maxVisible={15}
-                    />
-                  </ScrollArea>
-                ) : (
-                  <div className="h-40 rounded-md border bg-secondary/20 flex items-center justify-center">
-                    <p className="text-sm text-muted-foreground">
-                      {hasActiveFilters ? 'Nenhuma franquia encontrada' : 'Selecione filtros'}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        {/* Coluna Direita - Estatísticas */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="sticky top-0 space-y-4">
-            {/* Card de estatísticas */}
-            <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
-              <div className="flex items-center gap-2 mb-3">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">Estatísticas</span>
-                <Badge variant="secondary" className="text-[10px] h-5 ml-auto">
-                  {selectedEntries.length} animes
-                </Badge>
-              </div>
-              <SmartListStats entries={selectedEntries} compact />
-            </div>
-
-            {/* Sugestão de animes faltando */}
-            {viewMode === 'franchise' && selectedIds.size > 0 && (
-              <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
-                <MissingAnimeSuggestion
-                  franchiseGroups={franchiseGroups}
-                  selectedIds={selectedIds}
-                />
-              </div>
+    <div className="flex flex-col h-full min-h-0">
+      {/* Indicador de progresso */}
+      <div className="flex items-center justify-center gap-1 sm:gap-2 mb-4 px-2">
+        {STEPS.map((step, index) => (
+          <div key={step.id} className="flex items-center">
+            <button
+              onClick={() => setCurrentStep(step.id)}
+              className={cn(
+                "flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                currentStep === step.id
+                  ? "bg-primary text-primary-foreground"
+                  : index < currentStepIndex
+                    ? "bg-primary/20 text-primary hover:bg-primary/30"
+                    : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+              )}
+            >
+              <span className={cn(
+                "w-5 h-5 flex items-center justify-center rounded-full text-[10px]",
+                index < currentStepIndex ? "bg-primary/30" : "bg-background/50"
+              )}>
+                {index < currentStepIndex ? <Check className="h-3 w-3" /> : step.icon}
+              </span>
+              <span className="hidden sm:inline">{step.label}</span>
+            </button>
+            
+            {index < STEPS.length - 1 && (
+              <div className={cn(
+                "w-4 sm:w-8 h-0.5 mx-1",
+                index < currentStepIndex ? "bg-primary/50" : "bg-border"
+              )} />
             )}
-
-            {/* Toggle público/privado */}
-            <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
-              <div className="flex items-center gap-2">
-                {isPublic ? (
-                  <Globe className="h-4 w-4 text-green-500" />
-                ) : (
-                  <Lock className="h-4 w-4 text-muted-foreground" />
-                )}
-                <Label htmlFor="smart-public" className="cursor-pointer text-sm">
-                  {isPublic ? 'Pública' : 'Privada'}
-                </Label>
-              </div>
-              <Switch
-                id="smart-public"
-                checked={isPublic}
-                onCheckedChange={setIsPublic}
-              />
-            </div>
           </div>
-        </div>
+        ))}
       </div>
 
-      {/* Botões de ação */}
-      <div className="flex justify-end gap-2 pt-2 border-t border-border/30">
-        <Button variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button 
-          onClick={handleCreate} 
-          disabled={!name.trim() || selectedEntries.length === 0 || createList.isPending}
-          className="gap-2"
-        >
-          <Sparkles className="h-4 w-4" />
-          {createList.isPending ? 'Criando...' : `Criar com ${selectedEntries.length} animes`}
-        </Button>
+      {/* Conteúdo da etapa atual */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-1">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentStep}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2 }}
+            className="h-full"
+          >
+            {currentStep === 'model' && (
+              <StepModel
+                onSelectTemplate={handleSelectTemplate}
+                onSkip={() => setCurrentStep('filters')}
+                selectedTemplateId={selectedTemplateId}
+              />
+            )}
+            
+            {currentStep === 'filters' && (
+              <StepFilters
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                totalAnimes={finalEntries.length}
+              />
+            )}
+            
+            {currentStep === 'selection' && (
+              <StepSelection
+                viewMode={filters.viewMode}
+                filteredEntries={filteredEntries}
+                franchiseGroups={franchiseGroups}
+                selectedIds={selectedIds}
+                selectedEntries={selectedEntries}
+                onToggleEntry={handleToggleEntry}
+                onToggleFranchise={handleToggleFranchise}
+                onSelectAllFiltered={handleSelectAllFiltered}
+                onClearSelection={() => setSelectedIds(new Set())}
+                hasActiveFilters={hasActiveFilters}
+              />
+            )}
+            
+            {currentStep === 'finish' && (
+              <StepFinish
+                name={filters.name}
+                isPublic={isPublic}
+                onPublicChange={setIsPublic}
+                selectedEntries={selectedEntries}
+                isCreating={createList.isPending}
+                onCancel={onCancel}
+                onCreate={handleCreate}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
+
+      {/* Navegação (exceto na última etapa que tem seus próprios botões) */}
+      {currentStep !== 'finish' && (
+        <div className="flex items-center justify-between pt-4 mt-4 border-t border-border/50">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={currentStepIndex === 0 ? onCancel : goToPrevStep}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            {currentStepIndex === 0 ? 'Cancelar' : 'Voltar'}
+          </Button>
+          
+          <Button
+            size="sm"
+            className="gap-1.5"
+            onClick={goToNextStep}
+            disabled={!canProceed}
+          >
+            Próximo
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
+
+// Re-exportar templates para compatibilidade
+export { SMART_LIST_TEMPLATES, type SmartListTemplate } from './smart-list-steps';

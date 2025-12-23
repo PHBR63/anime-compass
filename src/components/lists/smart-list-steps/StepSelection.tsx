@@ -70,7 +70,7 @@ export function StepSelection({
   const allSelected = selectedIds.size === totalAvailable && totalAvailable > 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-2">
       {/* Header com contador e ações */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
@@ -115,7 +115,7 @@ export function StepSelection({
       {viewMode === 'individual' ? (
         /* Lista Individual */
         filteredEntries.length > 0 ? (
-          <ScrollArea className="h-[320px] rounded-lg border bg-secondary/10">
+        <ScrollArea className="h-[250px] sm:h-[280px] rounded-lg border bg-secondary/10">
             <div className="p-2 space-y-1">
               <AnimatePresence mode="popLayout">
                 {filteredEntries.map((entry, index) => (
@@ -158,7 +158,7 @@ export function StepSelection({
             </div>
           </ScrollArea>
         ) : (
-          <div className="h-[320px] rounded-lg border bg-secondary/10 flex items-center justify-center">
+          <div className="h-[250px] sm:h-[280px] rounded-lg border bg-secondary/10 flex items-center justify-center">
             <p className="text-sm text-muted-foreground">
               {hasActiveFilters ? 'Nenhum anime encontrado' : 'Selecione filtros para ver animes'}
             </p>
@@ -178,7 +178,7 @@ export function StepSelection({
           />
 
           {franchiseGroups.length > 0 ? (
-            <ScrollArea className="h-[260px] rounded-lg border bg-secondary/10 p-2">
+            <ScrollArea className="h-[200px] sm:h-[230px] rounded-lg border bg-secondary/10 p-2">
               <FranchiseListView
                 groups={franchiseGroups}
                 selectedIds={selectedIds}
@@ -188,7 +188,7 @@ export function StepSelection({
               />
             </ScrollArea>
           ) : (
-            <div className="h-[260px] rounded-lg border bg-secondary/10 flex items-center justify-center">
+            <div className="h-[200px] sm:h-[230px] rounded-lg border bg-secondary/10 flex items-center justify-center">
               <p className="text-sm text-muted-foreground">
                 {hasActiveFilters ? 'Nenhuma franquia encontrada' : 'Selecione filtros para ver franquias'}
               </p>

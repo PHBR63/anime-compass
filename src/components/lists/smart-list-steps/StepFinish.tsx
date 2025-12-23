@@ -32,7 +32,7 @@ export function StepFinish({
   const canCreate = name.trim() && selectedEntries.length > 0;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-2">
       {/* Header */}
       <div className="text-center space-y-1">
         <h3 className="font-medium">Revise sua lista</h3>

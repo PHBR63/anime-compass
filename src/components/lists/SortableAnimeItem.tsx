@@ -1,13 +1,22 @@
 import { forwardRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, X, PlayCircle, CheckCircle, PauseCircle, Clock, XCircle } from 'lucide-react';
+import { GripVertical, X, PlayCircle, CheckCircle, PauseCircle, Clock, XCircle, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
 type AnimeEntry = Database['public']['Tables']['anime_entries']['Row'];
 type AnimeStatus = Database['public']['Enums']['anime_status'];
+
+/**
+ * Extrai o ano de uma data string
+ */
+const extractYear = (dateStr: string | null): string | null => {
+  if (!dateStr) return null;
+  const year = new Date(dateStr).getFullYear();
+  return isNaN(year) ? null : year.toString();
+};
 
 // Labels para os status
 const statusLabels: Record<AnimeStatus, string> = {
@@ -126,6 +135,12 @@ export const SortableAnimeItem = forwardRef<HTMLDivElement, SortableAnimeItemPro
             {anime.rating && (
               <span className="text-xs text-muted-foreground">
                 ★ {anime.rating}
+              </span>
+            )}
+            {extractYear(anime.started_at) && (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded-md">
+                <Calendar className="h-3 w-3" />
+                {extractYear(anime.started_at)}
               </span>
             )}
             <span className="text-xs text-muted-foreground">

@@ -68,7 +68,7 @@ export function CreateListModal({ open, onOpenChange }: CreateListModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-[95vw] max-w-lg sm:max-w-xl md:max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden animate-scale-in">
+      <DialogContent className="w-[95vw] max-w-lg sm:max-w-xl md:max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden animate-scale-in">
         <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4 border-b border-border/50 flex-shrink-0">
           <DialogTitle>Criar Nova Lista</DialogTitle>
         </DialogHeader>
@@ -76,7 +76,7 @@ export function CreateListModal({ open, onOpenChange }: CreateListModalProps) {
         <Tabs 
           value={activeTab} 
           onValueChange={(v) => setActiveTab(v as 'manual' | 'smart')}
-          className="flex-1 flex flex-col min-h-0"
+          className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
           <div className="px-4 sm:px-6 pt-2 flex-shrink-0">
             <TabsList className="grid w-full grid-cols-2">
@@ -89,7 +89,7 @@ export function CreateListModal({ open, onOpenChange }: CreateListModalProps) {
           </div>
 
           {/* Criação Manual */}
-          <TabsContent value="manual" className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 m-0">
+          <TabsContent value="manual" className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 m-0 data-[state=inactive]:hidden">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome da Lista *</Label>
@@ -153,7 +153,7 @@ export function CreateListModal({ open, onOpenChange }: CreateListModalProps) {
           </TabsContent>
 
           {/* Criação Inteligente */}
-          <TabsContent value="smart" className="flex-1 overflow-hidden px-4 sm:px-6 py-4 m-0">
+          <TabsContent value="smart" className="flex-1 flex flex-col min-h-0 overflow-hidden px-4 sm:px-6 py-4 m-0 data-[state=inactive]:hidden">
             <SmartListBuilder 
               onSuccess={() => {
                 resetForm();

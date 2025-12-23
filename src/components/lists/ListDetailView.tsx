@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Globe, Lock, Pencil, GripVertical, LayoutGrid, Share2, Check, Copy, Plus } from 'lucide-react';
+import { ArrowLeft, Globe, Lock, Pencil, GripVertical, LayoutGrid, Share2, Check, Copy, Plus, ArrowUpDown, Star, Calendar, Clock, Hash, SortAsc, SortDesc, List } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -23,6 +23,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { AnimeGrid } from '@/components/anime/AnimeGrid';
 import { SortableAnimeItem } from './SortableAnimeItem';
@@ -40,6 +48,26 @@ interface ListDetailViewProps {
 
 type ViewMode = 'grid' | 'reorder';
 
+// Tipos de ordenação disponíveis
+type SortField = 'custom' | 'title' | 'rating' | 'episodes' | 'status' | 'added_date';
+type SortDirection = 'asc' | 'desc';
+
+interface SortOption {
+  field: SortField;
+  label: string;
+  icon: typeof Star;
+}
+
+// Opções de ordenação
+const sortOptions: SortOption[] = [
+  { field: 'custom', label: 'Ordem personalizada', icon: List },
+  { field: 'title', label: 'Título', icon: SortAsc },
+  { field: 'rating', label: 'Nota', icon: Star },
+  { field: 'episodes', label: 'Episódios', icon: Hash },
+  { field: 'status', label: 'Status', icon: Clock },
+  { field: 'added_date', label: 'Data de adição', icon: Calendar },
+];
+
 /**
  * Visualização detalhada de uma lista personalizada com suporte a drag-and-drop
  */
@@ -48,6 +76,8 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
   const [copied, setCopied] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('custom');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const { data: items, isLoading } = useListItems(list.id);
   const removeFromList = useRemoveFromList();
   const reorderItems = useReorderListItems();
@@ -79,19 +109,76 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
     })
   );
 
-  // Extrair os anime_entries e seus IDs dos items
+  // Mapeamento de ordem de status
+  const statusOrder: Record<string, number> = {
+    watching: 1,
+    completed: 2,
+    paused: 3,
+    not_started: 4,
+    dropped: 5,
+  };
+
+  // Extrair os anime_entries, ordenar e seus IDs
   const sortedItems = useMemo(() => {
     if (!items) return [];
-    return items
-      .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0))
+    
+    let sorted = items
       .map((item: any) => ({
         itemId: item.id,
         animeEntryId: item.anime_entry_id,
         anime: item.anime_entry,
         position: item.position,
+        createdAt: item.created_at,
       }))
       .filter((item: any) => item.anime);
-  }, [items]);
+
+    // Aplicar ordenação baseada no campo selecionado
+    if (sortField === 'custom') {
+      sorted.sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
+    } else {
+      sorted.sort((a: any, b: any) => {
+        let comparison = 0;
+        
+        switch (sortField) {
+          case 'title':
+            comparison = (a.anime.title || '').localeCompare(b.anime.title || '');
+            break;
+          case 'rating':
+            comparison = (a.anime.rating || 0) - (b.anime.rating || 0);
+            break;
+          case 'episodes':
+            comparison = (a.anime.episodes_watched || 0) - (b.anime.episodes_watched || 0);
+            break;
+          case 'status':
+            comparison = (statusOrder[a.anime.status] || 99) - (statusOrder[b.anime.status] || 99);
+            break;
+          case 'added_date':
+            comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            break;
+        }
+        
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
+
+    return sorted;
+  }, [items, sortField, sortDirection]);
+
+  // Handler para mudar ordenação
+  const handleSortChange = (field: SortField) => {
+    if (field === sortField && field !== 'custom') {
+      // Alternar direção se for o mesmo campo
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    
+    // Se mudar para ordem personalizada, voltar para modo grid
+    if (field === 'custom' && viewMode === 'reorder') {
+      setViewMode('grid');
+    }
+  };
 
   const entries = sortedItems.map((item: any) => item.anime);
 
@@ -101,7 +188,7 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
   // Handler para drag end
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-
+    
     if (over && active.id !== over.id) {
       const oldIndex = sortedItems.findIndex((item: any) => item.itemId === active.id);
       const newIndex = sortedItems.findIndex((item: any) => item.itemId === over.id);
@@ -127,6 +214,9 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
   const handleRemove = (animeEntryId: string) => {
     removeFromList.mutate({ listId: list.id, animeEntryId });
   };
+
+  // Obter ícone e label da ordenação atual
+  const currentSort = sortOptions.find(opt => opt.field === sortField);
 
   return (
     <div className="space-y-6">
@@ -198,6 +288,44 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
 
             {/* Ações - responsivo */}
             <div className="flex flex-wrap items-center gap-2">
+              {/* Dropdown de ordenação */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                    <ArrowUpDown className="h-4 w-4" />
+                    <span className="hidden sm:inline">{currentSort?.label || 'Ordenar'}</span>
+                    {sortField !== 'custom' && (
+                      <span className="text-xs">
+                        {sortDirection === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />}
+                      </span>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuLabel>Ordenar por</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {sortOptions.map((option) => {
+                    const Icon = option.icon;
+                    const isActive = sortField === option.field;
+                    return (
+                      <DropdownMenuItem
+                        key={option.field}
+                        onClick={() => handleSortChange(option.field)}
+                        className={isActive ? 'bg-accent' : ''}
+                      >
+                        <Icon className="h-4 w-4 mr-2" />
+                        {option.label}
+                        {isActive && option.field !== 'custom' && (
+                          <span className="ml-auto">
+                            {sortDirection === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />}
+                          </span>
+                        )}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               {/* Toggle de visualização */}
               <div className="flex items-center gap-1 p-1 rounded-lg bg-secondary/50">
                 <Button
@@ -212,7 +340,13 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
                   variant={viewMode === 'reorder' ? 'default' : 'ghost'}
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => setViewMode('reorder')}
+                  onClick={() => {
+                    setViewMode('reorder');
+                    // Ao entrar no modo reordenar, voltar para ordem personalizada
+                    if (sortField !== 'custom') {
+                      setSortField('custom');
+                    }
+                  }}
                   title="Modo reordenar"
                 >
                   <GripVertical className="h-4 w-4" />

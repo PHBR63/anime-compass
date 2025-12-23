@@ -35,20 +35,19 @@ function SakuraPetal({ petal }: { petal: Petal }) {
         scale: 0.5,
       }}
       animate={{ 
-        y: "110vh", 
-        opacity: [0, petal.opacity, petal.opacity, 0],
-        rotate: petal.rotation + 360,
-        x: [0, 30, -20, 40, 0],
-        scale: [0.5, 1, 1, 0.8],
+        y: "105vh", 
+        opacity: [0, petal.opacity, petal.opacity * 0.6, 0],
+        rotate: petal.rotation + 180,
+        x: [0, 15, -10, 20],
+        scale: [0.6, 1, 0.9],
       }}
       transition={{
         duration: petal.duration,
         delay: petal.delay,
-        ease: "easeInOut",
+        ease: "easeOut",
         x: {
           duration: petal.duration,
           ease: "easeInOut",
-          repeat: 0,
         },
       }}
     >
@@ -83,16 +82,16 @@ function SakuraPetal({ petal }: { petal: Petal }) {
  * Overlay de transição com pétalas de sakura
  */
 function SakuraOverlay({ isVisible }: { isVisible: boolean }) {
-  // Gera pétalas com valores aleatórios
+  // Gera pétalas com valores aleatórios - versão sutil com menos pétalas
   const petals = useMemo<Petal[]>(() => {
-    return Array.from({ length: 15 }, (_, i) => ({
+    return Array.from({ length: 8 }, (_, i) => ({
       id: i,
-      x: Math.random() * 100,
-      delay: Math.random() * 0.3,
-      duration: 1.5 + Math.random() * 0.5,
-      size: 12 + Math.random() * 12,
+      x: 10 + Math.random() * 80, // Distribuição mais central
+      delay: Math.random() * 0.15, // Delays menores
+      duration: 0.8 + Math.random() * 0.4, // Mais rápido (0.8-1.2s)
+      size: 10 + Math.random() * 8, // Tamanhos menores (10-18px)
       rotation: Math.random() * 360,
-      opacity: 0.6 + Math.random() * 0.4,
+      opacity: 0.5 + Math.random() * 0.3, // Menos opaco
     }));
   }, []);
 
@@ -151,10 +150,10 @@ export function SakuraPageTransition({ children, className = "" }: SakuraPageTra
       setIsTransitioning(false);
     }, 200);
 
-    // Esconde as pétalas após a animação
+    // Esconde as pétalas após a animação - mais rápido
     const petalTimer = setTimeout(() => {
       setShowPetals(false);
-    }, 1200);
+    }, 800);
 
     return () => {
       clearTimeout(contentTimer);

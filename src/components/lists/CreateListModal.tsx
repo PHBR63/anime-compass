@@ -68,84 +68,92 @@ export function CreateListModal({ open, onOpenChange }: CreateListModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto animate-scale-in">
-        <DialogHeader>
+      <DialogContent className="w-[95vw] max-w-lg sm:max-w-xl md:max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden animate-scale-in">
+        <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4 border-b border-border/50 flex-shrink-0">
           <DialogTitle>Criar Nova Lista</DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'manual' | 'smart')}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="manual">Manual</TabsTrigger>
-            <TabsTrigger value="smart" className="gap-2">
-              <Sparkles className="h-4 w-4" />
-              Inteligente
-            </TabsTrigger>
-          </TabsList>
+        <Tabs 
+          value={activeTab} 
+          onValueChange={(v) => setActiveTab(v as 'manual' | 'smart')}
+          className="flex-1 flex flex-col min-h-0"
+        >
+          <div className="px-4 sm:px-6 pt-2 flex-shrink-0">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="manual">Manual</TabsTrigger>
+              <TabsTrigger value="smart" className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                Inteligente
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Criação Manual */}
-          <TabsContent value="manual" className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome da Lista *</Label>
-              <Input
-                id="name"
-                placeholder="Ex: Melhores de 2024"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrição</Label>
-              <Textarea
-                id="description"
-                placeholder="Uma breve descrição da lista..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-2">
-                {isPublic ? (
-                  <Globe className="h-4 w-4 text-green-500" />
-                ) : (
-                  <Lock className="h-4 w-4 text-muted-foreground" />
-                )}
-                <div>
-                  <Label htmlFor="public-toggle" className="cursor-pointer">
-                    {isPublic ? 'Lista Pública' : 'Lista Privada'}
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    {isPublic 
-                      ? 'Qualquer pessoa pode ver' 
-                      : 'Apenas você pode ver'
-                    }
-                  </p>
-                </div>
+          <TabsContent value="manual" className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 m-0">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome da Lista *</Label>
+                <Input
+                  id="name"
+                  placeholder="Ex: Melhores de 2024"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
               </div>
-              <Switch
-                id="public-toggle"
-                checked={isPublic}
-                onCheckedChange={setIsPublic}
-              />
-            </div>
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => handleClose(false)}>
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleCreateManual} 
-                disabled={!name.trim() || createList.isPending}
-              >
-                {createList.isPending ? 'Criando...' : 'Criar Lista'}
-              </Button>
+              <div className="space-y-2">
+                <Label htmlFor="description">Descrição</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Uma breve descrição da lista..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex items-center justify-between py-2">
+                <div className="flex items-center gap-2">
+                  {isPublic ? (
+                    <Globe className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Lock className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <div>
+                    <Label htmlFor="public-toggle" className="cursor-pointer">
+                      {isPublic ? 'Lista Pública' : 'Lista Privada'}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {isPublic 
+                        ? 'Qualquer pessoa pode ver' 
+                        : 'Apenas você pode ver'
+                      }
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="public-toggle"
+                  checked={isPublic}
+                  onCheckedChange={setIsPublic}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-border/50">
+                <Button variant="outline" onClick={() => handleClose(false)}>
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={handleCreateManual} 
+                  disabled={!name.trim() || createList.isPending}
+                >
+                  {createList.isPending ? 'Criando...' : 'Criar Lista'}
+                </Button>
+              </div>
             </div>
           </TabsContent>
 
           {/* Criação Inteligente */}
-          <TabsContent value="smart" className="mt-4">
+          <TabsContent value="smart" className="flex-1 overflow-hidden px-4 sm:px-6 py-4 m-0">
             <SmartListBuilder 
               onSuccess={() => {
                 resetForm();

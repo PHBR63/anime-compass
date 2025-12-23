@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useAnimeEntries } from '@/hooks/useAnimeEntries';
 import { useCreateList, useAddToList } from '@/hooks/useCustomLists';
@@ -363,7 +362,7 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
       </div>
 
       {/* Conteúdo da etapa atual - com scroll fluido */}
-      <ScrollArea className="flex-1 min-h-0 pr-3">
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent pr-1">
         <AnimatePresence mode="wait" custom={directionRef.current}>
           <motion.div
             key={currentStep}
@@ -373,8 +372,8 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
             animate="animate"
             exit="exit"
             transition={{ 
-              duration: 0.3, 
-              ease: [0.4, 0, 0.2, 1],
+              duration: 0.25, 
+              ease: [0.25, 0.1, 0.25, 1],
             }}
             className="pb-4"
           >
@@ -422,7 +421,7 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
             )}
           </motion.div>
         </AnimatePresence>
-      </ScrollArea>
+      </div>
 
       {/* Navegação - fixo no rodapé (exceto na última etapa) */}
       {currentStep !== 'finish' && (

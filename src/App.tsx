@@ -12,7 +12,7 @@ import { HelpProvider } from "@/contexts/HelpContext";
 import { WelcomeModal, HelpPanel, TourOverlay, HelpButton } from "@/components/help";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { InstallBanner, OfflineIndicator, UpdateNotification } from "@/components/pwa";
+import { InstallBanner, OfflineIndicator, SplashScreen, UpdateNotification } from "@/components/pwa";
 import { AnimatedRoutes } from "@/components/animations/AnimatedRoutes";
 import { PageTransition } from "@/components/animations/PageTransition";
 import { NotificationClickHandler } from "@/components/notifications/NotificationClickHandler";
@@ -166,6 +166,8 @@ const App = () => (
               <Sonner />
               {/* Efeito de cursor com rastro de tinta - estilo sumi-e */}
               <InkCursor />
+              {/* Splash Screen animada do PWA */}
+              <SplashScreen />
               {/* Componentes PWA */}
               <OfflineIndicator />
               <InstallBanner />

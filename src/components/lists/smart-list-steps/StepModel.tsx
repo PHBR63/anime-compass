@@ -5,7 +5,35 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
+
+/**
+ * Variantes de animação para os cards de template
+ */
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 10, scale: 0.95 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    transition: {
+      type: 'spring',
+      stiffness: 300,
+      damping: 24,
+    },
+  },
+};
 
 export interface SmartListTemplate {
   id: string;
@@ -187,24 +215,25 @@ export function StepModel({ onSelectTemplate, onSkip, selectedTemplateId }: Step
   }, []);
 
   return (
-    <div className="space-y-4 pb-2">
+    <motion.div 
+      className="space-y-4 pb-2"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       {/* Header */}
-      <div className="text-center space-y-1">
+      <motion.div className="text-center space-y-1" variants={itemVariants}>
         <h3 className="font-medium">Escolha um modelo para começar</h3>
         <p className="text-sm text-muted-foreground">
           Selecione um template ou crie do zero
         </p>
-      </div>
+      </motion.div>
 
       {/* Botão criar do zero */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
-      >
+      <motion.div variants={itemVariants}>
         <Button
           variant="outline"
-          className="w-full h-14 gap-3 text-left justify-start border-dashed hover:border-primary hover:bg-primary/5"
+          className="w-full h-14 gap-3 text-left justify-start border-dashed hover:border-primary hover:bg-primary/5 transition-all duration-200"
           onClick={onSkip}
         >
           <Zap className="h-5 w-5 text-primary" />
@@ -217,36 +246,37 @@ export function StepModel({ onSelectTemplate, onSkip, selectedTemplateId }: Step
 
       {/* Grid de templates por categoria */}
       <div className="space-y-4">
-        {(Object.keys(groupedTemplates) as SmartListTemplate['category'][]).map((category, categoryIndex) => (
+        {(Object.keys(groupedTemplates) as SmartListTemplate['category'][]).map((category) => (
           <motion.div 
             key={category} 
             className="space-y-2"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, delay: categoryIndex * 0.05 }}
+            variants={itemVariants}
           >
             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               {CATEGORY_LABELS[category]}
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {groupedTemplates[category].map((template, index) => (
+            <motion.div 
+              className="grid grid-cols-1 sm:grid-cols-2 gap-2"
+              variants={containerVariants}
+            >
+              {groupedTemplates[category].map((template) => (
                 <motion.div
                   key={template.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.15, delay: index * 0.03 }}
+                  variants={itemVariants}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full h-auto py-3 px-3 flex items-start gap-3 text-left justify-start transition-all",
+                      "w-full h-auto py-3 px-3 flex items-start gap-3 text-left justify-start transition-all duration-200",
                       selectedTemplateId === template.id 
-                        ? "border-primary bg-primary/10 ring-1 ring-primary/30" 
+                        ? "border-primary bg-primary/10 ring-1 ring-primary/30 shadow-sm" 
                         : "hover:border-primary/50 hover:bg-secondary/50"
                     )}
                     onClick={() => onSelectTemplate(template)}
                   >
-                    <div className="flex-shrink-0 p-2 rounded-lg bg-secondary/50">
+                    <div className="flex-shrink-0 p-2 rounded-lg bg-secondary/50 transition-colors duration-200">
                       {template.icon}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -258,10 +288,10 @@ export function StepModel({ onSelectTemplate, onSkip, selectedTemplateId }: Step
                   </Button>
                 </motion.div>
               ))}
-            </div>
+            </motion.div>
           </motion.div>
         ))}
       </div>
-    </div>
+    </motion.div>
   );
 }

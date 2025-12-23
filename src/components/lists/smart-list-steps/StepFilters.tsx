@@ -8,7 +8,35 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { motion, type Variants } from 'framer-motion';
 import type { Database } from '@/integrations/supabase/types';
+
+/**
+ * Variantes de animação para os elementos do filtro
+ */
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.04,
+      delayChildren: 0.05,
+    },
+  },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: {
+      type: 'spring',
+      stiffness: 400,
+      damping: 25,
+    },
+  },
+};
 
 type AnimeStatus = Database['public']['Enums']['anime_status'];
 
@@ -109,9 +137,14 @@ export function StepFilters({ filters, onFiltersChange, totalAnimes }: StepFilte
     selectedTypes.size < 4;
 
   return (
-    <div className="space-y-5 pb-2">
+    <motion.div 
+      className="space-y-5 pb-2"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       {/* Nome da lista */}
-      <div className="space-y-2">
+      <motion.div className="space-y-2" variants={itemVariants}>
         <Label htmlFor="smart-name" className="text-sm font-medium">
           Nome da Lista *
         </Label>
@@ -120,48 +153,48 @@ export function StepFilters({ filters, onFiltersChange, totalAnimes }: StepFilte
           placeholder="Ex: Favoritos 5 Estrelas"
           value={name}
           onChange={(e) => onFiltersChange({ name: e.target.value })}
-          className="h-11"
+          className="h-11 transition-all duration-200"
         />
-      </div>
+      </motion.div>
 
       {/* Modo de visualização */}
-      <div className="space-y-2">
+      <motion.div className="space-y-2" variants={itemVariants}>
         <Label className="text-sm font-medium">Modo de Visualização</Label>
         <Tabs 
           value={viewMode} 
           onValueChange={(v) => onFiltersChange({ viewMode: v as 'individual' | 'franchise' })}
         >
           <TabsList className="grid w-full grid-cols-2 h-11">
-            <TabsTrigger value="individual" className="gap-2 h-full">
+            <TabsTrigger value="individual" className="gap-2 h-full transition-all duration-200">
               <List className="h-4 w-4" />
               Individual
             </TabsTrigger>
-            <TabsTrigger value="franchise" className="gap-2 h-full">
+            <TabsTrigger value="franchise" className="gap-2 h-full transition-all duration-200">
               <Layers className="h-4 w-4" />
               Por Franquia
             </TabsTrigger>
           </TabsList>
         </Tabs>
-      </div>
+      </motion.div>
 
       {/* Divider com contador */}
-      <div className="flex items-center gap-3">
+      <motion.div className="flex items-center gap-3" variants={itemVariants}>
         <div className="h-px flex-1 bg-border" />
         <Badge variant="secondary" className="text-xs">
           {totalAnimes} animes
         </Badge>
         <div className="h-px flex-1 bg-border" />
-      </div>
+      </motion.div>
 
       {/* Filtro por Status */}
-      <div className="space-y-2">
+      <motion.div className="space-y-2" variants={itemVariants}>
         <div className="flex items-center justify-between">
           <Label className="text-sm font-medium">Status</Label>
           {hasActiveFilters && (
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 text-xs gap-1 text-muted-foreground"
+              className="h-6 text-xs gap-1 text-muted-foreground hover:text-foreground transition-colors duration-200"
               onClick={handleClearFilters}
             >
               <RefreshCw className="h-3 w-3" />
@@ -171,49 +204,53 @@ export function StepFilters({ filters, onFiltersChange, totalAnimes }: StepFilte
         </div>
         <div className="flex flex-wrap gap-2">
           {(['watching', 'completed', 'paused', 'dropped', 'not_started'] as AnimeStatus[]).map((status) => (
-            <button
+            <motion.button
               key={status}
               type="button"
               onClick={() => handleStatusToggle(status)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               className={cn(
-                "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-all cursor-pointer",
+                "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200 cursor-pointer",
                 selectedStatuses.includes(status)
                   ? 'border-transparent bg-primary text-primary-foreground shadow-sm'
                   : 'border-border bg-transparent text-foreground hover:bg-secondary hover:border-primary/50'
               )}
             >
               {statusLabels[status]}
-            </button>
+            </motion.button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* Filtro por Tipo de Anime */}
-      <div className="space-y-2">
+      <motion.div className="space-y-2" variants={itemVariants}>
         <Label className="text-sm font-medium">Tipo de Anime</Label>
         <div className="flex flex-wrap gap-2">
           {(['main', 'season', 'movie', 'special'] as const).map((type) => (
-            <button
+            <motion.button
               key={type}
               type="button"
               onClick={() => handleTypeToggle(type)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               className={cn(
-                "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-all cursor-pointer",
+                "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200 cursor-pointer",
                 selectedTypes.has(type)
                   ? 'border-transparent bg-primary text-primary-foreground shadow-sm'
                   : 'border-border bg-transparent text-foreground hover:bg-secondary hover:border-primary/50'
               )}
             >
               {animeTypeLabels[type]}
-            </button>
+            </motion.button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* Filtro por Nota e Favoritos */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <motion.div className="grid grid-cols-1 sm:grid-cols-2 gap-4" variants={itemVariants}>
         {/* Nota mínima */}
-        <div className="space-y-2 p-3 rounded-lg border bg-secondary/20">
+        <div className="space-y-2 p-3 rounded-lg border bg-secondary/20 transition-colors duration-200">
           <div className="flex items-center gap-2">
             <Star className="h-4 w-4 text-yellow-500" />
             <Label className="text-sm">
@@ -230,7 +267,7 @@ export function StepFilters({ filters, onFiltersChange, totalAnimes }: StepFilte
         </div>
 
         {/* Apenas Favoritos */}
-        <div className="space-y-2 p-3 rounded-lg border bg-secondary/20">
+        <div className="space-y-2 p-3 rounded-lg border bg-secondary/20 transition-colors duration-200">
           <div className="flex items-center gap-3">
             <Checkbox
               id="only-favorites"
@@ -238,18 +275,24 @@ export function StepFilters({ filters, onFiltersChange, totalAnimes }: StepFilte
               onCheckedChange={(checked) => onFiltersChange({ onlyFavorites: checked === true })}
             />
             <div className="flex items-center gap-2">
-              <Heart className={cn("h-4 w-4", onlyFavorites ? "text-red-500 fill-red-500" : "text-muted-foreground")} />
+              <Heart className={cn("h-4 w-4 transition-colors duration-200", onlyFavorites ? "text-red-500 fill-red-500" : "text-muted-foreground")} />
               <Label htmlFor="only-favorites" className="text-sm cursor-pointer">
                 Apenas favoritos
               </Label>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Critérios de Franquia (apenas no modo franquia) */}
       {viewMode === 'franchise' && (
-        <div className="space-y-4 p-4 rounded-lg border border-dashed bg-secondary/10">
+        <motion.div 
+          className="space-y-4 p-4 rounded-lg border border-dashed bg-secondary/10"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+        >
           <Label className="text-sm font-medium">Filtros de Franquia</Label>
           
           {/* Critério de Franquia */}
@@ -265,19 +308,21 @@ export function StepFilters({ filters, onFiltersChange, totalAnimes }: StepFilte
                 { value: 'high_rated', label: '4+ ★' },
                 { value: 'abandoned', label: 'Abandonadas' },
               ].map(({ value, label }) => (
-                <button
+                <motion.button
                   key={value || 'all'}
                   type="button"
                   onClick={() => onFiltersChange({ franchiseCriteria: value })}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   className={cn(
-                    "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer",
+                    "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-200 cursor-pointer",
                     franchiseCriteria === value
                       ? 'border-transparent bg-primary text-primary-foreground shadow-sm'
                       : 'border-border bg-transparent text-foreground hover:bg-secondary hover:border-primary/50'
                   )}
                 >
                   {label}
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
@@ -292,24 +337,26 @@ export function StepFilters({ filters, onFiltersChange, totalAnimes }: StepFilte
                 { value: 'medium' as const, label: franchiseSizeLabels.medium },
                 { value: 'large' as const, label: franchiseSizeLabels.large },
               ].map(({ value, label }) => (
-                <button
+                <motion.button
                   key={value || 'any'}
                   type="button"
                   onClick={() => onFiltersChange({ franchiseSize: value })}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   className={cn(
-                    "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer",
+                    "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-200 cursor-pointer",
                     franchiseSize === value
                       ? 'border-transparent bg-primary text-primary-foreground shadow-sm'
                       : 'border-border bg-transparent text-foreground hover:bg-secondary hover:border-primary/50'
                   )}
                 >
                   {label}
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }

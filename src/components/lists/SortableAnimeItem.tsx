@@ -77,17 +77,23 @@ export const SortableAnimeItem = forwardRef<HTMLDivElement, SortableAnimeItemPro
         ref={combinedRef}
         style={style}
         className={cn(
-          "flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 transition-all",
-          isDragging && "opacity-50 shadow-lg shadow-primary/20 border-primary/50 z-50"
+          "flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 transition-all duration-200",
+          isDragging && "opacity-30 scale-[0.98]",
+          !isDragging && "hover:border-border"
         )}
       >
         {/* Alça de arrasto */}
         <button
           {...attributes}
           {...listeners}
-          className="p-1 rounded hover:bg-secondary cursor-grab active:cursor-grabbing touch-none"
+          className={cn(
+            "p-1.5 rounded-lg transition-colors touch-none",
+            "hover:bg-primary/10 hover:text-primary",
+            "cursor-grab active:cursor-grabbing",
+            "focus:outline-none focus:ring-2 focus:ring-primary/20"
+          )}
         >
-          <GripVertical className="h-5 w-5 text-muted-foreground" />
+          <GripVertical className="h-5 w-5" />
         </button>
 
         {/* Imagem */}

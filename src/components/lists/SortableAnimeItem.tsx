@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { motion } from 'framer-motion';
 import { GripVertical, X, PlayCircle, CheckCircle, PauseCircle, Clock, XCircle, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -49,14 +50,15 @@ interface SortableAnimeItemProps {
   id: string;
   anime: AnimeEntry;
   onRemove?: () => void;
+  isOverlay?: boolean;
 }
 
 /**
  * Item de anime arrastável para reordenação em listas
- * Usa forwardRef para compatibilidade com dnd-kit
+ * Usa framer-motion para animações suaves
  */
 export const SortableAnimeItem = forwardRef<HTMLDivElement, SortableAnimeItemProps>(
-  function SortableAnimeItem({ id, anime, onRemove }, ref) {
+  function SortableAnimeItem({ id, anime, onRemove, isOverlay = false }, ref) {
     const {
       attributes,
       listeners,
@@ -64,8 +66,10 @@ export const SortableAnimeItem = forwardRef<HTMLDivElement, SortableAnimeItemPro
       transform,
       transition,
       isDragging,
+      isOver,
     } = useSortable({ id });
 
+    // Estilo de transformação do dnd-kit
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
@@ -82,34 +86,65 @@ export const SortableAnimeItem = forwardRef<HTMLDivElement, SortableAnimeItemPro
     };
 
     return (
-      <div
+      <motion.div
         ref={combinedRef}
         style={style}
+        initial={false}
+        animate={{
+          scale: isDragging ? 0.98 : isOver ? 1.02 : 1,
+          opacity: isDragging ? 0.4 : 1,
+          y: isOver ? -2 : 0,
+        }}
+        transition={{
+          type: 'spring',
+          stiffness: 500,
+          damping: 30,
+          mass: 0.8,
+        }}
         className={cn(
-          "flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 transition-all duration-200",
-          isDragging && "opacity-30 scale-[0.98]",
-          !isDragging && "hover:border-border"
+          "flex items-center gap-3 p-3 rounded-xl bg-card border transition-colors duration-200",
+          isDragging && "border-primary/50 bg-primary/5",
+          isOver && "border-primary bg-primary/10",
+          !isDragging && !isOver && "border-border/50 hover:border-border",
+          isOverlay && "shadow-2xl ring-2 ring-primary/50 bg-card border-primary"
         )}
       >
-        {/* Alça de arrasto */}
-        <button
+        {/* Alça de arrasto com animação */}
+        <motion.button
           {...attributes}
           {...listeners}
+          whileHover={{ scale: 1.1, backgroundColor: 'hsl(var(--primary) / 0.15)' }}
+          whileTap={{ scale: 0.95 }}
           className={cn(
             "p-1.5 rounded-lg transition-colors touch-none",
-            "hover:bg-primary/10 hover:text-primary",
+            "hover:text-primary",
             "cursor-grab active:cursor-grabbing",
             "focus:outline-none focus:ring-2 focus:ring-primary/20"
           )}
         >
-          <GripVertical className="h-5 w-5" />
-        </button>
+          <motion.div
+            animate={{ 
+              rotate: isDragging ? [0, -5, 5, 0] : 0,
+            }}
+            transition={{ 
+              duration: 0.3,
+              repeat: isDragging ? Infinity : 0,
+              repeatType: 'reverse',
+            }}
+          >
+            <GripVertical className="h-5 w-5" />
+          </motion.div>
+        </motion.button>
 
-        {/* Imagem */}
-        <img
+        {/* Imagem com animação */}
+        <motion.img
           src={anime.image_url || '/placeholder.svg'}
           alt={anime.title}
           className="w-12 h-16 object-cover rounded-lg"
+          animate={{
+            scale: isOverlay ? 1.05 : 1,
+          }}
+          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
         />
 
         {/* Info */}
@@ -120,16 +155,19 @@ export const SortableAnimeItem = forwardRef<HTMLDivElement, SortableAnimeItemPro
               const StatusIcon = statusIcons[anime.status];
               const colors = statusColors[anime.status];
               return (
-                <span className={cn(
-                  "inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-bold rounded-full border shadow-md",
-                  colors.bg, colors.text, colors.border
-                )}>
+                <motion.span 
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-bold rounded-full border shadow-md",
+                    colors.bg, colors.text, colors.border
+                  )}
+                  animate={{ scale: isOverlay ? 1.05 : 1 }}
+                >
                   <StatusIcon className={cn(
                     "h-3 w-3",
                     anime.status === 'watching' && "animate-pulse"
                   )} />
                   {statusLabels[anime.status]}
-                </span>
+                </motion.span>
               );
             })()}
             {anime.rating && (
@@ -149,18 +187,23 @@ export const SortableAnimeItem = forwardRef<HTMLDivElement, SortableAnimeItemPro
           </div>
         </div>
 
-        {/* Botão remover */}
+        {/* Botão remover com animação */}
         {onRemove && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
-            onClick={onRemove}
+          <motion.div
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
           >
-            <X className="h-4 w-4" />
-          </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+              onClick={onRemove}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
     );
   }
 );

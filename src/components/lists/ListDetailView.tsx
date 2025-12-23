@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Globe, Lock, Pencil, GripVertical, LayoutGrid, Share2, Check, Copy, Plus, ArrowUpDown, Star, Calendar, Clock, Hash, SortAsc, SortDesc, List } from 'lucide-react';
+import { ArrowLeft, Globe, Lock, Pencil, GripVertical, LayoutGrid, Share2, Check, Copy, Plus, ArrowUpDown, Star, Calendar, Clock, Hash, SortAsc, SortDesc, List, Search, X } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -78,6 +78,7 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [sortField, setSortField] = useState<SortField>('custom');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [searchQuery, setSearchQuery] = useState('');
   const { data: items, isLoading } = useListItems(list.id);
   const removeFromList = useRemoveFromList();
   const reorderItems = useReorderListItems();
@@ -118,7 +119,7 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
     dropped: 5,
   };
 
-  // Extrair os anime_entries, ordenar e seus IDs
+  // Extrair os anime_entries, filtrar por busca, ordenar
   const sortedItems = useMemo(() => {
     if (!items) return [];
     
@@ -131,6 +132,14 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
         createdAt: item.created_at,
       }))
       .filter((item: any) => item.anime);
+
+    // Aplicar filtro de busca
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      sorted = sorted.filter((item: any) => 
+        item.anime.title?.toLowerCase().includes(query)
+      );
+    }
 
     // Aplicar ordenação baseada no campo selecionado
     if (sortField === 'custom') {
@@ -162,7 +171,7 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
     }
 
     return sorted;
-  }, [items, sortField, sortDirection]);
+  }, [items, sortField, sortDirection, searchQuery]);
 
   // Handler para mudar ordenação
   const handleSortChange = (field: SortField) => {
@@ -288,6 +297,27 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
 
             {/* Ações - responsivo */}
             <div className="flex flex-wrap items-center gap-2">
+              {/* Campo de busca */}
+              <div className="relative flex-1 min-w-[140px] max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  type="text"
+                  placeholder="Buscar anime..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-8 pl-8 pr-8 text-sm"
+                />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-8 w-8 hover:bg-transparent"
+                    onClick={() => setSearchQuery('')}
+                  >
+                    <X className="h-3.5 w-3.5 text-muted-foreground" />
+                  </Button>
+                )}
+              </div>
               {/* Dropdown de ordenação */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

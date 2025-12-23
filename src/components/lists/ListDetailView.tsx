@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Globe, Lock, Pencil, GripVertical, LayoutGrid, Share2, Check, Copy, Plus, ArrowUpDown, Star, Calendar, Clock, Hash, SortAsc, SortDesc, List, Search, X, CalendarDays } from 'lucide-react';
+import { ArrowLeft, Globe, Lock, Pencil, GripVertical, LayoutGrid, Share2, Check, Copy, Plus, ArrowUpDown, Star, Calendar, Clock, Hash, SortAsc, SortDesc, List, Search, X, CalendarDays, Filter, Eye, Pause, CheckCircle2, XCircle, Play } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -54,11 +54,31 @@ type ViewMode = 'grid' | 'reorder';
 type SortField = 'custom' | 'title' | 'rating' | 'episodes' | 'status' | 'added_date' | 'year';
 type SortDirection = 'asc' | 'desc';
 
+// Tipos de filtro de status
+type StatusFilter = 'all' | 'watching' | 'completed' | 'paused' | 'not_started' | 'dropped';
+
 interface SortOption {
   field: SortField;
   label: string;
   icon: typeof Star;
 }
+
+// Opções de filtro de status
+interface StatusFilterOption {
+  value: StatusFilter;
+  label: string;
+  icon: typeof Eye;
+  color?: string;
+}
+
+const statusFilterOptions: StatusFilterOption[] = [
+  { value: 'all', label: 'Todos', icon: List },
+  { value: 'watching', label: 'Assistindo', icon: Play, color: 'text-blue-500' },
+  { value: 'completed', label: 'Completo', icon: CheckCircle2, color: 'text-green-500' },
+  { value: 'paused', label: 'Pausado', icon: Pause, color: 'text-yellow-500' },
+  { value: 'not_started', label: 'Não iniciado', icon: Eye, color: 'text-muted-foreground' },
+  { value: 'dropped', label: 'Dropado', icon: XCircle, color: 'text-red-500' },
+];
 
 // Opções de ordenação
 const sortOptions: SortOption[] = [
@@ -82,6 +102,7 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
   const [sortField, setSortField] = useState<SortField>('custom');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [activeId, setActiveId] = useState<string | null>(null);
   const { data: items, isLoading } = useListItems(list.id);
   const removeFromList = useRemoveFromList();
@@ -124,7 +145,7 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
     dropped: 5,
   };
 
-  // Extrair os anime_entries, filtrar por busca, ordenar
+  // Extrair os anime_entries, filtrar por busca e status, ordenar
   const sortedItems = useMemo(() => {
     if (!items) return [];
     
@@ -137,6 +158,11 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
         createdAt: item.created_at,
       }))
       .filter((item: any) => item.anime);
+
+    // Aplicar filtro de status
+    if (statusFilter !== 'all') {
+      sorted = sorted.filter((item: any) => item.anime.status === statusFilter);
+    }
 
     // Aplicar filtro de busca
     if (searchQuery.trim()) {
@@ -182,7 +208,10 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
     }
 
     return sorted;
-  }, [items, sortField, sortDirection, searchQuery]);
+  }, [items, sortField, sortDirection, searchQuery, statusFilter]);
+
+  // Obter opção de filtro atual
+  const currentStatusFilter = statusFilterOptions.find(opt => opt.value === statusFilter);
 
   // Item ativo para o DragOverlay
   const activeItem = useMemo(() => {
@@ -346,6 +375,46 @@ export function ListDetailView({ list, onBack }: ListDetailViewProps) {
                   </Button>
                 )}
               </div>
+              {/* Dropdown de filtro de status */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant={statusFilter !== 'all' ? 'default' : 'outline'} 
+                    size="sm" 
+                    className="h-8 gap-1.5"
+                  >
+                    <Filter className="h-4 w-4" />
+                    <span className="hidden sm:inline">{currentStatusFilter?.label || 'Filtrar'}</span>
+                    {statusFilter !== 'all' && (
+                      <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                        {sortedItems.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuLabel>Filtrar por status</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {statusFilterOptions.map((option) => {
+                    const Icon = option.icon;
+                    const isActive = statusFilter === option.value;
+                    return (
+                      <DropdownMenuItem
+                        key={option.value}
+                        onClick={() => setStatusFilter(option.value)}
+                        className={isActive ? 'bg-accent' : ''}
+                      >
+                        <Icon className={`h-4 w-4 mr-2 ${option.color || ''}`} />
+                        {option.label}
+                        {isActive && (
+                          <Check className="h-4 w-4 ml-auto" />
+                        )}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               {/* Dropdown de ordenação */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

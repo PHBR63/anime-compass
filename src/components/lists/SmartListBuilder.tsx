@@ -1,14 +1,18 @@
-import { useState, useMemo } from 'react';
-import { Sparkles, Lock, Globe, Filter, Layers, List } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { 
+  Sparkles, Lock, Globe, Filter, Layers, List, 
+  X, RefreshCw, ChevronDown, ChevronUp 
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAnimeEntries } from '@/hooks/useAnimeEntries';
 import { useCreateList, useAddToList } from '@/hooks/useCustomLists';
 import { 
@@ -17,13 +21,19 @@ import {
   getInProgressFranchises,
   getMultiSeasonFranchises,
   getHighRatedFranchises,
+  getNearlyCompleteFranchises,
+  getAbandonedFranchises,
+  getFranchisesBySize,
   detectAnimeType,
   type AnimeEntry,
   type FranchiseGroup 
 } from '@/lib/franchiseDetector';
 import { FranchiseListView } from './FranchiseGroupView';
+import { FranchiseSearch } from './FranchiseSearch';
+import { SmartListStats } from './SmartListStats';
 import { SmartListTemplates, SMART_LIST_TEMPLATES, type SmartListTemplate } from './SmartListTemplates';
 import type { Database } from '@/integrations/supabase/types';
+import { cn } from '@/lib/utils';
 
 type AnimeStatus = Database['public']['Enums']['anime_status'];
 
@@ -44,6 +54,13 @@ const animeTypeLabels = {
   special: 'OVA/Especial',
 };
 
+// Labels para tamanho de franquia
+const franchiseSizeLabels = {
+  small: 'Curtas (<25 eps)',
+  medium: 'Médias (25-50 eps)',
+  large: 'Longas (50+ eps)',
+};
+
 interface SmartListBuilderProps {
   onSuccess: () => void;
   onCancel: () => void;
@@ -51,6 +68,7 @@ interface SmartListBuilderProps {
 
 /**
  * Construtor de listas inteligentes com detecção de franquias
+ * Versão melhorada com busca, estatísticas e mais filtros
  */
 export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps) {
   const [name, setName] = useState('');
@@ -68,11 +86,16 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
   // Filtros de tipo
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set(['main', 'season', 'movie', 'special']));
   
-  // Critérios de franquia
+  // Filtros de franquia
   const [franchiseCriteria, setFranchiseCriteria] = useState<string | null>(null);
+  const [franchiseSize, setFranchiseSize] = useState<'small' | 'medium' | 'large' | null>(null);
   
   // Seleção manual de entradas
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  
+  // Estado de seções colapsáveis
+  const [isFiltersOpen, setIsFiltersOpen] = useState(true);
+  const [isStatsOpen, setIsStatsOpen] = useState(true);
 
   const { data: entries } = useAnimeEntries();
   const createList = useCreateList();
@@ -115,29 +138,34 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
 
   // Agrupar por franquia
   const franchiseGroups = useMemo(() => {
-    const groups = groupByFranchise(filteredEntries);
+    let groups = groupByFranchise(filteredEntries);
     
     // Aplicar critério de franquia
     if (franchiseCriteria === 'completed') {
-      return getCompletedFranchises(groups);
+      groups = getCompletedFranchises(groups);
+    } else if (franchiseCriteria === 'in_progress') {
+      groups = getInProgressFranchises(groups);
+    } else if (franchiseCriteria === 'multi_season') {
+      groups = getMultiSeasonFranchises(groups);
+    } else if (franchiseCriteria === 'high_rated') {
+      groups = getHighRatedFranchises(groups, 4);
+    } else if (franchiseCriteria === 'nearly_complete') {
+      groups = getNearlyCompleteFranchises(groups);
+    } else if (franchiseCriteria === 'abandoned') {
+      groups = getAbandonedFranchises(groups);
     }
-    if (franchiseCriteria === 'in_progress') {
-      return getInProgressFranchises(groups);
-    }
-    if (franchiseCriteria === 'multi_season') {
-      return getMultiSeasonFranchises(groups);
-    }
-    if (franchiseCriteria === 'high_rated') {
-      return getHighRatedFranchises(groups, 4);
+    
+    // Aplicar filtro de tamanho
+    if (franchiseSize) {
+      groups = getFranchisesBySize(groups, franchiseSize);
     }
     
     return groups;
-  }, [filteredEntries, franchiseCriteria]);
+  }, [filteredEntries, franchiseCriteria, franchiseSize]);
 
   // Entradas finais baseadas no modo
   const finalEntries = useMemo(() => {
     if (viewMode === 'franchise') {
-      // Retornar todas as entradas dos grupos filtrados
       return franchiseGroups.flatMap(g => g.entries);
     }
     return filteredEntries;
@@ -152,7 +180,7 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
   }, [finalEntries, selectedIds]);
 
   // Handler para toggle de status
-  const handleStatusToggle = (status: AnimeStatus) => {
+  const handleStatusToggle = useCallback((status: AnimeStatus) => {
     setSelectedStatuses((prev) =>
       prev.includes(status)
         ? prev.filter((s) => s !== status)
@@ -160,10 +188,10 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
     );
     setSelectedIds(new Set());
     setSelectedTemplateId(undefined);
-  };
+  }, []);
 
   // Handler para toggle de tipo
-  const handleTypeToggle = (type: string) => {
+  const handleTypeToggle = useCallback((type: string) => {
     setSelectedTypes((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(type)) {
@@ -174,10 +202,10 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
       return newSet;
     });
     setSelectedIds(new Set());
-  };
+  }, []);
 
   // Handler para toggle de entrada individual
-  const handleToggleEntry = (entryId: string) => {
+  const handleToggleEntry = useCallback((entryId: string) => {
     setSelectedIds((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(entryId)) {
@@ -187,32 +215,48 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
       }
       return newSet;
     });
-  };
+  }, []);
 
   // Handler para toggle de franquia inteira
-  const handleToggleFranchise = (franchiseEntries: AnimeEntry[]) => {
+  const handleToggleFranchise = useCallback((franchiseEntries: AnimeEntry[]) => {
     setSelectedIds((prev) => {
       const newSet = new Set(prev);
       const allSelected = franchiseEntries.every(e => newSet.has(e.id));
       
       if (allSelected) {
-        // Deselecionar todos
         franchiseEntries.forEach(e => newSet.delete(e.id));
       } else {
-        // Selecionar todos
         franchiseEntries.forEach(e => newSet.add(e.id));
       }
       
       return newSet;
     });
-  };
+  }, []);
+
+  // Handler para selecionar/desmarcar todas as franquias filtradas
+  const handleSelectAllFiltered = useCallback((allEntries: AnimeEntry[]) => {
+    setSelectedIds((prev) => {
+      const allSelected = allEntries.every(e => prev.has(e.id));
+      
+      if (allSelected) {
+        // Desmarcar todas
+        const newSet = new Set(prev);
+        allEntries.forEach(e => newSet.delete(e.id));
+        return newSet;
+      } else {
+        // Selecionar todas
+        const newSet = new Set(prev);
+        allEntries.forEach(e => newSet.add(e.id));
+        return newSet;
+      }
+    });
+  }, []);
 
   // Handler para selecionar template
-  const handleSelectTemplate = (template: SmartListTemplate) => {
+  const handleSelectTemplate = useCallback((template: SmartListTemplate) => {
     setSelectedTemplateId(template.id);
     setName(template.name);
     
-    // Aplicar critérios do template
     const { criteria } = template;
     
     if (criteria.statuses) {
@@ -241,6 +285,12 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
       setFranchiseCriteria(null);
     }
     
+    if (criteria.franchiseSize) {
+      setFranchiseSize(criteria.franchiseSize);
+    } else {
+      setFranchiseSize(null);
+    }
+    
     if (criteria.animeTypes) {
       setSelectedTypes(new Set(criteria.animeTypes));
     } else {
@@ -248,21 +298,31 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
     }
     
     setSelectedIds(new Set());
-  };
+  }, []);
+
+  // Handler para limpar todos os filtros
+  const handleClearFilters = useCallback(() => {
+    setSelectedStatuses([]);
+    setMinRating(0);
+    setOnlyFavorites(false);
+    setSelectedTypes(new Set(['main', 'season', 'movie', 'special']));
+    setFranchiseCriteria(null);
+    setFranchiseSize(null);
+    setSelectedIds(new Set());
+    setSelectedTemplateId(undefined);
+  }, []);
 
   // Handler para criar lista inteligente
   const handleCreate = async () => {
     if (!name.trim() || selectedEntries.length === 0) return;
 
     try {
-      // Criar a lista
       const newList = await createList.mutateAsync({
         name: name.trim(),
         description: `Lista inteligente com ${selectedEntries.length} animes`,
         is_public: isPublic,
       });
 
-      // Adicionar os animes à lista
       for (const entry of selectedEntries) {
         await addToList.mutateAsync({
           listId: newList.id,
@@ -276,8 +336,13 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
     }
   };
 
-  // Considera que há filtros ativos se há animes disponíveis ou se algum critério específico foi definido
-  const hasFilters = filteredEntries.length > 0 || selectedStatuses.length > 0 || minRating > 0 || onlyFavorites || franchiseCriteria || selectedTypes.size < 4;
+  // Verifica se há filtros ativos
+  const hasActiveFilters = selectedStatuses.length > 0 || 
+    minRating > 0 || 
+    onlyFavorites || 
+    franchiseCriteria !== null || 
+    franchiseSize !== null ||
+    selectedTypes.size < 4;
 
   return (
     <div className="space-y-4">
@@ -285,6 +350,7 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
       <SmartListTemplates 
         onSelectTemplate={handleSelectTemplate}
         selectedTemplateId={selectedTemplateId}
+        compact
       />
 
       {/* Nome da lista */}
@@ -314,116 +380,217 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
           </TabsTrigger>
         </TabsList>
 
-        {/* Filtros */}
-        <div className="space-y-4 p-4 rounded-lg bg-secondary/30 border border-border/50 mt-4">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Filter className="h-4 w-4" />
-            Critérios de Seleção
-          </div>
-
-          {/* Filtro por Status */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Status</Label>
-            <div className="flex flex-wrap gap-2">
-              {(['watching', 'completed', 'paused', 'dropped', 'not_started'] as AnimeStatus[]).map((status) => (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() => handleStatusToggle(status)}
-                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer ${
-                    selectedStatuses.includes(status)
-                      ? 'border-transparent bg-primary text-primary-foreground'
-                      : 'border-border bg-transparent text-foreground hover:bg-secondary'
-                  }`}
-                >
-                  {statusLabels[status]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Filtro por Tipo de Anime */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Tipo de Conteúdo</Label>
-            <div className="flex flex-wrap gap-2">
-              {(['main', 'season', 'movie', 'special'] as const).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => handleTypeToggle(type)}
-                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer ${
-                    selectedTypes.has(type)
-                      ? 'border-transparent bg-primary text-primary-foreground'
-                      : 'border-border bg-transparent text-foreground hover:bg-secondary'
-                  }`}
-                >
-                  {animeTypeLabels[type]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Filtro por Nota */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">
-              Nota mínima: {minRating > 0 ? `${minRating} estrelas` : 'Qualquer'}
-            </Label>
-            <Slider
-              value={[minRating]}
-              onValueChange={([value]) => {
-                setMinRating(value);
-                setSelectedTemplateId(undefined);
-              }}
-              max={5}
-              step={1}
-              className="w-full"
-            />
-          </div>
-
-          {/* Apenas Favoritos */}
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="only-favorites"
-              checked={onlyFavorites}
-              onCheckedChange={(checked) => {
-                setOnlyFavorites(checked === true);
-                setSelectedTemplateId(undefined);
-              }}
-            />
-            <Label htmlFor="only-favorites" className="text-sm cursor-pointer">
-              Apenas favoritos
-            </Label>
-          </div>
-
-          {/* Critérios de Franquia (apenas no modo franquia) */}
-          {viewMode === 'franchise' && (
-            <div className="space-y-2 pt-2 border-t border-border/30">
-              <Label className="text-xs text-muted-foreground">Critério de Franquia</Label>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { value: null, label: 'Todas' },
-                  { value: 'completed', label: 'Completas' },
-                  { value: 'in_progress', label: 'Em Andamento' },
-                  { value: 'multi_season', label: 'Multi-temporada' },
-                  { value: 'high_rated', label: 'Nota Alta (4+)' },
-                ].map(({ value, label }) => (
-                  <button
-                    key={value || 'all'}
-                    type="button"
-                    onClick={() => setFranchiseCriteria(value)}
-                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer ${
-                      franchiseCriteria === value
-                        ? 'border-transparent bg-primary text-primary-foreground'
-                        : 'border-border bg-transparent text-foreground hover:bg-secondary'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+        {/* Seção de Filtros Colapsável */}
+        <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen} className="mt-4">
+          <CollapsibleTrigger asChild>
+            <Button 
+              variant="ghost" 
+              className="w-full flex items-center justify-between p-2 h-auto"
+            >
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Filter className="h-4 w-4" />
+                Critérios de Seleção
+                {hasActiveFilters && (
+                  <Badge variant="secondary" className="text-[10px] h-5">
+                    Filtros ativos
+                  </Badge>
+                )}
               </div>
+              {isFiltersOpen ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+          
+          <CollapsibleContent>
+            <div className="space-y-4 p-4 rounded-lg bg-secondary/30 border border-border/50">
+              {/* Botão limpar filtros */}
+              {hasActiveFilters && (
+                <div className="flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={handleClearFilters}
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Limpar filtros
+                  </Button>
+                </div>
+              )}
+
+              {/* Filtro por Status */}
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <div className="flex flex-wrap gap-2">
+                  {(['watching', 'completed', 'paused', 'dropped', 'not_started'] as AnimeStatus[]).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => handleStatusToggle(status)}
+                      className={cn(
+                        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer",
+                        selectedStatuses.includes(status)
+                          ? 'border-transparent bg-primary text-primary-foreground'
+                          : 'border-border bg-transparent text-foreground hover:bg-secondary'
+                      )}
+                    >
+                      {statusLabels[status]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filtro por Tipo de Anime */}
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Tipo de Conteúdo</Label>
+                <div className="flex flex-wrap gap-2">
+                  {(['main', 'season', 'movie', 'special'] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => handleTypeToggle(type)}
+                      className={cn(
+                        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer",
+                        selectedTypes.has(type)
+                          ? 'border-transparent bg-primary text-primary-foreground'
+                          : 'border-border bg-transparent text-foreground hover:bg-secondary'
+                      )}
+                    >
+                      {animeTypeLabels[type]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Filtro por Nota */}
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Nota mínima: {minRating > 0 ? `${minRating} estrelas` : 'Qualquer'}
+                </Label>
+                <Slider
+                  value={[minRating]}
+                  onValueChange={([value]) => {
+                    setMinRating(value);
+                    setSelectedTemplateId(undefined);
+                  }}
+                  max={5}
+                  step={1}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Apenas Favoritos */}
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="only-favorites"
+                  checked={onlyFavorites}
+                  onCheckedChange={(checked) => {
+                    setOnlyFavorites(checked === true);
+                    setSelectedTemplateId(undefined);
+                  }}
+                />
+                <Label htmlFor="only-favorites" className="text-sm cursor-pointer">
+                  Apenas favoritos
+                </Label>
+              </div>
+
+              {/* Critérios de Franquia (apenas no modo franquia) */}
+              {viewMode === 'franchise' && (
+                <>
+                  <div className="space-y-2 pt-2 border-t border-border/30">
+                    <Label className="text-xs text-muted-foreground">Critério de Franquia</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { value: null, label: 'Todas' },
+                        { value: 'completed', label: 'Completas' },
+                        { value: 'in_progress', label: 'Em Andamento' },
+                        { value: 'nearly_complete', label: 'Quase Completas' },
+                        { value: 'multi_season', label: 'Multi-temporada' },
+                        { value: 'high_rated', label: 'Nota Alta (4+)' },
+                        { value: 'abandoned', label: 'Abandonadas' },
+                      ].map(({ value, label }) => (
+                        <button
+                          key={value || 'all'}
+                          type="button"
+                          onClick={() => setFranchiseCriteria(value)}
+                          className={cn(
+                            "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer",
+                            franchiseCriteria === value
+                              ? 'border-transparent bg-primary text-primary-foreground'
+                              : 'border-border bg-transparent text-foreground hover:bg-secondary'
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Filtro por tamanho de franquia */}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Tamanho da Franquia</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { value: null, label: 'Qualquer' },
+                        { value: 'small' as const, label: franchiseSizeLabels.small },
+                        { value: 'medium' as const, label: franchiseSizeLabels.medium },
+                        { value: 'large' as const, label: franchiseSizeLabels.large },
+                      ].map(({ value, label }) => (
+                        <button
+                          key={value || 'any'}
+                          type="button"
+                          onClick={() => setFranchiseSize(value)}
+                          className={cn(
+                            "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors cursor-pointer",
+                            franchiseSize === value
+                              ? 'border-transparent bg-primary text-primary-foreground'
+                              : 'border-border bg-transparent text-foreground hover:bg-secondary'
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
-          )}
-        </div>
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Seção de Estatísticas */}
+        <Collapsible open={isStatsOpen} onOpenChange={setIsStatsOpen} className="mt-4">
+          <CollapsibleTrigger asChild>
+            <Button 
+              variant="ghost" 
+              className="w-full flex items-center justify-between p-2 h-auto"
+            >
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Sparkles className="h-4 w-4" />
+                Estatísticas
+                {selectedEntries.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] h-5">
+                    {selectedEntries.length} animes
+                  </Badge>
+                )}
+              </div>
+              {isStatsOpen ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+          
+          <CollapsibleContent>
+            <div className="p-4 rounded-lg bg-secondary/30 border border-border/50">
+              <SmartListStats entries={selectedEntries} />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Preview dos resultados */}
         <TabsContent value="individual" className="mt-4">
@@ -432,18 +599,29 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
               <Label className="text-xs text-muted-foreground">
                 Preview ({selectedEntries.length} anime{selectedEntries.length !== 1 && 's'})
               </Label>
-              {!hasFilters && (
-                <span className="text-xs text-amber-500">Selecione ao menos um filtro</span>
+              {selectedIds.size > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs gap-1"
+                  onClick={() => setSelectedIds(new Set())}
+                >
+                  <X className="h-3 w-3" />
+                  Limpar seleção
+                </Button>
               )}
             </div>
             
             {filteredEntries.length > 0 ? (
-              <ScrollArea className="h-40 rounded-md border bg-secondary/20">
+              <ScrollArea className="h-48 rounded-md border bg-secondary/20">
                 <div className="p-2 space-y-1">
-                  {filteredEntries.slice(0, 15).map((entry) => (
+                  {filteredEntries.slice(0, 20).map((entry) => (
                     <div 
                       key={entry.id} 
-                      className="flex items-center gap-2 text-sm p-1 rounded hover:bg-secondary/50"
+                      className={cn(
+                        "flex items-center gap-2 text-sm p-1.5 rounded hover:bg-secondary/50 transition-colors",
+                        (selectedIds.size === 0 || selectedIds.has(entry.id)) && "bg-primary/5"
+                      )}
                     >
                       <Checkbox
                         checked={selectedIds.size === 0 || selectedIds.has(entry.id)}
@@ -452,17 +630,22 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
                       <img 
                         src={entry.image_url || '/placeholder.svg'} 
                         alt={entry.title}
-                        className="w-6 h-8 rounded object-cover"
+                        className="w-7 h-10 rounded object-cover flex-shrink-0"
                       />
                       <span className="truncate flex-1">{entry.title}</span>
-                      {entry.rating && (
-                        <span className="text-xs text-muted-foreground">★ {entry.rating}</span>
-                      )}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {entry.rating && (
+                          <span className="text-xs text-yellow-500">★ {entry.rating}</span>
+                        )}
+                        <Badge variant="outline" className="text-[10px] h-5">
+                          {statusLabels[entry.status as AnimeStatus]}
+                        </Badge>
+                      </div>
                     </div>
                   ))}
-                  {filteredEntries.length > 15 && (
-                    <p className="text-xs text-muted-foreground text-center py-1">
-                      +{filteredEntries.length - 15} mais...
+                  {filteredEntries.length > 20 && (
+                    <p className="text-xs text-muted-foreground text-center py-2">
+                      +{filteredEntries.length - 20} mais animes...
                     </p>
                   )}
                 </div>
@@ -470,7 +653,7 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
             ) : (
               <div className="h-40 rounded-md border bg-secondary/20 flex items-center justify-center">
                 <p className="text-sm text-muted-foreground">
-                  {hasFilters ? 'Nenhum anime encontrado' : 'Selecione filtros para ver o preview'}
+                  {hasActiveFilters ? 'Nenhum anime encontrado' : 'Selecione filtros para ver o preview'}
                 </p>
               </div>
             )}
@@ -478,27 +661,48 @@ export function SmartListBuilder({ onSuccess, onCancel }: SmartListBuilderProps)
         </TabsContent>
 
         <TabsContent value="franchise" className="mt-4">
-          <div className="space-y-2">
+          <div className="space-y-3">
+            {/* Busca de franquias */}
+            <FranchiseSearch
+              franchiseGroups={franchiseGroups}
+              selectedIds={selectedIds}
+              onToggleEntry={handleToggleEntry}
+              onToggleFranchise={handleToggleFranchise}
+              onSelectAllFiltered={handleSelectAllFiltered}
+              placeholder="Buscar franquia por nome..."
+            />
+            
             <div className="flex items-center justify-between">
               <Label className="text-xs text-muted-foreground">
                 {franchiseGroups.length} franquia{franchiseGroups.length !== 1 && 's'} ({selectedEntries.length} animes)
               </Label>
+              {selectedIds.size > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs gap-1"
+                  onClick={() => setSelectedIds(new Set())}
+                >
+                  <X className="h-3 w-3" />
+                  Limpar seleção
+                </Button>
+              )}
             </div>
             
             {franchiseGroups.length > 0 ? (
-              <ScrollArea className="h-64 rounded-md border bg-secondary/20 p-2">
+              <ScrollArea className="h-56 rounded-md border bg-secondary/20 p-2">
                 <FranchiseListView
                   groups={franchiseGroups}
                   selectedIds={selectedIds}
                   onToggleEntry={handleToggleEntry}
                   onToggleFranchise={handleToggleFranchise}
-                  maxVisible={10}
+                  maxVisible={15}
                 />
               </ScrollArea>
             ) : (
               <div className="h-40 rounded-md border bg-secondary/20 flex items-center justify-center">
                 <p className="text-sm text-muted-foreground">
-                  {hasFilters ? 'Nenhuma franquia encontrada' : 'Selecione filtros para ver franquias'}
+                  {hasActiveFilters ? 'Nenhuma franquia encontrada' : 'Selecione filtros para ver franquias'}
                 </p>
               </div>
             )}

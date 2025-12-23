@@ -85,7 +85,12 @@ export interface FranchiseGroup {
   totalEntries: number;
   completedCount: number;
   watchingCount: number;
+  pausedCount: number;
+  droppedCount: number;
   averageRating: number | null;
+  totalEpisodes: number;
+  watchedEpisodes: number;
+  progressPercent: number;
   types: {
     mainSeries: AnimeEntry[];
     seasons: AnimeEntry[];
@@ -226,6 +231,8 @@ export function groupByFranchise(entries: AnimeEntry[]): FranchiseGroup[] {
     // Calcular estatísticas
     const completedCount = groupEntries.filter(e => e.status === 'completed').length;
     const watchingCount = groupEntries.filter(e => e.status === 'watching').length;
+    const pausedCount = groupEntries.filter(e => e.status === 'paused').length;
+    const droppedCount = groupEntries.filter(e => e.status === 'dropped').length;
     
     const ratings = groupEntries
       .filter(e => e.rating !== null && e.rating !== undefined)
@@ -234,13 +241,25 @@ export function groupByFranchise(entries: AnimeEntry[]): FranchiseGroup[] {
       ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
       : null;
     
+    // Calcular episódios totais e assistidos
+    const totalEpisodes = groupEntries.reduce((sum, e) => sum + (e.total_episodes || 0), 0);
+    const watchedEpisodes = groupEntries.reduce((sum, e) => sum + (e.episodes_watched || 0), 0);
+    const progressPercent = totalEpisodes > 0 
+      ? Math.round((watchedEpisodes / totalEpisodes) * 100)
+      : 0;
+    
     groups.push({
       baseName: shortestBase,
       entries: groupEntries,
       totalEntries: groupEntries.length,
       completedCount,
       watchingCount,
+      pausedCount,
+      droppedCount,
       averageRating,
+      totalEpisodes,
+      watchedEpisodes,
+      progressPercent,
       types: {
         mainSeries,
         seasons,
@@ -269,10 +288,48 @@ export function getInProgressFranchises(groups: FranchiseGroup[]): FranchiseGrou
 }
 
 /**
+ * Filtra franquias quase completas (75%+ de progresso)
+ */
+export function getNearlyCompleteFranchises(groups: FranchiseGroup[]): FranchiseGroup[] {
+  return groups.filter(g => 
+    g.progressPercent >= 75 && 
+    g.progressPercent < 100 && 
+    g.totalEntries > 1
+  );
+}
+
+/**
+ * Filtra franquias abandonadas (pausadas ou dropadas)
+ */
+export function getAbandonedFranchises(groups: FranchiseGroup[]): FranchiseGroup[] {
+  return groups.filter(g => 
+    (g.pausedCount > 0 || g.droppedCount > 0) && 
+    g.watchingCount === 0
+  );
+}
+
+/**
  * Filtra franquias com múltiplas temporadas
  */
 export function getMultiSeasonFranchises(groups: FranchiseGroup[]): FranchiseGroup[] {
   return groups.filter(g => g.totalEntries > 1);
+}
+
+/**
+ * Filtra franquias por tamanho (baseado em episódios totais)
+ */
+export function getFranchisesBySize(
+  groups: FranchiseGroup[], 
+  size: 'small' | 'medium' | 'large'
+): FranchiseGroup[] {
+  switch (size) {
+    case 'small':
+      return groups.filter(g => g.totalEpisodes < 25);
+    case 'medium':
+      return groups.filter(g => g.totalEpisodes >= 25 && g.totalEpisodes < 50);
+    case 'large':
+      return groups.filter(g => g.totalEpisodes >= 50);
+  }
 }
 
 /**

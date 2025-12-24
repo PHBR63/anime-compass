@@ -8,7 +8,9 @@ import {
   User, 
   Smartphone,
   ChevronRight,
-  ArrowLeft
+  ArrowLeft,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -24,6 +26,7 @@ import { DoNotDisturbSettings } from '@/components/notifications/DoNotDisturbSet
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/hooks/useAuth';
 import { useAnimationPreferences } from '@/hooks/useAnimationPreferences';
+import { useExportUserData } from '@/hooks/useExportUserData';
 import { cn } from '@/lib/utils';
 
 type SettingsSection = 'main' | 'notifications' | 'appearance' | 'system';
@@ -38,6 +41,7 @@ export default function Settings() {
   const { data: profile } = useProfile();
   const { user } = useAuth();
   const { preferences, togglePreference } = useAnimationPreferences();
+  const { isExporting, exportAsJson } = useExportUserData();
 
   /**
    * Renderiza o menu principal de configurações
@@ -260,8 +264,24 @@ export default function Settings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Button variant="outline" className="w-full justify-start" size="sm">
-            Exportar meus dados
+          <Button 
+            variant="outline" 
+            className="w-full justify-start" 
+            size="sm"
+            onClick={exportAsJson}
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Exportando...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar meus dados (JSON)
+              </>
+            )}
           </Button>
           <Button 
             variant="outline" 

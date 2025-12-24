@@ -212,7 +212,8 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl w-[95vw] md:w-full max-h-[85vh] md:max-h-[90vh] overflow-y-auto glass-card border-border/50 p-0">
+      {/* Modal responsiva com scroll interno */}
+      <DialogContent className="w-[95vw] max-w-3xl h-[90vh] max-h-[800px] overflow-y-auto glass-card border-border/50 p-0">
         {loadingDetails ? (
           <div className="flex items-center justify-center h-48 md:h-64">
             <Loader2 className="h-6 w-6 md:h-8 md:w-8 animate-spin text-primary" />

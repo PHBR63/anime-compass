@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -82,53 +81,57 @@ export function ImageCropModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      {/* Modal responsiva com largura adaptável */}
+      <DialogContent className="w-[95vw] max-w-md flex flex-col p-0 gap-0">
+        <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4 flex-shrink-0">
           <DialogTitle>Ajustar foto de perfil</DialogTitle>
         </DialogHeader>
 
-        {/* Área de crop */}
-        <div className="relative w-full h-64 bg-muted rounded-lg overflow-hidden">
-          <Cropper
-            image={imageSrc}
-            crop={crop}
-            zoom={zoom}
-            aspect={1}
-            cropShape="round"
-            showGrid={false}
-            onCropChange={onCropChange}
-            onZoomChange={onZoomChange}
-            onCropComplete={onCropAreaComplete}
-          />
+        <div className="px-4 sm:px-6 space-y-4 pb-4">
+          {/* Área de crop */}
+          <div className="relative w-full h-56 sm:h-64 bg-muted rounded-lg overflow-hidden">
+            <Cropper
+              image={imageSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              cropShape="round"
+              showGrid={false}
+              onCropChange={onCropChange}
+              onZoomChange={onZoomChange}
+              onCropComplete={onCropAreaComplete}
+            />
+          </div>
+
+          {/* Controle de zoom */}
+          <div className="flex items-center gap-3 px-2">
+            <ZoomIn className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <Slider
+              value={[zoom]}
+              min={1}
+              max={3}
+              step={0.1}
+              onValueChange={(value) => setZoom(value[0])}
+              className="flex-1"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleReset}
+              className="h-8 w-8 flex-shrink-0"
+              title="Resetar"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <p className="text-xs text-muted-foreground text-center">
+            Arraste para posicionar e use o zoom para ajustar
+          </p>
         </div>
 
-        {/* Controle de zoom */}
-        <div className="flex items-center gap-3 px-2">
-          <ZoomIn className="h-4 w-4 text-muted-foreground" />
-          <Slider
-            value={[zoom]}
-            min={1}
-            max={3}
-            step={0.1}
-            onValueChange={(value) => setZoom(value[0])}
-            className="flex-1"
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleReset}
-            className="h-8 w-8"
-            title="Resetar"
-          >
-            <RotateCcw className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <p className="text-xs text-muted-foreground text-center">
-          Arraste para posicionar e use o zoom para ajustar
-        </p>
-
-        <DialogFooter className="gap-2 sm:gap-0">
+        {/* Footer fixo com botões */}
+        <div className="flex justify-end gap-2 p-4 sm:p-6 pt-4 border-t flex-shrink-0">
           <Button variant="outline" onClick={handleClose} disabled={isProcessing}>
             Cancelar
           </Button>
@@ -142,7 +145,7 @@ export function ImageCropModal({
               'Confirmar'
             )}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

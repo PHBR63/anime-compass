@@ -22,7 +22,9 @@ interface RecommendAnimeModalProps {
   friendName: string;
 }
 
-// Modal para recomendar um anime a um amigo
+/**
+ * Modal para recomendar um anime a um amigo
+ */
 export function RecommendAnimeModal({
   open,
   onOpenChange,
@@ -48,6 +50,7 @@ export function RecommendAnimeModal({
       e.title.toLowerCase().includes(search.toLowerCase())
     ) || [];
 
+  // Enviar recomendação
   const handleSend = async () => {
     if (!selectedAnime) return;
 
@@ -66,6 +69,7 @@ export function RecommendAnimeModal({
     onOpenChange(false);
   };
 
+  // Fechar modal
   const handleClose = () => {
     setSelectedAnime(null);
     setMessage('');
@@ -75,8 +79,9 @@ export function RecommendAnimeModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      {/* Modal responsiva com altura adaptável */}
+      <DialogContent className="w-[95vw] max-w-lg h-[85vh] max-h-[600px] flex flex-col p-0 gap-0">
+        <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4 flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Send className="h-5 w-5 text-primary" />
             Indicar Anime
@@ -86,11 +91,11 @@ export function RecommendAnimeModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 flex flex-col overflow-hidden px-4 sm:px-6">
           {!selectedAnime ? (
             <>
               {/* Busca */}
-              <div className="relative">
+              <div className="relative mb-4 flex-shrink-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar na sua lista..."
@@ -100,10 +105,10 @@ export function RecommendAnimeModal({
                 />
               </div>
 
-              {/* Lista de Animes */}
-              <ScrollArea className="h-[300px]">
+              {/* Lista de Animes com scroll */}
+              <ScrollArea className="flex-1 -mx-4 sm:-mx-6 px-4 sm:px-6">
                 {isLoading ? (
-                  <div className="space-y-2">
+                  <div className="space-y-2 pb-4">
                     {[...Array(5)].map((_, i) => (
                       <Skeleton key={i} className="h-16 w-full" />
                     ))}
@@ -113,7 +118,7 @@ export function RecommendAnimeModal({
                     {search ? 'Nenhum anime encontrado' : 'Complete alguns animes primeiro'}
                   </p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2 pb-4">
                     {recommendableAnimes.map(anime => (
                       <button
                         key={anime.id}
@@ -127,7 +132,7 @@ export function RecommendAnimeModal({
                         <img 
                           src={anime.image_url || '/placeholder.svg'}
                           alt={anime.title}
-                          className="h-12 w-9 rounded object-cover"
+                          className="h-12 w-9 rounded object-cover flex-shrink-0"
                         />
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">{anime.title}</p>
@@ -153,16 +158,16 @@ export function RecommendAnimeModal({
               </ScrollArea>
             </>
           ) : (
-            <>
+            <div className="flex-1 flex flex-col pb-4">
               {/* Anime Selecionado */}
-              <div className="flex items-center gap-3 rounded-lg bg-primary/10 p-3">
+              <div className="flex items-center gap-3 rounded-lg bg-primary/10 p-3 mb-4 flex-shrink-0">
                 <img 
                   src={selectedAnime.image_url || '/placeholder.svg'}
                   alt={selectedAnime.title}
-                  className="h-16 w-12 rounded object-cover"
+                  className="h-16 w-12 rounded object-cover flex-shrink-0"
                 />
-                <div className="flex-1">
-                  <p className="font-medium">{selectedAnime.title}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{selectedAnime.title}</p>
                   <Button 
                     variant="link" 
                     size="sm" 
@@ -175,7 +180,7 @@ export function RecommendAnimeModal({
               </div>
 
               {/* Mensagem opcional */}
-              <div className="space-y-2">
+              <div className="space-y-2 flex-1">
                 <label className="text-sm font-medium">
                   Mensagem (opcional)
                 </label>
@@ -188,7 +193,7 @@ export function RecommendAnimeModal({
               </div>
 
               {/* Botões */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-4 flex-shrink-0">
                 <Button 
                   variant="outline" 
                   className="flex-1"
@@ -206,12 +211,12 @@ export function RecommendAnimeModal({
                   ) : (
                     <>
                       <Send className="mr-2 h-4 w-4" />
-                      Enviar Indicação
+                      Enviar
                     </>
                   )}
                 </Button>
               </div>
-            </>
+            </div>
           )}
         </div>
       </DialogContent>

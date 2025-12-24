@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -78,8 +78,9 @@ export function ReportContentModal({
         )}
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      {/* Modal responsiva com scroll interno */}
+      <DialogContent className="w-[95vw] max-w-md max-h-[85vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4 flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-destructive" />
             Denunciar Conteúdo
@@ -89,39 +90,43 @@ export function ReportContentModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Razões */}
-          <RadioGroup value={reason} onValueChange={(v) => setReason(v as ReportReason)}>
-            {reportReasons.map((item) => (
-              <div key={item.value} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                <RadioGroupItem value={item.value} id={item.value} className="mt-0.5" />
-                <div className="flex-1">
-                  <Label htmlFor={item.value} className="font-medium cursor-pointer">
-                    {item.label}
-                  </Label>
-                  <p className="text-xs text-muted-foreground">{item.description}</p>
+        {/* Conteúdo com scroll */}
+        <ScrollArea className="flex-1 px-4 sm:px-6">
+          <div className="space-y-4 pb-4">
+            {/* Razões */}
+            <RadioGroup value={reason} onValueChange={(v) => setReason(v as ReportReason)}>
+              {reportReasons.map((item) => (
+                <div key={item.value} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                  <RadioGroupItem value={item.value} id={item.value} className="mt-0.5" />
+                  <div className="flex-1">
+                    <Label htmlFor={item.value} className="font-medium cursor-pointer">
+                      {item.label}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">{item.description}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </RadioGroup>
+              ))}
+            </RadioGroup>
 
-          {/* Descrição adicional */}
-          <div>
-            <Label htmlFor="description" className="text-sm font-medium">
-              Detalhes adicionais (opcional)
-            </Label>
-            <Textarea
-              id="description"
-              placeholder="Descreva o problema em mais detalhes..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="mt-1"
-              rows={3}
-            />
+            {/* Descrição adicional */}
+            <div>
+              <Label htmlFor="description" className="text-sm font-medium">
+                Detalhes adicionais (opcional)
+              </Label>
+              <Textarea
+                id="description"
+                placeholder="Descreva o problema em mais detalhes..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="mt-1"
+                rows={3}
+              />
+            </div>
           </div>
-        </div>
+        </ScrollArea>
 
-        <DialogFooter>
+        {/* Footer fixo */}
+        <div className="flex justify-end gap-2 p-4 sm:p-6 pt-4 border-t flex-shrink-0">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancelar
           </Button>
@@ -132,7 +137,7 @@ export function ReportContentModal({
           >
             {createReport.isPending ? 'Enviando...' : 'Enviar Denúncia'}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useRef, memo, useCallback } from 'react';
+import { useIsAnimationEnabled } from '@/hooks/useAnimationPreferences';
 
 interface InkDrop {
   x: number;
@@ -29,8 +30,6 @@ interface InkCursorProps {
   continuous?: boolean;
   /** Classe CSS adicional */
   className?: string;
-  /** Se o efeito está ativo */
-  enabled?: boolean;
 }
 
 export const InkCursor = memo(({
@@ -40,8 +39,10 @@ export const InkCursor = memo(({
   lifetime = 2000,
   continuous = true,
   className = '',
-  enabled = true,
 }: InkCursorProps) => {
+  // Verifica se o efeito de cursor está habilitado nas preferências
+  const isEnabled = useIsAnimationEnabled('cursorEffects');
+  
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dropsRef = useRef<InkDrop[]>([]);
   const animationRef = useRef<number>();
@@ -97,7 +98,7 @@ export const InkCursor = memo(({
 
   // Handler de movimento do mouse
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!enabled) return;
+    if (!isEnabled) return;
     
     const now = Date.now();
     const dx = e.clientX - lastPosRef.current.x;
@@ -131,10 +132,10 @@ export const InkCursor = memo(({
       lastPosRef.current = { x: e.clientX, y: e.clientY };
       lastTimeRef.current = now;
     }
-  }, [enabled, size, maxDrops, continuous]);
+  }, [isEnabled, size, maxDrops, continuous]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!isEnabled) return;
     
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -184,9 +185,9 @@ export const InkCursor = memo(({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [enabled, handleMouseMove, drawInkDrop, lifetime]);
+  }, [isEnabled, handleMouseMove, drawInkDrop, lifetime]);
 
-  if (!enabled) return null;
+  if (!isEnabled) return null;
 
   return (
     <canvas

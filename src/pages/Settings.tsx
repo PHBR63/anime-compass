@@ -23,6 +23,7 @@ import { PushCategoriesCard } from '@/components/notifications/PushCategoriesCar
 import { DoNotDisturbSettings } from '@/components/notifications/DoNotDisturbSettings';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/hooks/useAuth';
+import { useAnimationPreferences } from '@/hooks/useAnimationPreferences';
 import { cn } from '@/lib/utils';
 
 type SettingsSection = 'main' | 'notifications' | 'appearance' | 'system';
@@ -36,6 +37,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const { data: profile } = useProfile();
   const { user } = useAuth();
+  const { preferences, togglePreference } = useAnimationPreferences();
 
   /**
    * Renderiza o menu principal de configurações
@@ -196,10 +198,13 @@ export default function Settings() {
             <div className="space-y-0.5">
               <Label className="text-sm font-medium">Transições de página</Label>
               <p className="text-xs text-muted-foreground">
-                Animações suaves entre páginas
+                Pétalas de sakura entre páginas
               </p>
             </div>
-            <Switch defaultChecked />
+            <Switch 
+              checked={preferences.pageTransitions}
+              onCheckedChange={() => togglePreference('pageTransitions')}
+            />
           </div>
           
           <div className="flex items-center justify-between">
@@ -209,7 +214,23 @@ export default function Settings() {
                 Rastro de tinta estilo sumi-e
               </p>
             </div>
-            <Switch defaultChecked />
+            <Switch 
+              checked={preferences.cursorEffects}
+              onCheckedChange={() => togglePreference('cursorEffects')}
+            />
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium">Reduzir movimento</Label>
+              <p className="text-xs text-muted-foreground">
+                Desabilita todas as animações
+              </p>
+            </div>
+            <Switch 
+              checked={preferences.reducedMotion}
+              onCheckedChange={() => togglePreference('reducedMotion')}
+            />
           </div>
         </CardContent>
       </Card>

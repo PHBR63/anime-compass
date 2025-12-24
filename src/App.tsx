@@ -9,6 +9,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { AnimeEntriesProvider } from "@/contexts/AnimeEntriesContext";
 import { AchievementCelebrationProvider } from "@/contexts/AchievementCelebrationContext";
 import { HelpProvider } from "@/contexts/HelpContext";
+import { AnimationPreferencesProvider } from "@/hooks/useAnimationPreferences";
 import { WelcomeModal, HelpPanel, TourOverlay, HelpButton } from "@/components/help";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -160,8 +161,9 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AchievementCelebrationProvider>
-          <HelpProvider>
-            <TooltipProvider>
+          <AnimationPreferencesProvider>
+            <HelpProvider>
+              <TooltipProvider>
               <Toaster />
               <Sonner />
               {/* Efeito de cursor com rastro de tinta - estilo sumi-e */}
@@ -228,8 +230,9 @@ const App = () => (
                   </Routes>
                 </Suspense>
               </BrowserRouter>
-            </TooltipProvider>
-          </HelpProvider>
+              </TooltipProvider>
+            </HelpProvider>
+          </AnimationPreferencesProvider>
         </AchievementCelebrationProvider>
       </AuthProvider>
     </QueryClientProvider>

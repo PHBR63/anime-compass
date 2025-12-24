@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { ReactNode, useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
+import { useIsAnimationEnabled } from "@/hooks/useAnimationPreferences";
 
 /**
  * Interface para cada pétala de sakura
@@ -135,11 +136,18 @@ interface SakuraPageTransitionProps {
  */
 export function SakuraPageTransition({ children, className = "" }: SakuraPageTransitionProps) {
   const location = useLocation();
+  const isEnabled = useIsAnimationEnabled('pageTransitions');
   const [showPetals, setShowPetals] = useState(false);
   const [currentChildren, setCurrentChildren] = useState(children);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
+    // Se animações desabilitadas, apenas atualiza o conteúdo
+    if (!isEnabled) {
+      setCurrentChildren(children);
+      return;
+    }
+    
     // Inicia a transição
     setIsTransitioning(true);
     setShowPetals(true);

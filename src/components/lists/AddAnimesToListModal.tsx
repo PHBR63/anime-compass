@@ -104,109 +104,113 @@ export function AddAnimesToListModal({ listId, open, onOpenChange }: AddAnimesTo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-        <DialogHeader>
+      {/* Modal responsiva com largura adaptável e altura máxima */}
+      <DialogContent className="w-[95vw] max-w-2xl h-[85vh] max-h-[700px] flex flex-col p-0 gap-0">
+        <DialogHeader className="p-4 sm:p-6 pb-2 sm:pb-4 flex-shrink-0">
           <DialogTitle>Adicionar Animes à Lista</DialogTitle>
         </DialogHeader>
 
-        {/* Barra de busca */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar animes..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        {/* Ações de seleção */}
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">
-              {selectedIds.length} selecionado(s)
-            </span>
-            {selectedIds.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearSelection}>
-                Limpar
-              </Button>
-            )}
+        {/* Conteúdo principal com scroll */}
+        <div className="flex-1 flex flex-col overflow-hidden px-4 sm:px-6">
+          {/* Barra de busca */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar animes..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10"
+            />
           </div>
-          <Button variant="ghost" size="sm" onClick={selectAll}>
-            Selecionar todos ({filteredEntries.length})
-          </Button>
-        </div>
 
-        {/* Lista de animes */}
-        <ScrollArea className="flex-1 -mx-6 px-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : filteredEntries.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              {availableEntries.length === 0 ? (
-                <p>Todos os seus animes já estão nesta lista</p>
-              ) : (
-                <p>Nenhum anime encontrado</p>
+          {/* Ações de seleção */}
+          <div className="flex items-center justify-between text-sm mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">
+                {selectedIds.length} selecionado(s)
+              </span>
+              {selectedIds.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={clearSelection}>
+                  Limpar
+                </Button>
               )}
             </div>
-          ) : (
-            <div className="space-y-2">
-              {filteredEntries.map((entry: any) => {
-                const isSelected = selectedIds.includes(entry.id);
-                return (
-                  <div
-                    key={entry.id}
-                    onClick={() => toggleSelection(entry.id)}
-                    className={cn(
-                      "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors",
-                      "hover:bg-secondary/50",
-                      isSelected && "bg-primary/10 border border-primary/30"
-                    )}
-                  >
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => toggleSelection(entry.id)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    
-                    <img
-                      src={entry.image_url || '/placeholder.svg'}
-                      alt={entry.title}
-                      className="w-12 h-16 object-cover rounded"
-                    />
-                    
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{entry.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline" className="text-xs">
-                          {entry.status === 'watching' && 'Assistindo'}
-                          {entry.status === 'completed' && 'Completo'}
-                          {entry.status === 'paused' && 'Pausado'}
-                          {entry.status === 'dropped' && 'Abandonado'}
-                          {entry.status === 'planned' && 'Planejado'}
-                        </Badge>
-                        {entry.rating && (
-                          <span className="text-xs text-muted-foreground">
-                            ★ {entry.rating}
-                          </span>
-                        )}
+            <Button variant="ghost" size="sm" onClick={selectAll}>
+              Selecionar todos ({filteredEntries.length})
+            </Button>
+          </div>
+
+          {/* Lista de animes com scroll */}
+          <ScrollArea className="flex-1 -mx-4 sm:-mx-6 px-4 sm:px-6">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredEntries.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                {availableEntries.length === 0 ? (
+                  <p>Todos os seus animes já estão nesta lista</p>
+                ) : (
+                  <p>Nenhum anime encontrado</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2 pb-4">
+                {filteredEntries.map((entry: any) => {
+                  const isSelected = selectedIds.includes(entry.id);
+                  return (
+                    <div
+                      key={entry.id}
+                      onClick={() => toggleSelection(entry.id)}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors",
+                        "hover:bg-secondary/50",
+                        isSelected && "bg-primary/10 border border-primary/30"
+                      )}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelection(entry.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      
+                      <img
+                        src={entry.image_url || '/placeholder.svg'}
+                        alt={entry.title}
+                        className="w-12 h-16 object-cover rounded flex-shrink-0"
+                      />
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{entry.title}</p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <Badge variant="outline" className="text-xs">
+                            {entry.status === 'watching' && 'Assistindo'}
+                            {entry.status === 'completed' && 'Completo'}
+                            {entry.status === 'paused' && 'Pausado'}
+                            {entry.status === 'dropped' && 'Abandonado'}
+                            {entry.status === 'planned' && 'Planejado'}
+                          </Badge>
+                          {entry.rating && (
+                            <span className="text-xs text-muted-foreground">
+                              ★ {entry.rating}
+                            </span>
+                          )}
+                        </div>
                       </div>
+
+                      {isSelected && (
+                        <Check className="h-5 w-5 text-primary shrink-0" />
+                      )}
                     </div>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+        </div>
 
-                    {isSelected && (
-                      <Check className="h-5 w-5 text-primary shrink-0" />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </ScrollArea>
-
-        {/* Footer com ações */}
-        <div className="flex items-center justify-end gap-2 pt-4 border-t">
+        {/* Footer fixo com ações */}
+        <div className="flex items-center justify-end gap-2 p-4 sm:p-6 pt-4 border-t flex-shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>

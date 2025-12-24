@@ -60,12 +60,13 @@ export function EditListModal({ list, open, onOpenChange }: EditListModalProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      {/* Modal responsiva com largura adaptável */}
+      <DialogContent className="w-[95vw] max-w-md max-h-[85vh] flex flex-col p-0">
+        <DialogHeader className="p-4 sm:p-6 pb-2 flex-shrink-0">
           <DialogTitle>Editar Lista</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 mt-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="edit-name">Nome da Lista *</Label>
             <Input
@@ -112,18 +113,19 @@ export function EditListModal({ list, open, onOpenChange }: EditListModalProps) 
               onCheckedChange={setIsPublic}
             />
           </div>
+        </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button 
-              onClick={handleSave} 
-              disabled={!name.trim() || updateList.isPending}
-            >
-              {updateList.isPending ? 'Salvando...' : 'Salvar Alterações'}
-            </Button>
-          </div>
+        {/* Footer fixo com botões */}
+        <div className="flex justify-end gap-2 p-4 sm:p-6 pt-4 border-t flex-shrink-0">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleSave} 
+            disabled={!name.trim() || updateList.isPending}
+          >
+            {updateList.isPending ? 'Salvando...' : 'Salvar Alterações'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

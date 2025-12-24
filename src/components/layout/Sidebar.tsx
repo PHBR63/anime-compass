@@ -15,7 +15,8 @@ import {
   Building2,
   MessageSquare,
   Moon,
-  Shield
+  Shield,
+  Settings
 } from 'lucide-react';
 import { Logo } from '@/components/ui/Logo';
 import { cn } from '@/lib/utils';
@@ -60,6 +61,7 @@ const navItems: NavItem[] = [
   { icon: MessageCircle, label: 'Chat', path: '/chat', hasBadge: true },
   { icon: Trophy, label: 'Conquistas', path: '/achievements' },
   { icon: User, label: 'Perfil', path: '/profile' },
+  { icon: Settings, label: 'Configurações', path: '/settings' },
   { icon: Shield, label: 'Moderação', path: '/moderation', moderatorOnly: true },
   { icon: Shield, label: 'Admin', path: '/admin', adminOnly: true },
 ];

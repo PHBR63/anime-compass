@@ -19,6 +19,7 @@ const Discover = lazy(() => import("@/pages/Discover"));
 const Social = lazy(() => import("@/pages/Social"));
 const Achievements = lazy(() => import("@/pages/Achievements"));
 const Profile = lazy(() => import("@/pages/Profile"));
+const Settings = lazy(() => import("@/pages/Settings"));
 const Chat = lazy(() => import("@/pages/Chat"));
 const Reviews = lazy(() => import("@/pages/Reviews"));
 const Admin = lazy(() => import("@/pages/Admin"));
@@ -105,6 +106,13 @@ export function AnimatedRoutes() {
           <SakuraPageTransition>
             <Suspense fallback={<ProfileSkeleton />}>
               <Profile />
+            </Suspense>
+          </SakuraPageTransition>
+        } />
+        <Route path="/settings" element={
+          <SakuraPageTransition>
+            <Suspense fallback={<GenericSkeleton />}>
+              <Settings />
             </Suspense>
           </SakuraPageTransition>
         } />

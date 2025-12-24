@@ -6,10 +6,10 @@ import logoIcon from '@/assets/logo-icon.png';
 import logoText from '@/assets/logo-text.png';
 import logoFull from '@/assets/logo-full.png';
 
-// Importa as imagens do logo - versão clara (para fundos escuros)
-import logoIconLight from '@/assets/logo-icon-light.png';
-import logoTextLight from '@/assets/logo-text-light.png';
-import logoFullLight from '@/assets/logo-full-light.png';
+// Importa as imagens do logo - versão clara (para fundos escuros) - SVG vetorial
+import logoIconLight from '@/assets/logo-icon-light.svg';
+import logoTextLight from '@/assets/logo-text-light.svg';
+import logoFullLight from '@/assets/logo-full-light.svg';
 
 interface LogoProps {
   className?: string;

@@ -136,6 +136,8 @@ export default defineConfig(({ mode }) => ({
         mode: "production",
         // Limpar caches antigos automaticamente
         cleanupOutdatedCaches: true,
+        // Importar service worker customizado para push notifications e auto-update
+        importScripts: ['/custom-sw.js'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.jikan\.moe\/.*/i,

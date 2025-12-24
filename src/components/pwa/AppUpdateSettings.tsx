@@ -1,12 +1,18 @@
-import { RefreshCw, CheckCircle2, AlertCircle, Smartphone } from 'lucide-react';
+import { RefreshCw, CheckCircle2, AlertCircle, Smartphone, Zap, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { usePWAUpdate } from '@/hooks/usePWAUpdate';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { useAutoUpdate } from '@/hooks/useAutoUpdate';
+import { APP_VERSION, VERSION_NAME, getBuildDateFormatted } from '@/lib/version';
 import { cn } from '@/lib/utils';
 
 /**
  * Componente para exibir informações do sistema e permitir verificar atualizações manualmente
+ * Inclui toggle para atualização automática
  */
 export function AppUpdateSettings() {
   const { 
@@ -18,6 +24,7 @@ export function AppUpdateSettings() {
   } = usePWAUpdate();
   
   const { isInstalled, deviceType } = usePWAInstall();
+  const { isEnabled: autoUpdateEnabled, toggle: toggleAutoUpdate } = useAutoUpdate();
 
   /**
    * Handler para verificar atualizações manualmente
@@ -45,6 +52,22 @@ export function AppUpdateSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Versão do app */}
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Versão</span>
+          <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-muted">
+            v{APP_VERSION} ({VERSION_NAME})
+          </span>
+        </div>
+
+        {/* Data do build */}
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Última atualização</span>
+          <span className="text-xs text-muted-foreground">
+            {getBuildDateFormatted()}
+          </span>
+        </div>
+
         {/* Status de instalação */}
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Modo de execução</span>
@@ -89,6 +112,38 @@ export function AppUpdateSettings() {
               </>
             )}
           </span>
+        </div>
+
+        <Separator className="my-3" />
+
+        {/* Toggle de auto-update */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {autoUpdateEnabled ? (
+              <Zap className="h-4 w-4 text-sakura" />
+            ) : (
+              <Bell className="h-4 w-4 text-muted-foreground" />
+            )}
+            <div className="space-y-0.5">
+              <Label 
+                htmlFor="auto-update" 
+                className="text-sm font-medium cursor-pointer"
+              >
+                Atualização automática
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {autoUpdateEnabled 
+                  ? 'Atualiza silenciosamente em background'
+                  : 'Pergunta antes de atualizar'
+                }
+              </p>
+            </div>
+          </div>
+          <Switch
+            id="auto-update"
+            checked={autoUpdateEnabled}
+            onCheckedChange={toggleAutoUpdate}
+          />
         </div>
 
         {/* Verificar atualizações */}

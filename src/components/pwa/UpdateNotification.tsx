@@ -1,15 +1,25 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, Check, Wifi } from 'lucide-react';
+import { RefreshCw, Check, Wifi, Zap } from 'lucide-react';
 import { usePWAUpdate } from '@/hooks/usePWAUpdate';
 import { Button } from '@/components/ui/button';
 
 /**
  * Componente de notificação sutil para atualizações do PWA
  * Aparece brevemente quando uma atualização é detectada ou aplicada
+ * Suporta modo de auto-update silencioso
  */
 export function UpdateNotification() {
-  const { offlineReady, updateApplied, needRefresh, applyUpdate, closeOfflineReady, closeNeedRefresh } = usePWAUpdate();
+  const { 
+    offlineReady, 
+    updateApplied, 
+    needRefresh, 
+    autoUpdateEnabled,
+    applyUpdate, 
+    closeOfflineReady, 
+    closeNeedRefresh 
+  } = usePWAUpdate();
+  
   const [showOfflineToast, setShowOfflineToast] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
 
@@ -42,10 +52,14 @@ export function UpdateNotification() {
     closeNeedRefresh();
   };
 
+  // Se auto-update está habilitado, não mostrar toast de nova versão
+  // (a atualização será aplicada automaticamente)
+  const showUpdateToast = needRefresh && !updateApplied && !autoUpdateEnabled;
+
   return (
     <AnimatePresence>
-      {/* Toast de nova versão disponível - com ação do usuário */}
-      {needRefresh && !updateApplied && (
+      {/* Toast de nova versão disponível - só aparece se auto-update está DESABILITADO */}
+      {showUpdateToast && (
         <motion.div
           initial={{ opacity: 0, y: 50, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -83,6 +97,26 @@ export function UpdateNotification() {
                 {isApplying ? 'Atualizando...' : 'Atualizar'}
               </Button>
             </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Toast de auto-update em progresso (quando habilitado) */}
+      {needRefresh && autoUpdateEnabled && !updateApplied && (
+        <motion.div
+          initial={{ opacity: 0, y: 50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 20, scale: 0.95 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[100] pointer-events-none"
+        >
+          <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-sakura/20 to-accent/20 backdrop-blur-xl border border-sakura/30 rounded-full shadow-lg shadow-sakura/20">
+            <div className="w-6 h-6 rounded-full bg-sakura/20 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-sakura animate-pulse" />
+            </div>
+            <span className="text-sm font-medium text-foreground">
+              Atualizando automaticamente...
+            </span>
           </div>
         </motion.div>
       )}
@@ -150,9 +184,8 @@ export function UpdateNotification() {
 
 /**
  * Indicador de atualização em progresso (loading spinner sutil)
- * Agora mostra apenas quando está aplicando, não quando detecta
+ * Mantido para compatibilidade mas não mais utilizado
  */
 export function UpdateLoadingIndicator() {
-  // Removido - agora o controle é feito no UpdateNotification
   return null;
 }

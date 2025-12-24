@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { useAutoUpdate } from './useAutoUpdate';
 
 /**
  * Chave para controle de atualização no sessionStorage
@@ -9,7 +10,7 @@ const UPDATE_CHECK_KEY = 'pwa-last-update-check';
 
 /**
  * Hook para gerenciar atualizações do PWA
- * Corrigido para evitar loops de refresh
+ * Suporta auto-update silencioso e atualização manual
  */
 export function usePWAUpdate() {
   // Estado para controlar se uma atualização foi aplicada recentemente
@@ -28,6 +29,9 @@ export function usePWAUpdate() {
   
   // Ref para o intervalo de verificação
   const checkIntervalRef = useRef<number | null>(null);
+  
+  // Hook para preferência de auto-update
+  const { isEnabled: autoUpdateEnabled } = useAutoUpdate();
 
   const {
     offlineReady: [offlineReady, setOfflineReady],
@@ -40,7 +44,6 @@ export function usePWAUpdate() {
       
       if (registration) {
         // Verificação periódica de atualizações (a cada 5 minutos)
-        // Limpar intervalo anterior se existir
         if (checkIntervalRef.current) {
           clearInterval(checkIntervalRef.current);
         }
@@ -55,7 +58,7 @@ export function usePWAUpdate() {
             return;
           }
           
-          console.log('[PWA] Verificando atualizações...');
+          console.log('[PWA] Verificando atualizações em background...');
           sessionStorage.setItem(UPDATE_CHECK_KEY, now.toString());
           registration.update().catch((err) => {
             console.warn('[PWA] Erro ao verificar atualizações:', err);
@@ -66,7 +69,6 @@ export function usePWAUpdate() {
     // Callback quando uma atualização está pronta
     onNeedRefresh() {
       console.log('[PWA] Nova versão disponível');
-      // NÃO fazer reload automático - deixar o usuário decidir
     },
     // Callback quando o app está pronto para uso offline
     onOfflineReady() {
@@ -77,6 +79,26 @@ export function usePWAUpdate() {
       console.error('[PWA] Erro ao registrar Service Worker:', error);
     },
   });
+
+  /**
+   * Auto-update silencioso quando habilitado
+   * Aplica a atualização automaticamente após um delay
+   */
+  useEffect(() => {
+    if (needRefresh && autoUpdateEnabled && !updateApplied && !isUpdatingRef.current) {
+      console.log('[PWA] Auto-update habilitado, aplicando em 3 segundos...');
+      
+      const timer = setTimeout(async () => {
+        try {
+          await applyUpdateInternal(true); // Reload silencioso
+        } catch (err) {
+          console.error('[PWA] Erro no auto-update:', err);
+        }
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [needRefresh, autoUpdateEnabled, updateApplied]);
 
   /**
    * Limpar intervalo quando o componente desmontar
@@ -103,9 +125,9 @@ export function usePWAUpdate() {
   }, [updateApplied]);
 
   /**
-   * Aplica a atualização manualmente (com controle anti-loop)
+   * Função interna para aplicar atualização
    */
-  const applyUpdate = useCallback(async (reload: boolean = false) => {
+  const applyUpdateInternal = async (reload: boolean = false) => {
     // Prevenir múltiplas atualizações simultâneas
     if (isUpdatingRef.current) {
       console.log('[PWA] Atualização já em andamento, ignorando...');
@@ -127,7 +149,7 @@ export function usePWAUpdate() {
       sessionStorage.setItem(UPDATE_APPLIED_KEY, 'true');
       setUpdateApplied(true);
       
-      // Aplicar atualização (sem reload automático por padrão)
+      // Aplicar atualização
       await updateServiceWorker(reload);
       
       console.log('[PWA] Atualização aplicada com sucesso');
@@ -138,6 +160,13 @@ export function usePWAUpdate() {
     } finally {
       isUpdatingRef.current = false;
     }
+  };
+
+  /**
+   * Aplica a atualização manualmente (com controle anti-loop)
+   */
+  const applyUpdate = useCallback(async (reload: boolean = false) => {
+    await applyUpdateInternal(reload);
   }, [updateServiceWorker]);
 
   /**
@@ -181,6 +210,7 @@ export function usePWAUpdate() {
     needRefresh,
     updateApplied,
     isChecking,
+    autoUpdateEnabled,
     // Ações
     applyUpdate,
     checkForUpdate,

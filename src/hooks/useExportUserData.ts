@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
 
 /**
  * Interface para os dados exportados
@@ -493,9 +494,249 @@ export function useExportUserData() {
     }
   };
 
+  /**
+   * Exporta os dados como arquivo Excel (.xlsx) com múltiplas abas
+   */
+  const exportAsExcel = async () => {
+    setIsExporting(true);
+    
+    try {
+      const data = await fetchUserData();
+      if (!data) return;
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      const username = data.profile?.username || 'usuario';
+
+      // Criar workbook
+      const workbook = XLSX.utils.book_new();
+
+      // === ABA 1: RESUMO ===
+      const summaryData = [
+        ['ANICHECK - EXPORTAÇÃO DE DADOS'],
+        [''],
+        ['PERFIL DO USUÁRIO'],
+        ['Campo', 'Valor'],
+        ['Usuário', data.profile?.username || '-'],
+        ['Nome de Exibição', data.profile?.displayName || '-'],
+        ['Bio', data.profile?.bio || '-'],
+        ['Perfil Público', data.profile?.isPublic ? 'Sim' : 'Não'],
+        ['Membro desde', formatDate(data.profile?.createdAt || '')],
+        ['Email', data.user.email || '-'],
+        [''],
+        ['ESTATÍSTICAS'],
+        ['Campo', 'Valor'],
+        ['Total de Animes', data.statistics.totalAnimes],
+        ['Animes Completos', data.statistics.completedAnimes],
+        ['Assistindo', data.statistics.watchingAnimes],
+        ['Episódios Assistidos', data.statistics.totalEpisodesWatched],
+        ['Total de Reviews', data.statistics.totalReviews],
+        ['Total de Listas', data.statistics.totalLists],
+        [''],
+        ['INFORMAÇÕES DA EXPORTAÇÃO'],
+        ['Data da Exportação', formatDate(data.exportedAt)],
+        ['Hora', new Date(data.exportedAt).toLocaleTimeString('pt-BR')],
+      ];
+      
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+      
+      // Estilos para largura das colunas do resumo
+      summarySheet['!cols'] = [{ wch: 25 }, { wch: 50 }];
+      
+      // Mesclar célula do título
+      summarySheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
+      
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumo');
+
+      // === ABA 2: ANIMES ===
+      const animesHeaders = [
+        'Título',
+        'Status',
+        'Nota',
+        'Eps. Assistidos',
+        'Total Eps.',
+        'Progresso',
+        'Favorito',
+        'Data Início',
+        'Data Conclusão',
+        'Notas',
+        'MAL ID',
+        'Adicionado em',
+        'Atualizado em'
+      ];
+      
+      const animesData = data.animeEntries.map(entry => {
+        const progress = entry.totalEpisodes 
+          ? Math.round(((entry.episodesWatched || 0) / entry.totalEpisodes) * 100)
+          : 0;
+        
+        return [
+          entry.title,
+          statusLabels[entry.status] || entry.status,
+          entry.rating || '-',
+          entry.episodesWatched || 0,
+          entry.totalEpisodes || '?',
+          `${progress}%`,
+          entry.isFavorite ? '★' : '',
+          formatDate(entry.startedAt),
+          formatDate(entry.completedAt),
+          entry.notes || '',
+          entry.malId,
+          formatDate(entry.createdAt),
+          formatDate(entry.updatedAt)
+        ];
+      });
+      
+      const animesSheet = XLSX.utils.aoa_to_sheet([animesHeaders, ...animesData]);
+      
+      // Largura das colunas de animes
+      animesSheet['!cols'] = [
+        { wch: 40 }, // Título
+        { wch: 12 }, // Status
+        { wch: 6 },  // Nota
+        { wch: 14 }, // Eps. Assistidos
+        { wch: 10 }, // Total Eps.
+        { wch: 10 }, // Progresso
+        { wch: 8 },  // Favorito
+        { wch: 12 }, // Data Início
+        { wch: 14 }, // Data Conclusão
+        { wch: 30 }, // Notas
+        { wch: 10 }, // MAL ID
+        { wch: 12 }, // Adicionado em
+        { wch: 12 }, // Atualizado em
+      ];
+      
+      XLSX.utils.book_append_sheet(workbook, animesSheet, 'Animes');
+
+      // === ABA 3: LISTAS ===
+      if (data.customLists.length > 0) {
+        const listsHeaders = [
+          'Nome da Lista',
+          'Descrição',
+          'Pública',
+          'Qtd. Animes',
+          'Criada em'
+        ];
+        
+        const listsData = data.customLists.map(list => [
+          list.name,
+          list.description || '-',
+          list.isPublic ? 'Sim' : 'Não',
+          list.items.length,
+          formatDate(list.createdAt)
+        ]);
+        
+        const listsSheet = XLSX.utils.aoa_to_sheet([listsHeaders, ...listsData]);
+        
+        listsSheet['!cols'] = [
+          { wch: 30 }, // Nome
+          { wch: 40 }, // Descrição
+          { wch: 10 }, // Pública
+          { wch: 12 }, // Qtd
+          { wch: 12 }, // Data
+        ];
+        
+        XLSX.utils.book_append_sheet(workbook, listsSheet, 'Listas');
+
+        // === ABA 4: ITENS DAS LISTAS ===
+        const listItemsHeaders = ['Lista', 'Posição', 'Anime', 'MAL ID'];
+        const listItemsData: (string | number)[][] = [];
+        
+        data.customLists.forEach(list => {
+          list.items.forEach((item, idx) => {
+            listItemsData.push([
+              list.name,
+              item.position || idx + 1,
+              item.animeTitle,
+              item.malId
+            ]);
+          });
+        });
+        
+        if (listItemsData.length > 0) {
+          const listItemsSheet = XLSX.utils.aoa_to_sheet([listItemsHeaders, ...listItemsData]);
+          
+          listItemsSheet['!cols'] = [
+            { wch: 30 }, // Lista
+            { wch: 10 }, // Posição
+            { wch: 40 }, // Anime
+            { wch: 10 }, // MAL ID
+          ];
+          
+          XLSX.utils.book_append_sheet(workbook, listItemsSheet, 'Itens das Listas');
+        }
+      }
+
+      // === ABA 5: REVIEWS ===
+      if (data.reviews.length > 0) {
+        const reviewsHeaders = [
+          'Anime',
+          'Título da Review',
+          'Nota',
+          'Spoilers',
+          'Tags',
+          'Curtidas',
+          'Conteúdo',
+          'Data',
+          'MAL ID'
+        ];
+        
+        const reviewsData = data.reviews.map(review => [
+          review.title,
+          review.title,
+          review.rating || '-',
+          review.hasSpoilers ? 'Sim' : 'Não',
+          (review.tags || []).join(', '),
+          review.likesCount || 0,
+          review.content,
+          formatDate(review.createdAt),
+          review.malId
+        ]);
+        
+        const reviewsSheet = XLSX.utils.aoa_to_sheet([reviewsHeaders, ...reviewsData]);
+        
+        reviewsSheet['!cols'] = [
+          { wch: 35 }, // Anime
+          { wch: 30 }, // Título
+          { wch: 6 },  // Nota
+          { wch: 10 }, // Spoilers
+          { wch: 20 }, // Tags
+          { wch: 10 }, // Curtidas
+          { wch: 50 }, // Conteúdo
+          { wch: 12 }, // Data
+          { wch: 10 }, // MAL ID
+        ];
+        
+        XLSX.utils.book_append_sheet(workbook, reviewsSheet, 'Reviews');
+      }
+
+      // Gerar arquivo e baixar
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      
+      downloadBlob(blob, `anicheck-export-${username}-${dateStr}.xlsx`);
+
+      toast({
+        title: 'Exportação Excel concluída!',
+        description: `Arquivo com ${data.statistics.totalAnimes} animes exportado com sucesso.`,
+      });
+    } catch (error) {
+      console.error('[Export] Erro na exportação Excel:', error);
+      toast({
+        title: 'Erro na exportação',
+        description: 'Não foi possível exportar seus dados. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return {
     isExporting,
     exportAsJson,
     exportAsCsv,
+    exportAsExcel,
   };
 }

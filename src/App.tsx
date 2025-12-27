@@ -13,7 +13,7 @@ import { AnimationPreferencesProvider } from "@/hooks/useAnimationPreferences";
 import { WelcomeModal, HelpPanel, TourOverlay, HelpButton } from "@/components/help";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { InstallBanner, OfflineIndicator, SplashScreen, UpdateNotification } from "@/components/pwa";
+import { InstallBanner, OfflineIndicator, SplashScreen, UpdateNotification, WifiImagePrefetcher } from "@/components/pwa";
 import { AnimatedRoutes } from "@/components/animations/AnimatedRoutes";
 import { PageTransition } from "@/components/animations/PageTransition";
 import { NotificationClickHandler } from "@/components/notifications/NotificationClickHandler";
@@ -174,6 +174,7 @@ const App = () => (
               <OfflineIndicator />
               <InstallBanner />
               <UpdateNotification />
+              <WifiImagePrefetcher />
               {/* Componentes globais de ajuda */}
               <WelcomeModal />
               <HelpPanel />

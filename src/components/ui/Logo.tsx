@@ -124,27 +124,27 @@ export function Logo({
       
       {/* Container com ambas as imagens para crossfade suave */}
       <div className="relative">
-        {/* Imagem dark - visível no tema claro */}
+        {/* Imagem dark - usada quando o tema do sistema é claro (fundo claro = logo escuro) */}
         <img
           src={imageMap[variant].dark}
           alt={alt}
           className={cn(
-            'relative object-contain transition-all duration-500 ease-in-out',
+            'object-contain transition-opacity duration-500 ease-in-out',
             sizeClass,
-            effectiveTheme === 'dark' ? 'opacity-100' : 'opacity-0 absolute inset-0'
+            effectiveTheme === 'dark' ? 'opacity-100 relative' : 'opacity-0 absolute inset-0 pointer-events-none'
           )}
           loading="eager"
           decoding="async"
         />
         
-        {/* Imagem light - visível no tema escuro */}
+        {/* Imagem light - usada quando o tema do sistema é escuro (fundo escuro = logo claro) */}
         <img
           src={imageMap[variant].light}
           alt={alt}
           className={cn(
-            'object-contain transition-all duration-500 ease-in-out',
+            'object-contain transition-opacity duration-500 ease-in-out',
             sizeClass,
-            effectiveTheme === 'light' ? 'opacity-100' : 'opacity-0 absolute inset-0'
+            effectiveTheme === 'light' ? 'opacity-100 relative' : 'opacity-0 absolute inset-0 pointer-events-none'
           )}
           loading="eager"
           decoding="async"

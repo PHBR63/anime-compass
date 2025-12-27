@@ -4,8 +4,43 @@
  * Baseado no conceito SplashCursor do ReactBits
  */
 
-import { useEffect, useRef, memo, useCallback } from 'react';
+import { useEffect, useRef, memo, useCallback, useMemo } from 'react';
 import { useIsAnimationEnabled } from '@/hooks/useAnimationPreferences';
+
+/**
+ * Resolve uma cor CSS que pode conter variáveis para um valor RGB/HSL válido
+ */
+function resolveColorVariable(color: string): string {
+  // Se não contém variável CSS, retorna como está
+  if (!color.includes('var(')) return color;
+  
+  try {
+    const root = document.documentElement;
+    const style = getComputedStyle(root);
+    
+    // Extrai o nome da variável CSS
+    const varMatch = color.match(/var\(--([^)]+)\)/);
+    if (!varMatch) return color;
+    
+    const cssValue = style.getPropertyValue(`--${varMatch[1]}`).trim();
+    if (!cssValue) return '#333333'; // Fallback seguro
+    
+    // Se já é um formato de cor válido (hex, rgb, hsl com parênteses)
+    if (cssValue.startsWith('#') || cssValue.startsWith('rgb') || cssValue.startsWith('hsl(')) {
+      return cssValue;
+    }
+    
+    // Formato "220 20% 15%" do Tailwind → "hsl(220, 20%, 15%)"
+    const parts = cssValue.split(/\s+/);
+    if (parts.length === 3) {
+      return `hsl(${parts[0]}, ${parts[1]}, ${parts[2]})`;
+    }
+    
+    return cssValue;
+  } catch {
+    return '#333333'; // Fallback em caso de erro
+  }
+}
 
 interface InkDrop {
   x: number;
@@ -43,6 +78,9 @@ export const InkCursor = memo(({
   // Verifica se o efeito de cursor está habilitado nas preferências
   const isEnabled = useIsAnimationEnabled('cursorEffects');
   
+  // Resolve a cor CSS para um valor válido para Canvas
+  const resolvedColor = useMemo(() => resolveColorVariable(color), [color]);
+  
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dropsRef = useRef<InkDrop[]>([]);
   const animationRef = useRef<number>();
@@ -63,13 +101,13 @@ export const InkCursor = memo(({
     ctx.save();
     ctx.globalAlpha = currentOpacity;
     
-    // Cria gradiente radial para efeito de tinta
+    // Cria gradiente radial para efeito de tinta (usa cor resolvida)
     const gradient = ctx.createRadialGradient(
       drop.x, drop.y, 0,
       drop.x, drop.y, currentSize
     );
-    gradient.addColorStop(0, color);
-    gradient.addColorStop(0.5, color);
+    gradient.addColorStop(0, resolvedColor);
+    gradient.addColorStop(0.5, resolvedColor);
     gradient.addColorStop(1, 'transparent');
     
     ctx.fillStyle = gradient;
@@ -94,7 +132,7 @@ export const InkCursor = memo(({
     }
     
     ctx.restore();
-  }, [color, lifetime]);
+  }, [resolvedColor, lifetime]);
 
   // Handler de movimento do mouse
   const handleMouseMove = useCallback((e: MouseEvent) => {

@@ -128,15 +128,19 @@ export const LazyImage = React.memo(function LazyImage({
     }
   }, [isInView, enableCache, src]);
 
-  // Handler para quando imagem carrega - adiciona ao cache
+  // Handler para quando imagem carrega - adiciona ao cache em background
   const handleLoad = useCallback(() => {
     setIsLoaded(true);
     
-    // Adiciona ao cache em background se habilitado
+    // Adiciona ao cache em background se habilitado (silencia erros)
     if (enableCache && src && !isCached) {
-      cacheImage(src).then((cached) => {
-        if (cached) setIsCached(true);
-      });
+      cacheImage(src)
+        .then((cached) => {
+          if (cached) setIsCached(true);
+        })
+        .catch(() => {
+          // Silencia erros de cache - não afeta UX
+        });
     }
   }, [enableCache, src, isCached]);
 
@@ -228,15 +232,19 @@ export const AnimeCardImage = React.memo(function AnimeCardImage({
     }
   }, [isInView, enableCache, src]);
 
-  // Handler de load com cache
+  // Handler de load com cache (silencia erros de CORS)
   const handleLoad = useCallback(() => {
     setIsLoaded(true);
     
-    // Adiciona ao cache em background
+    // Adiciona ao cache em background (silencia erros)
     if (enableCache && src && !isCached) {
-      cacheImage(src).then((cached) => {
-        if (cached) setIsCached(true);
-      });
+      cacheImage(src)
+        .then((cached) => {
+          if (cached) setIsCached(true);
+        })
+        .catch(() => {
+          // Silencia erros de cache - não afeta UX
+        });
     }
   }, [enableCache, src, isCached]);
 

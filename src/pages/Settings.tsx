@@ -217,19 +217,6 @@ export default function Settings() {
           
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label className="text-sm font-medium">Efeitos de cursor</Label>
-              <p className="text-xs text-muted-foreground">
-                Rastro de tinta estilo sumi-e
-              </p>
-            </div>
-            <Switch 
-              checked={preferences.cursorEffects}
-              onCheckedChange={() => togglePreference('cursorEffects')}
-            />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
               <Label className="text-sm font-medium">Reduzir movimento</Label>
               <p className="text-xs text-muted-foreground">
                 Desabilita todas as animações

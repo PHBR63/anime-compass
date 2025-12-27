@@ -5,13 +5,11 @@ const ANIMATION_PREFS_KEY = 'animation-preferences';
 
 export interface AnimationPreferences {
   pageTransitions: boolean;
-  cursorEffects: boolean;
   reducedMotion: boolean;
 }
 
 const defaultPreferences: AnimationPreferences = {
   pageTransitions: true,
-  cursorEffects: true,
   reducedMotion: false,
 };
 
@@ -133,7 +131,7 @@ export function useAnimationPreferences(): AnimationContextType {
   return context;
 }
 
-export function useIsAnimationEnabled(type: 'pageTransitions' | 'cursorEffects'): boolean {
+export function useIsAnimationEnabled(type: 'pageTransitions'): boolean {
   const { preferences } = useAnimationPreferences();
   
   if (preferences.reducedMotion) {

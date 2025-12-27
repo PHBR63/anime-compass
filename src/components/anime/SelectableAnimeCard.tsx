@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Heart, MoreVertical, Check, PlayCircle, CheckCircle, PauseCircle, Clock, XCircle } from 'lucide-react';
+import { AnimeCardImage } from '@/components/ui/lazy-image';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import {
@@ -117,15 +118,13 @@ export function SelectableAnimeCard({
           <div className="absolute inset-0 bg-primary/10 z-10 pointer-events-none" />
         )}
 
-        {/* Imagem */}
+        {/* Imagem com lazy loading e tratamento de erro */}
         <div className="aspect-[3/4] relative overflow-hidden">
-          <img
+          <AnimeCardImage
             src={entry.image_url || '/placeholder.svg'}
             alt={entry.title}
-            className={cn(
-              "w-full h-full object-cover transition-transform duration-500",
-              !isSelectionMode && "group-hover:scale-110"
-            )}
+            showHoverEffect={!isSelectionMode}
+            enableCache={true}
           />
           
           {/* Gradiente */}

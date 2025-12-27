@@ -12,7 +12,8 @@ import {
   Download,
   Loader2,
   FileJson,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Table
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -43,7 +44,7 @@ export default function Settings() {
   const { data: profile } = useProfile();
   const { user } = useAuth();
   const { preferences, togglePreference } = useAnimationPreferences();
-  const { isExporting, exportAsJson, exportAsCsv } = useExportUserData();
+  const { isExporting, exportAsJson, exportAsCsv, exportAsExcel } = useExportUserData();
 
   /**
    * Renderiza o menu principal de configurações
@@ -269,7 +270,21 @@ export default function Settings() {
           <p className="text-xs text-muted-foreground mb-2">
             Exporte seus dados em diferentes formatos
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <Button 
+              variant="outline" 
+              className="justify-start" 
+              size="sm"
+              onClick={exportAsExcel}
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Table className="h-4 w-4 mr-2 text-emerald-600" />
+              )}
+              Excel
+            </Button>
             <Button 
               variant="outline" 
               className="justify-start" 
@@ -282,7 +297,7 @@ export default function Settings() {
               ) : (
                 <FileJson className="h-4 w-4 mr-2 text-blue-500" />
               )}
-              JSON (completo)
+              JSON
             </Button>
             <Button 
               variant="outline" 
@@ -296,11 +311,11 @@ export default function Settings() {
               ) : (
                 <FileSpreadsheet className="h-4 w-4 mr-2 text-green-500" />
               )}
-              CSV (tabelas)
+              CSV
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            CSV exporta arquivos separados: Animes, Listas, Reviews e Resumo
+            Excel: arquivo único com abas • JSON: dados completos • CSV: arquivos separados
           </p>
           <Button 
             variant="outline" 

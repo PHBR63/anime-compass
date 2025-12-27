@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { motion } from 'framer-motion';
@@ -10,6 +10,40 @@ import type { Database } from '@/integrations/supabase/types';
 
 type AnimeEntry = Database['public']['Tables']['anime_entries']['Row'];
 type AnimeStatus = Database['public']['Enums']['anime_status'];
+
+/**
+ * Componente de imagem com fallback para placeholder em caso de erro
+ */
+function ImageWithFallback({ 
+  src, 
+  alt, 
+  isOverlay 
+}: { 
+  src: string; 
+  alt: string; 
+  isOverlay: boolean;
+}) {
+  const [imgSrc, setImgSrc] = useState(src);
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <motion.img
+      src={imgSrc}
+      alt={alt}
+      className="w-12 h-16 object-cover rounded-lg bg-muted"
+      animate={{
+        scale: isOverlay ? 1.05 : 1,
+      }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+      onError={() => {
+        if (!hasError) {
+          setHasError(true);
+          setImgSrc('/placeholder.svg');
+        }
+      }}
+    />
+  );
+}
 
 /**
  * Extrai o ano de uma data string
@@ -138,15 +172,11 @@ export const SortableAnimeItem = forwardRef<HTMLDivElement, SortableAnimeItemPro
           </motion.div>
         </motion.button>
 
-        {/* Imagem com animação */}
-        <motion.img
+        {/* Imagem com tratamento de erro */}
+        <ImageWithFallback
           src={anime.image_url || '/placeholder.svg'}
           alt={anime.title}
-          className="w-12 h-16 object-cover rounded-lg"
-          animate={{
-            scale: isOverlay ? 1.05 : 1,
-          }}
-          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+          isOverlay={isOverlay}
         />
 
         {/* Info */}

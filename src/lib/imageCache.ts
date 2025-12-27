@@ -72,6 +72,7 @@ function isValidImageUrl(url: string): boolean {
 
 /**
  * Adiciona uma imagem ao cache local
+ * Trata erros de CORS graciosamente - não bloqueia se falhar
  */
 export async function cacheImage(url: string): Promise<boolean> {
   if (!isValidImageUrl(url)) return false;
@@ -97,32 +98,51 @@ export async function cacheImage(url: string): Promise<boolean> {
       await cleanupOldestImages(meta, Math.floor(MAX_CACHED_IMAGES * 0.2));
     }
     
-    // Faz fetch da imagem
-    const response = await fetch(url, { 
-      mode: 'cors',
-      credentials: 'omit'
-    });
+    // Tenta fetch com timeout para não travar
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     
-    if (!response.ok) return false;
-    
-    // Clona response para poder usar no cache
-    const responseClone = response.clone();
-    
-    // Adiciona ao Cache API
-    await cache.put(url, responseClone);
-    
-    // Atualiza metadados
-    meta.set(url, {
-      url,
-      cachedAt: Date.now(),
-      lastAccessed: Date.now(),
-      size: parseInt(response.headers.get('content-length') || '0', 10)
-    });
-    saveImageMeta(meta);
-    
-    return true;
+    try {
+      const response = await fetch(url, { 
+        mode: 'cors',
+        credentials: 'omit',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      // Se não for ok, apenas retorna false sem logar (erros de CORS são esperados)
+      if (!response.ok) return false;
+      
+      // Verifica se é uma resposta opaca (no-cors) - não podemos usar
+      if (response.type === 'opaque') return false;
+      
+      // Clona response para poder usar no cache
+      const responseClone = response.clone();
+      
+      // Adiciona ao Cache API
+      await cache.put(url, responseClone);
+      
+      // Atualiza metadados
+      meta.set(url, {
+        url,
+        cachedAt: Date.now(),
+        lastAccessed: Date.now(),
+        size: parseInt(response.headers.get('content-length') || '0', 10)
+      });
+      saveImageMeta(meta);
+      
+      return true;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      // Silencia erros de CORS/network - são esperados para CDNs externos
+      return false;
+    }
   } catch (e) {
-    console.warn('[ImageCache] Erro ao cachear imagem:', e);
+    // Apenas loga erros críticos (não erros de CORS)
+    if (e instanceof Error && !e.message.includes('CORS') && !e.message.includes('network')) {
+      console.warn('[ImageCache] Erro ao cachear imagem:', e);
+    }
     return false;
   }
 }
@@ -198,21 +218,35 @@ async function cleanupOldestImages(meta: Map<string, CachedImageMeta>, count: nu
 
 /**
  * Pré-carrega imagens de uma lista de animes
+ * Processa em lotes pequenos com delays para não sobrecarregar
  */
-export async function prefetchImages(urls: string[]): Promise<void> {
+export async function prefetchImages(urls: string[]): Promise<{ success: number; failed: number }> {
   const validUrls = urls.filter(isValidImageUrl);
+  let successCount = 0;
+  let failedCount = 0;
   
-  // Processa em lotes para não sobrecarregar
-  const batchSize = 5;
+  // Processa em lotes pequenos para não sobrecarregar
+  const batchSize = 3; // Reduzido de 5 para 3
   for (let i = 0; i < validUrls.length; i += batchSize) {
     const batch = validUrls.slice(i, i + batchSize);
-    await Promise.allSettled(batch.map(cacheImage));
+    const results = await Promise.allSettled(batch.map(cacheImage));
     
-    // Pequeno delay entre lotes
+    // Conta sucessos e falhas
+    results.forEach(result => {
+      if (result.status === 'fulfilled' && result.value) {
+        successCount++;
+      } else {
+        failedCount++;
+      }
+    });
+    
+    // Delay maior entre lotes para ser menos agressivo
     if (i + batchSize < validUrls.length) {
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 300)); // Aumentado de 100ms para 300ms
     }
   }
+  
+  return { success: successCount, failed: failedCount };
 }
 
 /**

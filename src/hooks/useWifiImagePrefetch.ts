@@ -92,9 +92,12 @@ export function useWifiImagePrefetch() {
       
       // Pré-carrega em lotes menores para não sobrecarregar
       const urlsToFetch = imageUrls.slice(0, BATCH_SIZE);
-      await prefetchImages(urlsToFetch);
+      const result = await prefetchImages(urlsToFetch);
       
-      console.log(`[WiFiPrefetch] ${urlsToFetch.length} imagens pré-carregadas com sucesso`);
+      // Log menos verboso - apenas sucessos
+      if (result.success > 0) {
+        console.log(`[WiFiPrefetch] ${result.success} imagens pré-carregadas`);
+      }
       
       // Atualiza timestamp do último prefetch
       const now = Date.now();

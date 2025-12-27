@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { HardDrive, Trash2, RefreshCw, Image, Loader2, CheckCircle2 } from 'lucide-react';
+import { HardDrive, Trash2, RefreshCw, Image, Loader2, CheckCircle2, Wifi, WifiOff } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { toast } from '@/hooks/use-toast';
 import { getImageCacheStats, clearImageCache } from '@/lib/imageCache';
+import { useNetworkType, isGoodConnectionForPrefetch } from '@/hooks/useNetworkType';
 import { cn } from '@/lib/utils';
 
 /**
@@ -54,6 +55,8 @@ export function ImageCacheSettings() {
   const [stats, setStats] = useState<CacheStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isClearing, setIsClearing] = useState(false);
+  const networkInfo = useNetworkType();
+  const isPrefetchEnabled = isGoodConnectionForPrefetch(networkInfo);
 
   /**
    * Carrega estatísticas do cache
@@ -158,6 +161,29 @@ export function ImageCacheSettings() {
                 </span>
               </div>
 
+              {/* Status de pré-carregamento automático */}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Pré-carregamento</span>
+                <span className={cn(
+                  "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium",
+                  isPrefetchEnabled 
+                    ? "bg-green-500/10 text-green-500" 
+                    : "bg-muted text-muted-foreground"
+                )}>
+                  {isPrefetchEnabled ? (
+                    <>
+                      <Wifi className="h-3 w-3" />
+                      Ativo (WiFi)
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff className="h-3 w-3" />
+                      Pausado
+                    </>
+                  )}
+                </span>
+              </div>
+
               {/* Status */}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Status</span>
@@ -212,8 +238,8 @@ export function ImageCacheSettings() {
 
             {/* Nota explicativa */}
             <p className="text-xs text-muted-foreground">
-              O cache melhora o carregamento e permite visualizar imagens offline. 
-              Limpa automaticamente itens antigos após 30 dias.
+              Imagens são pré-carregadas automaticamente quando em WiFi. 
+              O cache limpa itens antigos após 30 dias.
             </p>
           </>
         )}

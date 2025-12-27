@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
+import { cacheImage, isImageCached } from '@/lib/imageCache';
 
 /**
  * Componente de skeleton animado para imagens
@@ -39,6 +40,29 @@ const ImageSkeleton = React.memo(function ImageSkeleton() {
   );
 });
 
+/**
+ * Indicador de imagem em cache (ícone sutil)
+ */
+const CachedIndicator = React.memo(function CachedIndicator() {
+  return (
+    <div className="absolute bottom-1 right-1 p-0.5 rounded-full bg-background/60 backdrop-blur-sm">
+      <svg 
+        className="w-3 h-3 text-green-500" 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor"
+      >
+        <path 
+          strokeLinecap="round" 
+          strokeLinejoin="round" 
+          strokeWidth={2} 
+          d="M5 13l4 4L19 7" 
+        />
+      </svg>
+    </div>
+  );
+});
+
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
   alt: string;
@@ -46,11 +70,14 @@ interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   className?: string;
   containerClassName?: string;
   showSkeleton?: boolean;
+  enableCache?: boolean;
+  showCacheIndicator?: boolean;
 }
 
 /**
  * Componente de imagem com lazy loading usando Intersection Observer
  * Carrega imagens apenas quando entram no viewport
+ * Suporta cache local para uso offline
  */
 export const LazyImage = React.memo(function LazyImage({
   src,
@@ -59,11 +86,14 @@ export const LazyImage = React.memo(function LazyImage({
   className,
   containerClassName,
   showSkeleton = true,
+  enableCache = true,
+  showCacheIndicator = false,
   ...props
 }: LazyImageProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isCached, setIsCached] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -91,16 +121,30 @@ export const LazyImage = React.memo(function LazyImage({
     return () => observer.disconnect();
   }, []);
 
-  // Handler para quando imagem carrega
-  const handleLoad = () => {
+  // Verifica se imagem está em cache quando entra no viewport
+  useEffect(() => {
+    if (isInView && enableCache && src) {
+      isImageCached(src).then(setIsCached);
+    }
+  }, [isInView, enableCache, src]);
+
+  // Handler para quando imagem carrega - adiciona ao cache
+  const handleLoad = useCallback(() => {
     setIsLoaded(true);
-  };
+    
+    // Adiciona ao cache em background se habilitado
+    if (enableCache && src && !isCached) {
+      cacheImage(src).then((cached) => {
+        if (cached) setIsCached(true);
+      });
+    }
+  }, [enableCache, src, isCached]);
 
   // Handler para erro de carregamento
-  const handleError = () => {
+  const handleError = useCallback(() => {
     setHasError(true);
     setIsLoaded(true);
-  };
+  }, []);
 
   return (
     <div ref={containerRef} className={cn('relative overflow-hidden', containerClassName)}>
@@ -124,28 +168,34 @@ export const LazyImage = React.memo(function LazyImage({
         decoding="async"
         {...props}
       />
+      
+      {/* Indicador de cache (opcional) */}
+      {showCacheIndicator && isCached && isLoaded && <CachedIndicator />}
     </div>
   );
 });
 
 /**
  * Componente otimizado para imagens de anime cards
- * Inclui aspect ratio e efeitos de hover
+ * Inclui aspect ratio, efeitos de hover e cache local
  */
 export const AnimeCardImage = React.memo(function AnimeCardImage({
   src,
   alt,
   className,
   showHoverEffect = true,
+  enableCache = true,
 }: {
   src: string;
   alt: string;
   className?: string;
   showHoverEffect?: boolean;
+  enableCache?: boolean;
 }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isCached, setIsCached] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -171,6 +221,31 @@ export const AnimeCardImage = React.memo(function AnimeCardImage({
     return () => observer.disconnect();
   }, []);
 
+  // Verifica cache quando entra no viewport
+  useEffect(() => {
+    if (isInView && enableCache && src) {
+      isImageCached(src).then(setIsCached);
+    }
+  }, [isInView, enableCache, src]);
+
+  // Handler de load com cache
+  const handleLoad = useCallback(() => {
+    setIsLoaded(true);
+    
+    // Adiciona ao cache em background
+    if (enableCache && src && !isCached) {
+      cacheImage(src).then((cached) => {
+        if (cached) setIsCached(true);
+      });
+    }
+  }, [enableCache, src, isCached]);
+
+  // Handler de erro
+  const handleError = useCallback(() => {
+    setHasError(true);
+    setIsLoaded(true);
+  }, []);
+
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-hidden">
       {/* Skeleton animado com shimmer */}
@@ -187,11 +262,8 @@ export const AnimeCardImage = React.memo(function AnimeCardImage({
             showHoverEffect && 'group-hover:scale-110',
             className
           )}
-          onLoad={() => setIsLoaded(true)}
-          onError={() => {
-            setHasError(true);
-            setIsLoaded(true);
-          }}
+          onLoad={handleLoad}
+          onError={handleError}
           loading="lazy"
           decoding="async"
         />

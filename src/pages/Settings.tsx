@@ -23,6 +23,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { AppUpdateSettings } from '@/components/pwa/AppUpdateSettings';
+import { ImageCacheSettings } from '@/components/pwa/ImageCacheSettings';
 import { NotificationPreferencesCard } from '@/components/notifications/NotificationPreferencesCard';
 import { PushCategoriesCard } from '@/components/notifications/PushCategoriesCard';
 import { DoNotDisturbSettings } from '@/components/notifications/DoNotDisturbSettings';
@@ -255,6 +256,7 @@ export default function Settings() {
       className="space-y-4"
     >
       <AppUpdateSettings />
+      <ImageCacheSettings />
 
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
         <CardHeader className="pb-3">

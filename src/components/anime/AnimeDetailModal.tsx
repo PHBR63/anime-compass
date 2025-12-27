@@ -207,7 +207,8 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
   }
 
   const totalEpisodes = anime?.episodes || entry?.total_episodes;
-  const imageUrl = anime?.images?.jpg?.large_image_url || anime?.images?.jpg?.image_url || entry?.image_url;
+  // Prioriza a imagem do entry que já está disponível para exibição imediata
+  const imageUrl = entry?.image_url || anime?.images?.jpg?.large_image_url || anime?.images?.jpg?.image_url;
   const title = anime?.title || entry?.title || '';
 
   return (

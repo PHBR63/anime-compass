@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { cacheAnimeEntries, cacheUserStats } from './offlineCache';
+import { prefetchImages } from './imageCache';
 
 /**
  * Pré-carrega dados do usuário para o cache offline
@@ -29,8 +30,22 @@ export async function prefetchUserData(userId: string): Promise<void> {
 
     // Processa anime entries
     if (entriesResult.status === 'fulfilled' && entriesResult.value.data) {
-      await cacheAnimeEntries(entriesResult.value.data, userId);
-      console.log(`[Cache] ${entriesResult.value.data.length} anime entries em cache`);
+      const entries = entriesResult.value.data;
+      await cacheAnimeEntries(entries, userId);
+      console.log(`[Cache] ${entries.length} anime entries em cache`);
+      
+      // Pré-carrega imagens das primeiras 50 entries em background
+      const imageUrls = entries
+        .slice(0, 50)
+        .map(e => e.image_url)
+        .filter((url): url is string => !!url);
+      
+      if (imageUrls.length > 0) {
+        // Não aguarda - executa em background
+        prefetchImages(imageUrls).then(() => {
+          console.log(`[Cache] ${imageUrls.length} imagens pré-carregadas`);
+        });
+      }
     }
 
     // Processa estatísticas

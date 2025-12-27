@@ -159,8 +159,23 @@ export default defineConfig(({ mode }) => ({
             options: {
               cacheName: "mal-images-cache",
               expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 dias
+                maxEntries: 500, // Aumentado para mais imagens
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 dias
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          // Cache para outras fontes de imagens de anime
+          {
+            urlPattern: /^https:\/\/(img\.anili\.st|media\.kitsu\.io|s4\.anilist\.co)\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "anime-images-cache",
+              expiration: {
+                maxEntries: 300,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 dias
               },
               cacheableResponse: {
                 statuses: [0, 200]

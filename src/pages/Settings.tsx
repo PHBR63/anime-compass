@@ -10,7 +10,9 @@ import {
   ChevronRight,
   ArrowLeft,
   Download,
-  Loader2
+  Loader2,
+  FileJson,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -41,7 +43,7 @@ export default function Settings() {
   const { data: profile } = useProfile();
   const { user } = useAuth();
   const { preferences, togglePreference } = useAnimationPreferences();
-  const { isExporting, exportAsJson } = useExportUserData();
+  const { isExporting, exportAsJson, exportAsCsv } = useExportUserData();
 
   /**
    * Renderiza o menu principal de configurações
@@ -264,25 +266,42 @@ export default function Settings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Button 
-            variant="outline" 
-            className="w-full justify-start" 
-            size="sm"
-            onClick={exportAsJson}
-            disabled={isExporting}
-          >
-            {isExporting ? (
-              <>
+          <p className="text-xs text-muted-foreground mb-2">
+            Exporte seus dados em diferentes formatos
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <Button 
+              variant="outline" 
+              className="justify-start" 
+              size="sm"
+              onClick={exportAsJson}
+              disabled={isExporting}
+            >
+              {isExporting ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Exportando...
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4 mr-2" />
-                Exportar meus dados (JSON)
-              </>
-            )}
-          </Button>
+              ) : (
+                <FileJson className="h-4 w-4 mr-2 text-blue-500" />
+              )}
+              JSON (completo)
+            </Button>
+            <Button 
+              variant="outline" 
+              className="justify-start" 
+              size="sm"
+              onClick={exportAsCsv}
+              disabled={isExporting}
+            >
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-4 w-4 mr-2 text-green-500" />
+              )}
+              CSV (tabelas)
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            CSV exporta arquivos separados: Animes, Listas, Reviews e Resumo
+          </p>
           <Button 
             variant="outline" 
             className="w-full justify-start text-destructive hover:text-destructive" 

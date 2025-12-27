@@ -1,6 +1,44 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
+/**
+ * Componente de skeleton animado para imagens
+ * Usa gradiente shimmer com ondas sakura
+ */
+const ImageSkeleton = React.memo(function ImageSkeleton() {
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-secondary/30">
+      {/* Gradiente base com tons sakura */}
+      <div className="absolute inset-0 bg-gradient-to-br from-secondary/60 via-sakura/10 to-secondary/60" />
+      
+      {/* Shimmer animado */}
+      <div 
+        className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite]"
+        style={{
+          background: 'linear-gradient(90deg, transparent, hsl(var(--sakura) / 0.15), hsl(var(--secondary) / 0.3), transparent)',
+        }}
+      />
+      
+      {/* Ícone de imagem central sutil */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <svg 
+          className="w-10 h-10 text-muted-foreground/20 animate-pulse"
+          fill="none" 
+          viewBox="0 0 24 24" 
+          stroke="currentColor"
+        >
+          <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth={1.5} 
+            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
+          />
+        </svg>
+      </div>
+    </div>
+  );
+});
+
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
   alt: string;
@@ -66,10 +104,8 @@ export const LazyImage = React.memo(function LazyImage({
 
   return (
     <div ref={containerRef} className={cn('relative overflow-hidden', containerClassName)}>
-      {/* Skeleton de loading */}
-      {showSkeleton && !isLoaded && (
-        <div className="absolute inset-0 bg-secondary/50 animate-pulse" />
-      )}
+      {/* Skeleton animado de loading */}
+      {showSkeleton && !isLoaded && <ImageSkeleton />}
 
       {/* Imagem real - só renderiza src quando está no viewport */}
       <img
@@ -137,10 +173,8 @@ export const AnimeCardImage = React.memo(function AnimeCardImage({
 
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-hidden">
-      {/* Skeleton */}
-      {!isLoaded && (
-        <div className="absolute inset-0 bg-gradient-to-br from-secondary/60 to-secondary/30 animate-pulse" />
-      )}
+      {/* Skeleton animado com shimmer */}
+      {!isLoaded && <ImageSkeleton />}
 
       {/* Imagem */}
       {isInView && (

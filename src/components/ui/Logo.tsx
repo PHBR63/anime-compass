@@ -1,10 +1,10 @@
 import { cn } from '@/lib/utils';
 import { useTheme } from 'next-themes';
 
-// Importa as imagens do logo - versão escura (para fundos claros)
-import logoIcon from '@/assets/logo-icon.png';
-import logoText from '@/assets/logo-text.png';
-import logoFull from '@/assets/logo-full.png';
+// Importa as imagens do logo - versão escura (para fundos claros) - SVG vetorial
+import logoIconDark from '@/assets/logo-icon-dark.svg';
+import logoTextDark from '@/assets/logo-text-dark.svg';
+import logoFullDark from '@/assets/logo-full-dark.svg';
 
 // Importa as imagens do logo - versão clara (para fundos escuros) - SVG vetorial
 import logoIconLight from '@/assets/logo-icon-light.svg';
@@ -39,8 +39,8 @@ interface LogoProps {
 
 /**
  * Componente Logo do AniCheck
- * Usa as imagens PNG coloridas do projeto
- * Suporta tema claro/escuro para diferentes fundos
+ * Usa imagens SVG vetoriais para qualidade perfeita em qualquer resolução
+ * Suporta tema claro/escuro com transição suave entre os dois
  */
 export function Logo({ 
   className, 
@@ -85,18 +85,18 @@ export function Logo({
     '2xl': 'h-28 w-auto',
   };
 
-  // Mapeamento de imagens por variante e tema
+  // Mapeamento de imagens SVG por variante e tema
   const imageMap = {
     icon: {
-      dark: logoIcon,
+      dark: logoIconDark,
       light: logoIconLight,
     },
     text: {
-      dark: logoText,
+      dark: logoTextDark,
       light: logoTextLight,
     },
     full: {
-      dark: logoFull,
+      dark: logoFullDark,
       light: logoFullLight,
     },
   };
@@ -108,8 +108,7 @@ export function Logo({
     full: fullSizeClasses,
   };
 
-  // Seleciona a imagem baseada na variante e tema efetivo
-  const src = imageMap[variant][effectiveTheme];
+  // Seleciona o tamanho baseado na variante
   const sizeClass = sizeMap[variant][size];
   const alt = variant === 'icon' ? 'AniCheck Icon' : variant === 'text' ? 'AniCheck' : 'AniCheck Logo';
 

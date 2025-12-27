@@ -17,7 +17,6 @@ import { InstallBanner, OfflineIndicator, SplashScreen, UpdateNotification, Wifi
 import { AnimatedRoutes } from "@/components/animations/AnimatedRoutes";
 import { PageTransition } from "@/components/animations/PageTransition";
 import { NotificationClickHandler } from "@/components/notifications/NotificationClickHandler";
-import { InkCursor } from "@/components/effects";
 import {
   DashboardSkeleton,
   ListSkeleton,
@@ -166,8 +165,6 @@ const App = () => (
               <TooltipProvider>
               <Toaster />
               <Sonner />
-              {/* Efeito de cursor com rastro de tinta - estilo sumi-e */}
-              <InkCursor />
               {/* Splash Screen animada do PWA */}
               <SplashScreen />
               {/* Componentes PWA */}

@@ -1,9 +1,10 @@
-import { Shield, LayoutDashboard, Users, FileText, AlertTriangle } from "lucide-react";
+import { Shield, LayoutDashboard, Users, FileText, AlertTriangle, FlaskConical } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminStats } from "@/components/admin/AdminStats";
 import { UsersManagement } from "@/components/admin/UsersManagement";
 import { AuditLogs } from "@/components/admin/AuditLogs";
 import { ErrorLogs } from "@/components/admin/ErrorLogs";
+import { SystemTests } from "@/components/admin/SystemTests";
 import { motion } from "framer-motion";
 
 /**
@@ -36,7 +37,7 @@ export default function Admin() {
 
       {/* Tabs de conteúdo */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
           <TabsTrigger value="overview" className="gap-2">
             <LayoutDashboard className="h-4 w-4" />
             <span className="hidden sm:inline">Visão Geral</span>
@@ -52,6 +53,10 @@ export default function Admin() {
           <TabsTrigger value="errors" className="gap-2">
             <AlertTriangle className="h-4 w-4" />
             <span className="hidden sm:inline">Erros</span>
+          </TabsTrigger>
+          <TabsTrigger value="system" className="gap-2">
+            <FlaskConical className="h-4 w-4" />
+            <span className="hidden sm:inline">Sistema</span>
           </TabsTrigger>
         </TabsList>
 
@@ -72,6 +77,10 @@ export default function Admin() {
 
         <TabsContent value="errors" className="mt-6">
           <ErrorLogs />
+        </TabsContent>
+
+        <TabsContent value="system" className="mt-6">
+          <SystemTests />
         </TabsContent>
       </Tabs>
     </motion.div>

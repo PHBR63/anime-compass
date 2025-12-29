@@ -961,6 +961,164 @@ export type Database = {
           },
         ]
       }
+      system_tests: {
+        Row: {
+          category: string
+          created_at: string | null
+          criticality: string | null
+          description: string | null
+          enabled: boolean | null
+          expected_behavior: string | null
+          id: string
+          module: string
+          name: string
+          test_function: string
+          timeout_ms: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          criticality?: string | null
+          description?: string | null
+          enabled?: boolean | null
+          expected_behavior?: string | null
+          id?: string
+          module: string
+          name: string
+          test_function: string
+          timeout_ms?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          criticality?: string | null
+          description?: string | null
+          enabled?: boolean | null
+          expected_behavior?: string | null
+          id?: string
+          module?: string
+          name?: string
+          test_function?: string
+          timeout_ms?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      test_results: {
+        Row: {
+          assertions: Json | null
+          created_at: string | null
+          details: Json | null
+          duration_ms: number | null
+          error_message: string | null
+          error_stack: string | null
+          id: string
+          logs: string[] | null
+          run_id: string
+          status: string
+          test_id: string
+        }
+        Insert: {
+          assertions?: Json | null
+          created_at?: string | null
+          details?: Json | null
+          duration_ms?: number | null
+          error_message?: string | null
+          error_stack?: string | null
+          id?: string
+          logs?: string[] | null
+          run_id: string
+          status: string
+          test_id: string
+        }
+        Update: {
+          assertions?: Json | null
+          created_at?: string | null
+          details?: Json | null
+          duration_ms?: number | null
+          error_message?: string | null
+          error_stack?: string | null
+          id?: string
+          logs?: string[] | null
+          run_id?: string
+          status?: string
+          test_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_results_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "test_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_results_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "system_tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_runs: {
+        Row: {
+          completed_at: string | null
+          duration_ms: number | null
+          environment: string | null
+          failed: number | null
+          id: string
+          metadata: Json | null
+          passed: number | null
+          skipped: number | null
+          started_at: string | null
+          status: string | null
+          total_tests: number | null
+          trigger_type: string
+          triggered_by: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          duration_ms?: number | null
+          environment?: string | null
+          failed?: number | null
+          id?: string
+          metadata?: Json | null
+          passed?: number | null
+          skipped?: number | null
+          started_at?: string | null
+          status?: string | null
+          total_tests?: number | null
+          trigger_type: string
+          triggered_by?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          duration_ms?: number | null
+          environment?: string | null
+          failed?: number | null
+          id?: string
+          metadata?: Json | null
+          passed?: number | null
+          skipped?: number | null
+          started_at?: string | null
+          status?: string | null
+          total_tests?: number | null
+          trigger_type?: string
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_runs_triggered_by_fkey"
+            columns: ["triggered_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_achievements: {
         Row: {
           achievement_id: string
@@ -1111,6 +1269,18 @@ export type Database = {
           p_error_stack?: string
           p_url?: string
           p_user_agent?: string
+        }
+        Returns: string
+      }
+      register_system_test: {
+        Args: {
+          p_category: string
+          p_criticality?: string
+          p_description: string
+          p_expected_behavior?: string
+          p_module: string
+          p_name: string
+          p_test_function: string
         }
         Returns: string
       }

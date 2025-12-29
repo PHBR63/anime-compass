@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { AnimeDetailModal } from './AnimeDetailModal';
 import { SyncPendingBadge } from './SyncPendingBadge';
+import { LazyImage } from '@/components/ui/lazy-image';
 import { useUpdateAnimeEntry, useDeleteAnimeEntry } from '@/hooks/useAnimeEntries';
 import { usePendingSync } from '@/hooks/usePendingSync';
 import type { Database } from '@/integrations/supabase/types';
@@ -83,11 +84,13 @@ export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
         className="group flex items-center gap-4 p-3 rounded-xl bg-card border border-border/50 hover:border-sakura/30 hover:shadow-md hover:shadow-sakura/5 transition-all cursor-pointer"
         onClick={handleClick}
       >
-        {/* Imagem */}
-        <img
+        {/* Imagem com lazy loading e tratamento de erro */}
+        <LazyImage
           src={entry.image_url || '/placeholder.svg'}
           alt={entry.title}
-          className="w-16 h-24 object-cover rounded-lg shrink-0"
+          className="w-full h-full object-cover"
+          containerClassName="w-16 h-24 rounded-lg shrink-0"
+          enableCache={true}
         />
 
         {/* Info principal */}

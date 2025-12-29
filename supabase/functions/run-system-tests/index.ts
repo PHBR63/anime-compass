@@ -28,12 +28,13 @@ const EXPECTED_TABLES = [
   'test_runs', 'test_results'
 ];
 
-// Helper para extrair mensagem de erro
+// Helper para extrair mensagem de erro de forma segura
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);
 }
 
+// Helper para extrair stack trace de forma segura
 function getErrorStack(err: unknown): string | undefined {
   if (err instanceof Error) return err.stack;
   return undefined;
@@ -257,12 +258,12 @@ async function test_profiles_integrity(supabase: any, logger: TestLogger): Promi
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao verificar profiles: ${err.message}`);
+    logger.error(`Erro ao verificar profiles: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -334,12 +335,12 @@ async function test_anime_entries_fk(supabase: any, logger: TestLogger): Promise
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao verificar anime_entries: ${err.message}`);
+    logger.error(`Erro ao verificar anime_entries: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -410,12 +411,12 @@ async function test_friendships_consistency(supabase: any, logger: TestLogger): 
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao verificar friendships: ${err.message}`);
+    logger.error(`Erro ao verificar friendships: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -485,12 +486,12 @@ async function test_notifications_valid(supabase: any, logger: TestLogger): Prom
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao verificar notificações: ${err.message}`);
+    logger.error(`Erro ao verificar notificações: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -517,8 +518,9 @@ async function test_edge_global_stats(logger: TestLogger): Promise<TestResult> {
       }
     });
     
+    const responseTime = Date.now() - startTime;
     details.http_status = response.status;
-    details.response_time_ms = Date.now() - startTime;
+    details.response_time_ms = responseTime;
     
     const isSuccess = response.ok;
     assertions.push({
@@ -544,11 +546,11 @@ async function test_edge_global_stats(logger: TestLogger): Promise<TestResult> {
       });
       
       // Verifica tempo de resposta
-      const fastEnough = details.response_time_ms < 2000;
+      const fastEnough = responseTime < 2000;
       assertions.push({
         name: 'Resposta em menos de 2s',
         passed: fastEnough,
-        message: fastEnough ? undefined : `Tempo: ${details.response_time_ms}ms`
+        message: fastEnough ? undefined : `Tempo: ${responseTime}ms`
       });
     }
     
@@ -568,12 +570,12 @@ async function test_edge_global_stats(logger: TestLogger): Promise<TestResult> {
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao testar get-global-stats: ${err.message}`);
+    logger.error(`Erro ao testar get-global-stats: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -606,8 +608,9 @@ async function test_edge_proxy_image(logger: TestLogger): Promise<TestResult> {
       }
     );
     
+    const responseTime = Date.now() - startTime;
     details.http_status = response.status;
-    details.response_time_ms = Date.now() - startTime;
+    details.response_time_ms = responseTime;
     details.content_type = response.headers.get('content-type');
     
     const isSuccess = response.ok;
@@ -639,7 +642,7 @@ async function test_edge_proxy_image(logger: TestLogger): Promise<TestResult> {
     const allPassed = assertions.every(a => a.passed);
     
     if (allPassed) {
-      logger.success(`proxy-image OK em ${details.response_time_ms}ms`);
+      logger.success(`proxy-image OK em ${responseTime}ms`);
     } else {
       logger.error('Falha no teste de proxy-image');
     }
@@ -652,12 +655,12 @@ async function test_edge_proxy_image(logger: TestLogger): Promise<TestResult> {
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao testar proxy-image: ${err.message}`);
+    logger.error(`Erro ao testar proxy-image: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -687,8 +690,9 @@ async function test_edge_translate(logger: TestLogger): Promise<TestResult> {
       })
     });
     
+    const responseTime = Date.now() - startTime;
     details.http_status = response.status;
-    details.response_time_ms = Date.now() - startTime;
+    details.response_time_ms = responseTime;
     
     const isSuccess = response.ok;
     assertions.push({
@@ -713,7 +717,7 @@ async function test_edge_translate(logger: TestLogger): Promise<TestResult> {
     const allPassed = assertions.every(a => a.passed);
     
     if (allPassed) {
-      logger.success(`translate-synopsis OK em ${details.response_time_ms}ms`);
+      logger.success(`translate-synopsis OK em ${responseTime}ms`);
     } else {
       logger.error('Falha no teste de translate-synopsis');
     }
@@ -726,12 +730,12 @@ async function test_edge_translate(logger: TestLogger): Promise<TestResult> {
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao testar translate-synopsis: ${err.message}`);
+    logger.error(`Erro ao testar translate-synopsis: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -759,8 +763,9 @@ async function test_edge_recommendations(logger: TestLogger): Promise<TestResult
       }
     });
     
+    const responseTime = Date.now() - startTime;
     details.http_status = response.status;
-    details.response_time_ms = Date.now() - startTime;
+    details.response_time_ms = responseTime;
     
     // Esperamos 401 sem auth válido ou 200 com dados
     const respondsCorrectly = response.status === 401 || response.status === 200 || response.status === 400;
@@ -771,17 +776,17 @@ async function test_edge_recommendations(logger: TestLogger): Promise<TestResult
     });
     
     // Verifica tempo de resposta
-    const fastEnough = details.response_time_ms < 5000;
+    const fastEnough = responseTime < 5000;
     assertions.push({
       name: 'Resposta em menos de 5s',
       passed: fastEnough,
-      message: fastEnough ? undefined : `Tempo: ${details.response_time_ms}ms`
+      message: fastEnough ? undefined : `Tempo: ${responseTime}ms`
     });
     
     const allPassed = assertions.every(a => a.passed);
     
     if (allPassed) {
-      logger.success(`get-recommendations responde em ${details.response_time_ms}ms`);
+      logger.success(`get-recommendations responde em ${responseTime}ms`);
     } else {
       logger.error('Falha no teste de get-recommendations');
     }
@@ -794,12 +799,12 @@ async function test_edge_recommendations(logger: TestLogger): Promise<TestResult
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao testar get-recommendations: ${err.message}`);
+    logger.error(`Erro ao testar get-recommendations: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -850,12 +855,12 @@ async function test_rls_profiles(supabase: any, logger: TestLogger): Promise<Tes
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao testar RLS de profiles: ${err.message}`);
+    logger.error(`Erro ao testar RLS de profiles: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -903,12 +908,12 @@ async function test_rls_admin_access(supabase: any, logger: TestLogger): Promise
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao testar acesso de admin: ${err.message}`);
+    logger.error(`Erro ao testar acesso de admin: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -956,12 +961,12 @@ async function test_rls_moderator(supabase: any, logger: TestLogger): Promise<Te
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao testar moderador: ${err.message}`);
+    logger.error(`Erro ao testar moderador: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -1012,12 +1017,12 @@ async function test_rls_anime_friends(supabase: any, logger: TestLogger): Promis
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao testar RLS de amigos: ${err.message}`);
+    logger.error(`Erro ao testar RLS de amigos: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -1077,12 +1082,12 @@ async function test_perf_anime_list(supabase: any, logger: TestLogger): Promise<
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao testar performance: ${err.message}`);
+    logger.error(`Erro ao testar performance: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -1145,12 +1150,12 @@ async function test_perf_dashboard(supabase: any, logger: TestLogger): Promise<T
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao testar dashboard: ${err.message}`);
+    logger.error(`Erro ao testar dashboard: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -1213,12 +1218,12 @@ async function test_perf_activity_feed(supabase: any, logger: TestLogger): Promi
       logs: logger.logs
     };
   } catch (err) {
-    logger.error(`Erro ao testar feed: ${err.message}`);
+    logger.error(`Erro ao testar feed: ${getErrorMessage(err)}`);
     return {
       status: 'error',
       duration_ms: Date.now() - startTime,
-      error_message: err.message,
-      error_stack: err.stack,
+      error_message: getErrorMessage(err),
+      error_stack: getErrorStack(err),
       details,
       assertions,
       logs: logger.logs
@@ -1452,15 +1457,15 @@ Deno.serve(async (req) => {
         console.log(`[run-system-tests] ${test.name}: ${result.status} (${result.duration_ms}ms)`);
         
       } catch (err) {
-        logger.error(`Erro fatal no teste ${test.name}: ${err.message}`);
+        logger.error(`Erro fatal no teste ${test.name}: ${getErrorMessage(err)}`);
         
         await supabase.from('test_results').insert({
           run_id: run.id,
           test_id: test.id,
           status: 'error',
           duration_ms: 0,
-          error_message: err.message,
-          error_stack: err.stack,
+          error_message: getErrorMessage(err),
+          error_stack: getErrorStack(err),
           logs: logger.logs
         });
         
@@ -1510,7 +1515,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: err.message
+        error: getErrorMessage(err)
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

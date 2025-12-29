@@ -4,12 +4,27 @@
  * 
  * Funcionalidades:
  * - Push notifications em background
+ * - Background Sync para sincronização offline
+ * - Periodic Background Sync para atualizações periódicas
  * - Comunicação com o cliente para auto-update
  * - Limpeza de caches antigos
  */
 
-// Versão do SW para controle de atualizações
+// Versão do SW deve corresponder à versão em src/lib/version.ts
 const SW_VERSION = '1.2.0';
+
+// Tags de sincronização
+const SYNC_TAGS = {
+  ANIME_ENTRIES: 'sync-anime-entries',
+  REVIEWS: 'sync-reviews',
+  NOTIFICATIONS: 'sync-notifications',
+};
+
+// Periodic sync tags
+const PERIODIC_SYNC_TAGS = {
+  CHECK_UPDATES: 'check-updates',
+  SYNC_DATA: 'periodic-sync-data',
+};
 
 // Flag para evitar múltiplas ativações
 let isActivating = false;
@@ -216,23 +231,96 @@ self.addEventListener('push', (event) => {
 
 /**
  * Background Sync (para sincronizar dados quando reconectar)
+ * Suporta múltiplos tipos de sincronização
  */
 self.addEventListener('sync', (event) => {
-  console.log('[SW] Background sync:', event.tag);
+  console.log('[SW] Background sync disparado:', event.tag);
   
-  if (event.tag === 'sync-anime-entries') {
-    event.waitUntil(
-      // Notificar clientes para sincronizar
-      self.clients.matchAll().then((clients) => {
-        clients.forEach((client) => {
+  // Handler genérico para todas as tags de sync
+  event.waitUntil(
+    self.clients.matchAll({ includeUncontrolled: true }).then((clients) => {
+      const syncPromises = clients.map((client) => {
+        return new Promise((resolve) => {
           client.postMessage({
             type: 'BACKGROUND_SYNC',
             tag: event.tag,
+            timestamp: Date.now(),
           });
+          resolve();
         });
-      })
-    );
+      });
+      
+      return Promise.all(syncPromises).then(() => {
+        console.log(`[SW] Background sync "${event.tag}" notificado para ${clients.length} cliente(s)`);
+      });
+    })
+  );
+});
+
+/**
+ * Periodic Background Sync (sincronização periódica em background)
+ * Requer permissão do navegador e só funciona em PWAs instalados
+ */
+self.addEventListener('periodicsync', (event) => {
+  console.log('[SW] Periodic sync disparado:', event.tag);
+  
+  if (event.tag === 'check-updates') {
+    event.waitUntil(handlePeriodicUpdateCheck());
+  } else if (event.tag === 'periodic-sync-data') {
+    event.waitUntil(handlePeriodicDataSync());
   }
 });
 
-console.log(`[SW v${SW_VERSION}] Service Worker carregado`);
+/**
+ * Handler para verificação periódica de atualizações
+ */
+async function handlePeriodicUpdateCheck() {
+  try {
+    // Verificar se há atualizações do SW
+    await self.registration.update();
+    console.log('[SW] Verificação periódica de updates concluída');
+  } catch (error) {
+    console.warn('[SW] Erro na verificação periódica:', error);
+  }
+}
+
+/**
+ * Handler para sincronização periódica de dados
+ */
+async function handlePeriodicDataSync() {
+  try {
+    const clients = await self.clients.matchAll({ includeUncontrolled: true });
+    
+    clients.forEach((client) => {
+      client.postMessage({
+        type: 'PERIODIC_SYNC',
+        tag: 'periodic-sync-data',
+        timestamp: Date.now(),
+      });
+    });
+    
+    console.log('[SW] Sincronização periódica notificada');
+  } catch (error) {
+    console.warn('[SW] Erro na sincronização periódica:', error);
+  }
+}
+
+/**
+ * Handler de erros não tratados
+ */
+self.addEventListener('unhandledrejection', (event) => {
+  console.error('[SW] Promise rejection não tratada:', event.reason);
+  
+  // Notificar clientes sobre o erro
+  self.clients.matchAll().then((clients) => {
+    clients.forEach((client) => {
+      client.postMessage({
+        type: 'SW_ERROR',
+        error: event.reason?.message || 'Erro desconhecido no Service Worker',
+        timestamp: Date.now(),
+      });
+    });
+  });
+});
+
+console.log(`[SW v${SW_VERSION}] Service Worker carregado com suporte a Background Sync e Periodic Sync`);

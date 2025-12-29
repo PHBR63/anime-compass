@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logoIcon from '@/assets/logo-icon-light.png';
 import logoText from '@/assets/logo-text-light.png';
+import { APP_VERSION, VERSION_NAME } from '@/lib/version';
 
 /**
  * Splash Screen animada para o PWA
@@ -171,14 +172,14 @@ export function SplashScreen() {
             </motion.div>
           </div>
 
-          {/* Versão do app */}
+          {/* Versão do app - usa versão dinâmica do sistema */}
           <motion.p
             className="absolute bottom-8 text-xs text-muted-foreground/50"
             initial={{ opacity: 0 }}
             animate={isLoaded ? { opacity: 1 } : {}}
             transition={{ delay: 1.5 }}
           >
-            v1.0.0
+            v{APP_VERSION} ({VERSION_NAME})
           </motion.p>
         </motion.div>
       )}

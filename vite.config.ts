@@ -123,7 +123,17 @@ export default defineConfig(({ mode }) => ({
             url: "/social",
             icons: [{ src: "/icons/icon-96x96.png", sizes: "96x96" }]
           }
-        ]
+        ],
+        // Share Target API - permite compartilhar links para o app
+        share_target: {
+          action: "/discover",
+          method: "GET",
+          params: {
+            title: "title",
+            text: "text",
+            url: "url"
+          }
+        }
       },
       workbox: {
         // Forçar novo SW a assumir controle imediatamente

@@ -1,6 +1,6 @@
 /**
  * Sistema de cache local de imagens para carregamento offline
- * Utiliza Cache API do browser para persistir imagens de animes
+ * Utiliza Cache API do browser e proxy para resolver CORS
  */
 
 // Nome do cache dedicado para imagens
@@ -11,6 +11,9 @@ const MAX_CACHED_IMAGES = 500;
 
 // Tempo de expiração das imagens (30 dias em ms)
 const IMAGE_EXPIRATION_MS = 30 * 24 * 60 * 60 * 1000;
+
+// URL base da Edge Function de proxy
+const PROXY_BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/proxy-image`;
 
 /**
  * Interface para metadados de imagem em cache
@@ -71,8 +74,25 @@ function isValidImageUrl(url: string): boolean {
 }
 
 /**
- * Adiciona uma imagem ao cache local
- * Trata erros de CORS graciosamente - não bloqueia se falhar
+ * Converte URL original para URL do proxy (resolve CORS)
+ */
+export function getProxiedImageUrl(originalUrl: string): string {
+  if (!originalUrl || !isValidImageUrl(originalUrl)) {
+    return originalUrl;
+  }
+  
+  return `${PROXY_BASE_URL}?url=${encodeURIComponent(originalUrl)}`;
+}
+
+/**
+ * Verifica se já está usando URL do proxy
+ */
+export function isProxiedUrl(url: string): boolean {
+  return url.includes('/functions/v1/proxy-image');
+}
+
+/**
+ * Adiciona uma imagem ao cache local usando proxy
  */
 export async function cacheImage(url: string): Promise<boolean> {
   if (!isValidImageUrl(url)) return false;
@@ -98,12 +118,15 @@ export async function cacheImage(url: string): Promise<boolean> {
       await cleanupOldestImages(meta, Math.floor(MAX_CACHED_IMAGES * 0.2));
     }
     
+    // Usa URL do proxy para evitar CORS
+    const proxiedUrl = getProxiedImageUrl(url);
+    
     // Tenta fetch com timeout para não travar
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     
     try {
-      const response = await fetch(url, { 
+      const response = await fetch(proxiedUrl, { 
         mode: 'cors',
         credentials: 'omit',
         signal: controller.signal
@@ -111,16 +134,14 @@ export async function cacheImage(url: string): Promise<boolean> {
       
       clearTimeout(timeoutId);
       
-      // Se não for ok, apenas retorna false sem logar (erros de CORS são esperados)
+      // Se não for ok, retorna false
       if (!response.ok) return false;
-      
-      // Verifica se é uma resposta opaca (no-cors) - não podemos usar
-      if (response.type === 'opaque') return false;
       
       // Clona response para poder usar no cache
       const responseClone = response.clone();
       
-      // Adiciona ao Cache API
+      // Adiciona ao Cache API com a URL ORIGINAL como key
+      // Isso permite encontrar a imagem pelo src original
       await cache.put(url, responseClone);
       
       // Atualiza metadados
@@ -135,14 +156,10 @@ export async function cacheImage(url: string): Promise<boolean> {
       return true;
     } catch (fetchError) {
       clearTimeout(timeoutId);
-      // Silencia erros de CORS/network - são esperados para CDNs externos
       return false;
     }
   } catch (e) {
-    // Apenas loga erros críticos (não erros de CORS)
-    if (e instanceof Error && !e.message.includes('CORS') && !e.message.includes('network')) {
-      console.warn('[ImageCache] Erro ao cachear imagem:', e);
-    }
+    console.warn('[ImageCache] Erro ao cachear imagem:', e);
     return false;
   }
 }

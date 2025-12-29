@@ -1,14 +1,14 @@
+import { useWifiImagePrefetch } from '@/hooks/useWifiImagePrefetch';
+
 /**
- * Componente de pré-carregamento de imagens em WiFi
- * 
- * DESATIVADO: O prefetch de imagens foi desabilitado porque as imagens
- * do CDN do MyAnimeList bloqueiam requisições CORS via fetch/Cache API.
- * As imagens funcionam normalmente via tag <img>, apenas o cache
- * programático não funciona.
- * 
- * TODO: Reativar quando houver uma solução para cache de imagens cross-origin
+ * Componente invisível que ativa o pré-carregamento de imagens em WiFi
+ * Usa o proxy para contornar problemas de CORS
+ * Deve ser montado dentro do AuthProvider para ter acesso ao usuário
  */
 export function WifiImagePrefetcher() {
-  // Prefetch desativado - não faz nada
+  // O hook gerencia todo o comportamento internamente
+  useWifiImagePrefetch();
+  
+  // Não renderiza nada visualmente
   return null;
 }

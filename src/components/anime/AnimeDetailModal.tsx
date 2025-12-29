@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, forwardRef, useEffect } from 'react';
 import { X, Plus, Minus, Calendar, Clock, Tv, Star, Heart, Loader2, Check, Bookmark, Languages, AlertTriangle } from 'lucide-react';
 import {
   Dialog,
@@ -25,6 +25,9 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
+// Placeholder para imagens que falham ao carregar
+const PLACEHOLDER_IMAGE = '/placeholder.svg';
+
 type AnimeEntry = Database['public']['Tables']['anime_entries']['Row'];
 type AnimeStatus = Database['public']['Enums']['anime_status'];
 
@@ -47,7 +50,9 @@ const statusOptions: { value: AnimeStatus; label: string; color: string }[] = [
 ];
 
 // Modal de detalhes do anime com informações completas e avaliação
-export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEntry }: AnimeDetailModalProps) {
+// Usa forwardRef para evitar warnings do React com refs em Dialog
+export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps>(
+  function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEntry }, ref) {
   const { data: animeDetails, isLoading: loadingDetails } = useAnimeDetails(malId && !jikanAnime ? malId : 0);
   const { data: userEntries } = useAnimeEntries();
   const addEntry = useAddAnimeEntry();
@@ -77,7 +82,7 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
   const [localStatus, setLocalStatus] = useState<AnimeStatus>(entry?.status || 'not_started');
 
   // Atualiza estados quando entry muda
-  useState(() => {
+  useEffect(() => {
     if (entry) {
       setLocalRating(entry.rating ? Number(entry.rating) : 0);
       setLocalNotes(entry.notes || '');
@@ -85,7 +90,7 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
       setLocalEpisodes(entry.episodes_watched || 0);
       setLocalStatus(entry.status);
     }
-  });
+  }, [entry]);
 
   // Função para adicionar à lista
   const handleAddToList = () => {
@@ -224,9 +229,13 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
             {/* Header com imagem de fundo */}
             <div className="relative h-36 md:h-64 overflow-hidden">
               <img
-                src={imageUrl || '/placeholder.svg'}
+                src={imageUrl || PLACEHOLDER_IMAGE}
                 alt={title}
                 className="w-full h-full object-cover opacity-30 blur-sm"
+                onError={(e) => {
+                  // Fallback para placeholder se imagem falhar
+                  e.currentTarget.src = PLACEHOLDER_IMAGE;
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
               
@@ -241,9 +250,13 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
               {/* Imagem e título */}
               <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 flex gap-3 md:gap-6">
                 <img
-                  src={imageUrl || '/placeholder.svg'}
+                  src={imageUrl || PLACEHOLDER_IMAGE}
                   alt={title}
                   className="w-20 md:w-32 h-28 md:h-48 object-cover rounded-lg md:rounded-xl shadow-2xl border border-border/50 -mb-10 md:-mb-12 shrink-0"
+                  onError={(e) => {
+                    // Fallback para placeholder se imagem falhar
+                    e.currentTarget.src = PLACEHOLDER_IMAGE;
+                  }}
                 />
                 <div className="flex-1 min-w-0 pb-1 md:pb-2">
                   <DialogHeader>
@@ -576,4 +589,7 @@ export function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEn
       </DialogContent>
     </Dialog>
   );
-}
+});
+
+// Adiciona displayName para debugging
+AnimeDetailModal.displayName = 'AnimeDetailModal';

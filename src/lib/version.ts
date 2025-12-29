@@ -1,8 +1,9 @@
 /**
  * Informações de versão do app
  * Atualizado automaticamente a cada build
+ * IMPORTANTE: Manter sincronizado com SW_VERSION em public/custom-sw.js
  */
-export const APP_VERSION = '1.2.0';
+export const APP_VERSION = '2.1.0';
 export const BUILD_DATE = new Date().toISOString();
 export const VERSION_NAME = 'Sakura';
 

@@ -8,10 +8,12 @@
  * - Periodic Background Sync para atualizações periódicas
  * - Comunicação com o cliente para auto-update
  * - Limpeza de caches antigos
+ * 
+ * IMPORTANTE: Manter SW_VERSION sincronizado com APP_VERSION em src/lib/version.ts
  */
 
 // Versão do SW deve corresponder à versão em src/lib/version.ts
-const SW_VERSION = '1.2.0';
+const SW_VERSION = '2.1.0';
 
 // Tags de sincronização
 const SYNC_TAGS = {

@@ -85,6 +85,90 @@ export type Database = {
           },
         ]
       }
+      anime_catalog: {
+        Row: {
+          created_at: string | null
+          episodes: number | null
+          genres: Json | null
+          id: string
+          image_url: string | null
+          last_synced_at: string | null
+          local_image_url: string | null
+          mal_id: number
+          members: number | null
+          popularity: number | null
+          rank: number | null
+          rating: string | null
+          score: number | null
+          scored_by: number | null
+          season: string | null
+          status: string | null
+          studios: Json | null
+          synopsis: string | null
+          synopsis_pt: string | null
+          title: string
+          title_english: string | null
+          title_japanese: string | null
+          type: string | null
+          updated_at: string | null
+          year: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          episodes?: number | null
+          genres?: Json | null
+          id?: string
+          image_url?: string | null
+          last_synced_at?: string | null
+          local_image_url?: string | null
+          mal_id: number
+          members?: number | null
+          popularity?: number | null
+          rank?: number | null
+          rating?: string | null
+          score?: number | null
+          scored_by?: number | null
+          season?: string | null
+          status?: string | null
+          studios?: Json | null
+          synopsis?: string | null
+          synopsis_pt?: string | null
+          title: string
+          title_english?: string | null
+          title_japanese?: string | null
+          type?: string | null
+          updated_at?: string | null
+          year?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          episodes?: number | null
+          genres?: Json | null
+          id?: string
+          image_url?: string | null
+          last_synced_at?: string | null
+          local_image_url?: string | null
+          mal_id?: number
+          members?: number | null
+          popularity?: number | null
+          rank?: number | null
+          rating?: string | null
+          score?: number | null
+          scored_by?: number | null
+          season?: string | null
+          status?: string | null
+          studios?: Json | null
+          synopsis?: string | null
+          synopsis_pt?: string | null
+          title?: string
+          title_english?: string | null
+          title_japanese?: string | null
+          type?: string | null
+          updated_at?: string | null
+          year?: number | null
+        }
+        Relationships: []
+      }
       anime_entries: {
         Row: {
           completed_at: string | null

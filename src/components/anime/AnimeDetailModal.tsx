@@ -31,11 +31,31 @@ const PLACEHOLDER_IMAGE = '/placeholder.svg';
 type AnimeEntry = Database['public']['Tables']['anime_entries']['Row'];
 type AnimeStatus = Database['public']['Enums']['anime_status'];
 
+// Tipo do catálogo local (importação inline para evitar dependência circular)
+interface CatalogAnimeBasic {
+  mal_id: number;
+  title: string;
+  title_english?: string | null;
+  synopsis?: string | null;
+  synopsis_pt?: string | null;
+  image_url?: string | null;
+  local_image_url?: string | null;
+  score?: number | null;
+  episodes?: number | null;
+  year?: number | null;
+  genres?: { mal_id: number; name: string }[];
+  studios?: { mal_id: number; name: string }[];
+  type?: string | null;
+  rating?: string | null;
+}
+
 interface AnimeDetailModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   // Para animes da API Jikan
   jikanAnime?: JikanAnime;
+  // Para animes do catálogo local
+  catalogAnime?: CatalogAnimeBasic;
   malId?: number;
   // Para animes já na lista do usuário
   userEntry?: AnimeEntry;
@@ -52,8 +72,10 @@ const statusOptions: { value: AnimeStatus; label: string; color: string }[] = [
 // Modal de detalhes do anime com informações completas e avaliação
 // Usa forwardRef para evitar warnings do React com refs em Dialog
 export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps>(
-  function AnimeDetailModal({ open, onOpenChange, jikanAnime, malId, userEntry }, ref) {
-  const { data: animeDetails, isLoading: loadingDetails } = useAnimeDetails(malId && !jikanAnime ? malId : 0);
+  function AnimeDetailModal({ open, onOpenChange, jikanAnime, catalogAnime, malId, userEntry }, ref) {
+  // Só busca detalhes se não tiver dados locais ou da jikan
+  const shouldFetchDetails = malId && !jikanAnime && !catalogAnime;
+  const { data: animeDetails, isLoading: loadingDetails } = useAnimeDetails(shouldFetchDetails ? malId : 0);
   const { data: userEntries } = useAnimeEntries();
   const addEntry = useAddAnimeEntry();
   const updateEntry = useUpdateAnimeEntry();
@@ -62,16 +84,40 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
   // Ref para rastrear episódios antes da mudança
   const previousEpisodesRef = useRef<number | null>(null);
 
-  // Determina o anime a ser exibido
+  // Determina o anime a ser exibido (prioridade: jikan > catalog > fetch)
   const anime = jikanAnime || animeDetails?.data;
+  
+  // Dados do catálogo local (se disponível)
+  const catalogData = catalogAnime;
+  
+  // Dados combinados - prioriza catálogo local quando disponível
+  const displayData = {
+    mal_id: catalogData?.mal_id || anime?.mal_id || userEntry?.mal_id,
+    title: catalogData?.title || anime?.title || userEntry?.title || '',
+    synopsis: catalogData?.synopsis_pt || catalogData?.synopsis || anime?.synopsis,
+    image_url: catalogData?.local_image_url || catalogData?.image_url || anime?.images?.jpg?.large_image_url || anime?.images?.jpg?.image_url || userEntry?.image_url,
+    score: catalogData?.score || anime?.score,
+    episodes: catalogData?.episodes || anime?.episodes || userEntry?.total_episodes,
+    year: catalogData?.year || anime?.year,
+    genres: catalogData?.genres || anime?.genres || [],
+    studios: catalogData?.studios || anime?.studios || [],
+    type: catalogData?.type || anime?.type,
+    rating: catalogData?.rating || anime?.rating,
+  };
 
-  // Tradução da sinopse para PT-BR
+  // Se tem synopsis_pt do catálogo, não precisa traduzir
+  const hasCatalogTranslation = !!catalogData?.synopsis_pt;
+
+  // Tradução da sinopse para PT-BR (apenas se não tiver tradução do catálogo)
   const { data: translatedSynopsis, isLoading: loadingTranslation } = useTranslation(
-    open && anime?.synopsis ? anime.synopsis : null
+    open && !hasCatalogTranslation && displayData.synopsis ? displayData.synopsis : null
   );
   
+  // Sinopse final (prioriza catálogo > tradução > original)
+  const finalSynopsis = catalogData?.synopsis_pt || translatedSynopsis || displayData.synopsis;
+  
   // Verifica se já está na lista
-  const existingEntry = userEntries?.find(e => e.mal_id === (anime?.mal_id || userEntry?.mal_id));
+  const existingEntry = userEntries?.find(e => e.mal_id === (displayData.mal_id || userEntry?.mal_id));
   const entry = userEntry || existingEntry;
 
   // Estados locais para edição
@@ -92,19 +138,19 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
     }
   }, [entry]);
 
-  // Função para adicionar à lista
+  // Função para adicionar à lista (usa displayData para suportar catálogo e jikan)
   const handleAddToList = () => {
-    if (!anime) return;
+    if (!displayData.mal_id) return;
 
     addEntry.mutate({
-      mal_id: anime.mal_id,
-      title: anime.title,
-      image_url: anime.images.jpg.large_image_url || anime.images.jpg.image_url,
-      total_episodes: anime.episodes,
+      mal_id: displayData.mal_id,
+      title: displayData.title,
+      image_url: displayData.image_url,
+      total_episodes: displayData.episodes,
       status: 'not_started',
     }, {
       onSuccess: () => {
-        toast.success(`${anime.title} adicionado à sua lista!`);
+        toast.success(`${displayData.title} adicionado à sua lista!`);
       },
     });
   };
@@ -126,7 +172,7 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
 
   // Função para atualizar episódios com histórico
   const handleEpisodesChange = (delta: number) => {
-    const totalEps = anime?.episodes || entry?.total_episodes || 999;
+    const totalEps = displayData.episodes || entry?.total_episodes || 999;
     const oldValue = localEpisodes;
     const newValue = Math.max(0, Math.min(totalEps, localEpisodes + delta));
     setLocalEpisodes(newValue);
@@ -157,7 +203,7 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
         episodes_to: newValue,
       });
       
-      const totalEps = anime?.episodes || entry?.total_episodes || 999;
+      const totalEps = displayData.episodes || entry?.total_episodes || 999;
       handleUpdate({ 
         episodes_watched: newValue,
         ...(newValue === totalEps && { 
@@ -173,7 +219,7 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
   const handleStatusChange = (status: AnimeStatus) => {
     setLocalStatus(status);
     if (entry) {
-      const totalEps = anime?.episodes || entry?.total_episodes;
+      const totalEps = displayData.episodes || entry?.total_episodes;
       const isCompletingAnime = status === 'completed';
       
       // Se marcando como completo, define todos os episódios como assistidos
@@ -207,14 +253,14 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
     }
   };
 
-  if (!anime && !userEntry && !loadingDetails) {
+  if (!displayData.mal_id && !userEntry && !loadingDetails) {
     return null;
   }
 
-  const totalEpisodes = anime?.episodes || entry?.total_episodes;
+  const totalEpisodes = displayData.episodes || entry?.total_episodes;
   // Prioriza a imagem do entry que já está disponível para exibição imediata
-  const imageUrl = entry?.image_url || anime?.images?.jpg?.large_image_url || anime?.images?.jpg?.image_url;
-  const title = anime?.title || entry?.title || '';
+  const imageUrl = entry?.image_url || displayData.image_url;
+  const title = displayData.title || entry?.title || '';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -267,10 +313,10 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
                   
                   {/* Info rápida */}
                   <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-1.5 md:mt-2 text-xs md:text-sm text-muted-foreground">
-                    {anime?.year && (
+                    {displayData.year && (
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3 md:h-4 md:w-4" />
-                        {anime.year}
+                        {displayData.year}
                       </span>
                     )}
                     {totalEpisodes && (
@@ -279,10 +325,10 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
                         {totalEpisodes} eps
                       </span>
                     )}
-                    {anime?.score && (
+                    {displayData.score && (
                       <span className="flex items-center gap-1">
                         <Star className="h-3 w-3 md:h-4 md:w-4 text-warning fill-warning" />
-                        {anime.score.toFixed(1)}
+                        {displayData.score.toFixed(1)}
                       </span>
                     )}
                   </div>
@@ -293,9 +339,9 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
             {/* Conteúdo */}
             <div className="p-4 md:p-6 pt-12 md:pt-16 space-y-4 md:space-y-6">
               {/* Gêneros */}
-              {anime?.genres && anime.genres.length > 0 && (
+              {displayData.genres && displayData.genres.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {anime.genres.map((genre) => (
+                  {displayData.genres.map((genre) => (
                     <Badge key={genre.mal_id} variant="secondary">
                       {genre.name}
                     </Badge>
@@ -523,7 +569,7 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
               )}
 
               {/* Sinopse traduzida */}
-              {anime?.synopsis && (
+              {displayData.synopsis && (
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <h3 className="font-semibold">Sinopse</h3>
@@ -532,7 +578,7 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
                       PT-BR
                     </Badge>
                   </div>
-                  {loadingTranslation ? (
+                  {loadingTranslation && !hasCatalogTranslation ? (
                     <div className="space-y-2">
                       <Skeleton className="h-4 w-full" />
                       <Skeleton className="h-4 w-full" />
@@ -540,47 +586,47 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      {translatedSynopsis || anime.synopsis}
+                      {finalSynopsis}
                     </p>
                   )}
                 </div>
               )}
 
               {/* Informações adicionais */}
-              {anime && (
+              {(displayData.type || displayData.studios?.length || displayData.rating) && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {anime.status && (
+                  {anime?.status && (
                     <div className="glass-card p-3 rounded-lg">
                       <p className="text-xs text-muted-foreground">Status</p>
                       <p className="font-medium text-sm">{anime.status}</p>
                     </div>
                   )}
-                  {anime.type && (
+                  {displayData.type && (
                     <div className="glass-card p-3 rounded-lg">
                       <p className="text-xs text-muted-foreground">Tipo</p>
-                      <p className="font-medium text-sm">{anime.type}</p>
+                      <p className="font-medium text-sm">{displayData.type}</p>
                     </div>
                   )}
-                  {anime.studios && anime.studios.length > 0 && (
+                  {displayData.studios && displayData.studios.length > 0 && (
                     <div className="glass-card p-3 rounded-lg">
                       <p className="text-xs text-muted-foreground">Estúdio</p>
-                      <p className="font-medium text-sm">{anime.studios[0].name}</p>
+                      <p className="font-medium text-sm">{displayData.studios[0].name}</p>
                     </div>
                   )}
-                  {anime.rating && (
+                  {displayData.rating && (
                     <div className="glass-card p-3 rounded-lg">
                       <p className="text-xs text-muted-foreground">Classificação</p>
-                      <p className="font-medium text-sm">{anime.rating}</p>
+                      <p className="font-medium text-sm">{displayData.rating}</p>
                     </div>
                   )}
                 </div>
               )}
 
               {/* Seção de Reviews */}
-              {anime && (
+              {displayData.mal_id && (
                 <>
                   <Separator className="my-6" />
-                  <ReviewsList malId={anime.mal_id} animeTitle={anime.title} />
+                  <ReviewsList malId={displayData.mal_id} animeTitle={displayData.title} />
                 </>
               )}
             </div>

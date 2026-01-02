@@ -368,18 +368,24 @@ async function test_friendships_consistency(supabase: any, logger: TestLogger): 
     
     details.total_friendships = totalFriendships;
     
-    // Verifica auto-amizades (requester_id = addressee_id)
-    const { data: selfFriendships, error: selfError } = await supabase
+    // Verifica auto-amizades usando RPC ou verificação manual
+    // Nota: O filtro de coluna vs coluna não funciona diretamente no PostgREST
+    // Então verificamos apenas se há amizades válidas (com requester e addressee diferentes)
+    const { data: allFriendships, error: allError } = await supabase
       .from('friendships')
-      .select('id')
-      .filter('requester_id', 'eq', 'addressee_id');
+      .select('id, requester_id, addressee_id')
+      .limit(100);
     
-    // Isso pode não funcionar diretamente, então verificamos de outra forma
-    const noSelfFriendships = !selfError && (!selfFriendships || selfFriendships.length === 0);
+    // Filtra auto-amizades localmente
+    const selfFriendships = allFriendships?.filter(
+      (f: { requester_id: string; addressee_id: string }) => f.requester_id === f.addressee_id
+    ) || [];
+    
+    const noSelfFriendships = !allError && selfFriendships.length === 0;
     assertions.push({
       name: 'Nenhuma auto-amizade existe',
       passed: noSelfFriendships,
-      message: noSelfFriendships ? undefined : 'Existem amizades onde requester = addressee'
+      message: noSelfFriendships ? undefined : `${selfFriendships.length} auto-amizades encontradas`
     });
     
     // Verifica amizades sem requester ou addressee
@@ -705,12 +711,12 @@ async function test_edge_translate(logger: TestLogger): Promise<TestResult> {
       const data = await response.json();
       details.response_data = data;
       
-      // Verifica se retornou tradução
-      const hasTranslation = data.translatedText && data.translatedText.length > 0;
+      // Verifica se retornou tradução (campo é 'translation' não 'translatedText')
+      const hasTranslation = (data.translation && data.translation.length > 0) || (data.translatedText && data.translatedText.length > 0);
       assertions.push({
         name: 'Retorna texto traduzido',
         passed: hasTranslation,
-        message: hasTranslation ? undefined : 'Tradução não retornada'
+        message: hasTranslation ? undefined : `Tradução não retornada. Resposta: ${JSON.stringify(data)}`
       });
     }
     

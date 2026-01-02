@@ -1,10 +1,11 @@
-import { Shield, LayoutDashboard, Users, FileText, AlertTriangle, FlaskConical } from "lucide-react";
+import { Shield, LayoutDashboard, Users, FileText, AlertTriangle, FlaskConical, Database } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminStats } from "@/components/admin/AdminStats";
 import { UsersManagement } from "@/components/admin/UsersManagement";
 import { AuditLogs } from "@/components/admin/AuditLogs";
 import { ErrorLogs } from "@/components/admin/ErrorLogs";
 import { SystemTests } from "@/components/admin/SystemTests";
+import { AnimeCatalogManager } from "@/components/admin/AnimeCatalogManager";
 import { motion } from "framer-motion";
 
 /**
@@ -37,10 +38,14 @@ export default function Admin() {
 
       {/* Tabs de conteúdo */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
           <TabsTrigger value="overview" className="gap-2">
             <LayoutDashboard className="h-4 w-4" />
             <span className="hidden sm:inline">Visão Geral</span>
+          </TabsTrigger>
+          <TabsTrigger value="catalog" className="gap-2">
+            <Database className="h-4 w-4" />
+            <span className="hidden sm:inline">Catálogo</span>
           </TabsTrigger>
           <TabsTrigger value="users" className="gap-2">
             <Users className="h-4 w-4" />
@@ -65,6 +70,10 @@ export default function Admin() {
             <AuditLogs />
             <ErrorLogs />
           </div>
+        </TabsContent>
+
+        <TabsContent value="catalog" className="mt-6">
+          <AnimeCatalogManager />
         </TabsContent>
 
         <TabsContent value="users" className="mt-6">

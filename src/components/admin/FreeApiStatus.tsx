@@ -23,7 +23,9 @@ import {
   CloudUpload,
   Zap,
   Pause,
-  CheckCircle2
+  CheckCircle2,
+  RotateCcw,
+  AlertTriangle
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,6 +63,7 @@ interface ImageSyncStats {
   withExternalImage: number;
   withoutImage: number;
   localCoverage: number;
+  isStalled?: boolean;
   syncProgress?: {
     total: number;
     processed: number;
@@ -327,10 +330,10 @@ export function FreeApiStatus() {
     }
   });
 
-  // Mutation para sincronização de imagens
+  // Mutation para sincronização de imagens (chunk-based)
   const imageSyncMutation = useMutation({
     mutationFn: async (limit?: number) => {
-      setImageSyncLogs(["🖼️ Iniciando sincronização de imagens..."]);
+      setImageSyncLogs(prev => [...prev, "🖼️ Processando chunk de imagens..."]);
       
       const { data, error } = await supabase.functions.invoke("sync-images", {
         method: "POST",
@@ -340,17 +343,62 @@ export function FreeApiStatus() {
       return data;
     },
     onSuccess: (data) => {
-      if (data.error) {
-        toast.error(data.error);
+      if (data.error && !data.continue) {
+        // Erro real, não apenas "já em andamento"
+        if (!data.progress) {
+          toast.error(data.error);
+          setImageSyncLogs(prev => [...prev, `❌ ${data.error}`]);
+        }
+      } else if (data.continue) {
+        // Há mais imagens para processar - auto-continuar se auto-sync ativo
+        const msg = `✅ Chunk: ${data.success || 0} sucesso, ${data.failed || 0} falhas. Restam: ${data.totalPending - (data.processed || 0)}`;
+        setImageSyncLogs(prev => [...prev.slice(-20), msg]);
+        
+        // Auto-continuar após 2 segundos se auto-sync está ativo
+        if (autoSync) {
+          setTimeout(() => {
+            imageSyncMutation.mutate(undefined);
+          }, 2000);
+        }
       } else {
-        toast.success(`Sincronização iniciada: ${data.total} imagens para processar`);
-        setImageSyncLogs(prev => [...prev, `✅ ${data.total} imagens para sincronizar`]);
-        refetchImageStats();
+        // Sincronização completa
+        toast.success("Sincronização de imagens concluída!");
+        setImageSyncLogs(prev => [...prev, "🎉 Sincronização completa!"]);
       }
+      refetchImageStats();
     },
     onError: (error) => {
       toast.error(`Erro: ${error.message}`);
       setImageSyncLogs(prev => [...prev, `❌ Erro: ${error.message}`]);
+    }
+  });
+
+  // Mutation para resetar estado travado
+  const resetSyncMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("sync-images", {
+        method: "GET",
+        headers: { 'Content-Type': 'application/json' }
+      });
+      // Usar query param para reset
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-images?action=reset`,
+        {
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          }
+        }
+      );
+      if (!response.ok) throw new Error('Falha ao resetar');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast.success("Estado resetado! Pode iniciar nova sincronização.");
+      setImageSyncLogs(prev => [...prev, "🔄 Estado resetado"]);
+      refetchImageStats();
+    },
+    onError: (error) => {
+      toast.error(`Erro ao resetar: ${error.message}`);
     }
   });
 
@@ -684,8 +732,34 @@ export function FreeApiStatus() {
             </div>
           )}
           
+          {/* Alerta de estado travado */}
+          {imageStats?.isStalled && (
+            <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/30 space-y-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                <span className="font-medium text-foreground">Sincronização travada detectada</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                O processo anterior foi interrompido inesperadamente. Clique em "Resetar" para limpar o estado e iniciar uma nova sincronização.
+              </p>
+              <Button
+                onClick={() => resetSyncMutation.mutate()}
+                disabled={resetSyncMutation.isPending}
+                variant="outline"
+                className="gap-2 border-orange-500/50 hover:bg-orange-500/10"
+              >
+                {resetSyncMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RotateCcw className="h-4 w-4" />
+                )}
+                Resetar e Continuar
+              </Button>
+            </div>
+          )}
+          
           {/* Sincronização concluída recentemente */}
-          {!imageStats?.syncProgress?.isRunning && imageStats && imageStats.localCoverage >= 90 && (
+          {!imageStats?.syncProgress?.isRunning && !imageStats?.isStalled && imageStats && imageStats.localCoverage >= 90 && (
             <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20 space-y-2">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-500" />

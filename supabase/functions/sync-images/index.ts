@@ -1,7 +1,7 @@
 /**
  * Edge Function para sincronizar imagens de animes para CDN local
- * Baixa imagens do MyAnimeList e faz upload para Supabase Storage
- * Suporta execução em background com progresso em tempo real via banco de dados
+ * Processa em chunks pequenos (50 por execução) para evitar timeout
+ * Frontend faz polling e re-invoca automaticamente enquanto houver imagens pendentes
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -12,10 +12,11 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
-// Configurações
-const BATCH_SIZE = 10; // Imagens por lote
-const DELAY_BETWEEN_BATCHES = 500; // 500ms entre lotes para melhor performance
+// Configurações - processamento síncrono em chunks pequenos
+const CHUNK_SIZE = 50; // Imagens por execução (evita timeout)
+const BATCH_SIZE = 5; // Imagens por lote interno
 const SYNC_STATE_KEY = 'image_sync'; // Chave para armazenar estado no banco
+const STALL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutos sem atualização = travado
 
 interface SyncProgress {
   total: number;
@@ -30,8 +31,17 @@ interface SyncProgress {
 }
 
 /**
+ * Verifica se a sincronização está travada (is_running true por muito tempo sem atualização)
+ */
+function isStalled(updatedAt: string | null): boolean {
+  if (!updatedAt) return false;
+  const lastUpdate = new Date(updatedAt).getTime();
+  const now = Date.now();
+  return (now - lastUpdate) > STALL_TIMEOUT_MS;
+}
+
+/**
  * Atualiza o estado da sincronização no banco de dados
- * Usa a tabela sync_state para persistir o progresso
  */
 async function updateSyncState(supabase: any, progress: Partial<SyncProgress>) {
   try {
@@ -46,7 +56,7 @@ async function updateSyncState(supabase: any, progress: Partial<SyncProgress>) {
         total_synced: progress.success ?? 0,
         last_error: progress.lastError ?? null,
         updated_at: new Date().toISOString(),
-        last_run_at: progress.isRunning ? undefined : new Date().toISOString(),
+        last_run_at: progress.isRunning === false ? new Date().toISOString() : undefined,
       }, { onConflict: 'id' });
     
     if (error) {
@@ -70,13 +80,16 @@ async function getSyncState(supabase: any): Promise<SyncProgress | null> {
     
     if (error || !data) return null;
     
+    // Verificar se está travado
+    const stalled = data.is_running && isStalled(data.updated_at);
+    
     return {
       total: data.max_page || 0,
       processed: data.current_page || 0,
       success: data.total_synced || 0,
       failed: (data.current_page || 0) - (data.total_synced || 0),
-      isRunning: data.is_running || false,
-      lastError: data.last_error,
+      isRunning: stalled ? false : (data.is_running || false), // Se travado, retorna como não rodando
+      lastError: stalled ? 'Sincronização travada - reset automático' : data.last_error,
       lastUpdated: data.updated_at,
       startedAt: data.last_run_at,
     };
@@ -87,17 +100,38 @@ async function getSyncState(supabase: any): Promise<SyncProgress | null> {
 }
 
 /**
+ * Reseta o estado de sincronização (limpa is_running)
+ */
+async function resetSyncState(supabase: any) {
+  try {
+    const { error } = await supabase
+      .from('sync_state')
+      .update({
+        is_running: false,
+        last_error: 'Reset manual pelo usuário',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', SYNC_STATE_KEY);
+    
+    if (error) throw error;
+    
+    console.log('[sync-images] Estado resetado com sucesso');
+    return { success: true, message: 'Estado resetado' };
+  } catch (error) {
+    console.error('[sync-images] Erro ao resetar:', error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/**
  * Baixa uma imagem via proxy e retorna os bytes
  */
 async function downloadImage(imageUrl: string, supabaseUrl: string): Promise<ArrayBuffer | null> {
   try {
-    // Usar proxy para evitar problemas de CORS com MyAnimeList
     const proxyUrl = `${supabaseUrl}/functions/v1/proxy-image?url=${encodeURIComponent(imageUrl)}`;
     
     const response = await fetch(proxyUrl, {
-      headers: {
-        'Accept': 'image/*',
-      },
+      headers: { 'Accept': 'image/*' },
     });
     
     if (!response.ok) {
@@ -126,12 +160,11 @@ async function uploadToStorage(
                       contentType.includes('webp') ? 'webp' : 'jpg';
     const fileName = `covers/${malId}.${extension}`;
     
-    // Upload para o bucket
     const { data, error } = await supabase.storage
       .from('anime-images')
       .upload(fileName, imageData, {
         contentType,
-        upsert: true, // Sobrescrever se já existir
+        upsert: true,
       });
     
     if (error) {
@@ -139,7 +172,6 @@ async function uploadToStorage(
       return null;
     }
     
-    // Gerar URL pública
     const { data: publicUrl } = supabase.storage
       .from('anime-images')
       .getPublicUrl(fileName);
@@ -152,165 +184,133 @@ async function uploadToStorage(
 }
 
 /**
- * Processa um lote de animes
+ * Processa um único anime
  */
-async function processBatch(
+async function processAnime(
   supabase: any,
   supabaseUrl: string,
-  animes: { mal_id: number; image_url: string }[],
-  progress: SyncProgress
-): Promise<{ success: number; failed: number }> {
-  let success = 0;
-  let failed = 0;
-  
-  for (const anime of animes) {
-    progress.currentMalId = anime.mal_id;
-    
-    try {
-      // Baixar imagem
-      const imageData = await downloadImage(anime.image_url, supabaseUrl);
-      
-      if (!imageData) {
-        failed++;
-        progress.processed++;
-        continue;
-      }
-      
-      // Upload para storage
-      const localUrl = await uploadToStorage(supabase, anime.mal_id, imageData, 'image/jpeg');
-      
-      if (!localUrl) {
-        failed++;
-        progress.processed++;
-        continue;
-      }
-      
-      // Atualizar banco de dados
-      const { error } = await supabase
-        .from('anime_catalog')
-        .update({ local_image_url: localUrl })
-        .eq('mal_id', anime.mal_id);
-      
-      if (error) {
-        console.error(`[sync-images] Erro ao atualizar ${anime.mal_id}:`, error);
-        failed++;
-      } else {
-        success++;
-        console.log(`[sync-images] ✓ ${anime.mal_id} sincronizado`);
-      }
-    } catch (error) {
-      console.error(`[sync-images] Erro processando ${anime.mal_id}:`, error);
-      failed++;
-      progress.lastError = `Erro no anime ${anime.mal_id}: ${error}`;
-    }
-    
-    progress.processed++;
-  }
-  
-  return { success, failed };
-}
-
-/**
- * Executa a sincronização completa em background
- */
-async function runSyncBackground(supabase: any, supabaseUrl: string, animes: any[]) {
-  const progress: SyncProgress = {
-    total: animes.length,
-    processed: 0,
-    success: 0,
-    failed: 0,
-    isRunning: true,
-    startedAt: new Date().toISOString(),
-  };
-  
+  anime: { mal_id: number; image_url: string }
+): Promise<boolean> {
   try {
-    // Marcar início
-    await updateSyncState(supabase, progress);
+    // Baixar imagem
+    const imageData = await downloadImage(anime.image_url, supabaseUrl);
+    if (!imageData) return false;
     
-    console.log(`[sync-images] Processando ${animes.length} animes em background...`);
+    // Upload para storage
+    const localUrl = await uploadToStorage(supabase, anime.mal_id, imageData, 'image/jpeg');
+    if (!localUrl) return false;
     
-    // Processar em lotes
-    for (let i = 0; i < animes.length; i += BATCH_SIZE) {
-      const batch = animes.slice(i, i + BATCH_SIZE);
-      const result = await processBatch(supabase, supabaseUrl, batch, progress);
-      
-      progress.success += result.success;
-      progress.failed += result.failed;
-      
-      // Atualizar estado a cada lote para progresso em tempo real
-      await updateSyncState(supabase, progress);
-      
-      console.log(`[sync-images] Progresso: ${progress.processed}/${progress.total} (${progress.success} OK, ${progress.failed} falhas)`);
-      
-      // Delay entre lotes para não sobrecarregar
-      if (i + BATCH_SIZE < animes.length) {
-        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
-      }
+    // Atualizar banco de dados
+    const { error } = await supabase
+      .from('anime_catalog')
+      .update({ local_image_url: localUrl })
+      .eq('mal_id', anime.mal_id);
+    
+    if (error) {
+      console.error(`[sync-images] Erro ao atualizar ${anime.mal_id}:`, error);
+      return false;
     }
     
-    console.log(`[sync-images] ✅ Sincronização concluída: ${progress.success} sucesso, ${progress.failed} falhas`);
+    console.log(`[sync-images] ✓ ${anime.mal_id} sincronizado`);
+    return true;
   } catch (error) {
-    console.error('[sync-images] Erro na sincronização:', error);
-    progress.lastError = String(error);
-  } finally {
-    progress.isRunning = false;
-    await updateSyncState(supabase, progress);
+    console.error(`[sync-images] Erro processando ${anime.mal_id}:`, error);
+    return false;
   }
 }
 
 /**
- * Inicia a sincronização em background usando EdgeRuntime.waitUntil
+ * Processa um chunk de animes (50 por execução)
+ * Retorna se há mais imagens para processar
  */
-async function startSync(supabase: any, supabaseUrl: string, limit?: number) {
-  // Verificar se já está em execução
-  const currentState = await getSyncState(supabase);
-  if (currentState?.isRunning) {
-    return { error: 'Sincronização já em andamento', progress: currentState };
+async function processChunk(supabase: any, supabaseUrl: string, limit: number = CHUNK_SIZE) {
+  // Buscar estado atual ou criar novo
+  let currentState = await getSyncState(supabase);
+  
+  // Se está travado, resetar automaticamente
+  if (currentState?.isRunning === false && currentState?.lastError?.includes('travada')) {
+    console.log('[sync-images] Detectado estado travado, resetando...');
+    await resetSyncState(supabase);
+    currentState = null;
   }
   
-  console.log('[sync-images] Iniciando sincronização de imagens...');
-  
-  // Buscar animes sem local_image_url
-  let query = supabase
+  // Buscar animes pendentes
+  const { data: animes, error, count } = await supabase
     .from('anime_catalog')
-    .select('mal_id, image_url')
+    .select('mal_id, image_url', { count: 'exact' })
     .is('local_image_url', null)
     .not('image_url', 'is', null)
-    .order('popularity', { ascending: true, nullsFirst: false });
-  
-  if (limit) {
-    query = query.limit(limit);
-  }
-  
-  const { data: animes, error } = await query;
+    .order('popularity', { ascending: true, nullsFirst: false })
+    .limit(limit);
   
   if (error) {
     console.error('[sync-images] Erro ao buscar animes:', error);
-    return { error: error.message };
+    return { error: error.message, continue: false };
   }
   
   if (!animes || animes.length === 0) {
     console.log('[sync-images] Nenhum anime para sincronizar');
-    return { message: 'Nenhum anime para sincronizar', total: 0 };
+    await updateSyncState(supabase, { isRunning: false });
+    return { message: 'Sincronização completa', continue: false, processed: 0, success: 0 };
   }
   
-  console.log(`[sync-images] ${animes.length} animes para sincronizar`);
+  const totalPending = count || animes.length;
+  console.log(`[sync-images] Processando ${animes.length} de ${totalPending} animes pendentes...`);
   
-  // Iniciar em background usando EdgeRuntime.waitUntil
-  const backgroundTask = runSyncBackground(supabase, supabaseUrl, animes);
+  // Marcar como rodando
+  await updateSyncState(supabase, {
+    isRunning: true,
+    total: totalPending,
+    processed: currentState?.processed || 0,
+    success: currentState?.success || 0,
+  });
   
-  // @ts-ignore - EdgeRuntime existe no ambiente Deno/Supabase
-  if (typeof EdgeRuntime !== 'undefined') {
-    // @ts-ignore
-    EdgeRuntime.waitUntil(backgroundTask);
-  } else {
-    // Fallback para ambiente sem EdgeRuntime (não aguarda)
-    backgroundTask.catch(console.error);
+  let success = 0;
+  let failed = 0;
+  let processed = 0;
+  
+  // Processar em mini-batches para atualizar progresso frequentemente
+  for (let i = 0; i < animes.length; i += BATCH_SIZE) {
+    const batch = animes.slice(i, i + BATCH_SIZE);
+    
+    for (const anime of batch) {
+      const ok = await processAnime(supabase, supabaseUrl, anime);
+      if (ok) success++;
+      else failed++;
+      processed++;
+    }
+    
+    // Atualizar estado após cada mini-batch
+    await updateSyncState(supabase, {
+      isRunning: true,
+      total: totalPending,
+      processed: (currentState?.processed || 0) + processed,
+      success: (currentState?.success || 0) + success,
+      currentMalId: batch[batch.length - 1]?.mal_id,
+    });
   }
+  
+  // Verificar se há mais para processar
+  const hasMore = totalPending > animes.length;
+  
+  // Se não há mais, marcar como concluído
+  if (!hasMore) {
+    await updateSyncState(supabase, {
+      isRunning: false,
+      total: totalPending,
+      processed: (currentState?.processed || 0) + processed,
+      success: (currentState?.success || 0) + success,
+    });
+  }
+  
+  console.log(`[sync-images] Chunk concluído: ${success} sucesso, ${failed} falhas. Continue: ${hasMore}`);
   
   return {
-    message: 'Sincronização iniciada em background',
-    total: animes.length,
+    processed,
+    success,
+    failed,
+    totalPending,
+    continue: hasMore, // Frontend deve chamar novamente se true
   };
 }
 
@@ -318,32 +318,27 @@ async function startSync(supabase: any, supabaseUrl: string, limit?: number) {
  * Retorna estatísticas de imagens
  */
 async function getImageStats(supabase: any) {
-  // Total de animes
   const { count: totalAnimes } = await supabase
     .from('anime_catalog')
     .select('*', { count: 'exact', head: true });
   
-  // Animes com imagem local
   const { count: withLocalImage } = await supabase
     .from('anime_catalog')
     .select('*', { count: 'exact', head: true })
     .not('local_image_url', 'is', null);
   
-  // Animes com imagem externa
   const { count: withExternalImage } = await supabase
     .from('anime_catalog')
     .select('*', { count: 'exact', head: true })
     .is('local_image_url', null)
     .not('image_url', 'is', null);
   
-  // Animes sem nenhuma imagem
   const { count: withoutImage } = await supabase
     .from('anime_catalog')
     .select('*', { count: 'exact', head: true })
     .is('local_image_url', null)
     .is('image_url', null);
   
-  // Buscar estado da sincronização do banco
   const syncState = await getSyncState(supabase);
   
   return {
@@ -353,6 +348,7 @@ async function getImageStats(supabase: any) {
     withoutImage: withoutImage || 0,
     localCoverage: totalAnimes ? Math.round((withLocalImage || 0) / totalAnimes * 100) : 0,
     syncProgress: syncState?.isRunning ? syncState : null,
+    isStalled: syncState?.lastError?.includes('travada'),
   };
 }
 
@@ -373,6 +369,16 @@ Deno.serve(async (req) => {
     
     // GET: Retorna status/estatísticas
     if (req.method === 'GET') {
+      // Ação de reset
+      if (action === 'reset') {
+        const result = await resetSyncState(supabase);
+        return new Response(
+          JSON.stringify(result),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Progresso atual
       if (action === 'progress') {
         const syncState = await getSyncState(supabase);
         return new Response(
@@ -383,44 +389,32 @@ Deno.serve(async (req) => {
       
       // Estatísticas padrão
       const stats = await getImageStats(supabase);
-      
       return new Response(
         JSON.stringify(stats),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // POST: Inicia sincronização
+    // POST: Processa um chunk de imagens
     if (req.method === 'POST') {
       const body = await req.json().catch(() => ({}));
-      const limit = body.limit ? parseInt(body.limit) : undefined;
-      const autoStart = body.autoStart === true;
+      const limit = body.limit ? parseInt(body.limit) : CHUNK_SIZE;
       
-      // Se autoStart, não iniciar se já há imagens locais suficientes
-      if (autoStart) {
-        const stats = await getImageStats(supabase);
-        if (stats.localCoverage >= 90) {
-          return new Response(
-            JSON.stringify({ 
-              message: 'Cobertura já está em 90%+, sincronização automática ignorada',
-              coverage: stats.localCoverage 
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      }
-      
-      const result = await startSync(supabase, supabaseUrl, limit);
-      
-      if (result.error) {
+      // Verificar se já está em execução (evita execuções paralelas)
+      const currentState = await getSyncState(supabase);
+      if (currentState?.isRunning) {
         return new Response(
-          JSON.stringify({ error: result.error, progress: result.progress }),
-          { 
-            status: result.progress ? 200 : 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
+          JSON.stringify({ 
+            error: 'Sincronização já em andamento', 
+            progress: currentState,
+            continue: true 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      
+      // Processar chunk
+      const result = await processChunk(supabase, supabaseUrl, limit);
       
       return new Response(
         JSON.stringify(result),
@@ -430,20 +424,14 @@ Deno.serve(async (req) => {
     
     return new Response(
       JSON.stringify({ error: 'Método não permitido' }),
-      { 
-        status: 405, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
     
   } catch (error) {
     console.error('[sync-images] Erro:', error);
     return new Response(
       JSON.stringify({ error: 'Erro interno do servidor' }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

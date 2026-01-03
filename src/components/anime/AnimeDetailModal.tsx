@@ -17,9 +17,10 @@ import { Label } from '@/components/ui/label';
 import { StarRating } from './StarRating';
 import { ReviewsList } from './ReviewsList';
 import { ProgressHistory } from './ProgressHistory';
+import { DataSourceBadge } from './DataSourceBadge';
 import { useAnimeEntries, useAddAnimeEntry, useUpdateAnimeEntry } from '@/hooks/useAnimeEntries';
 import { useAddProgressHistory } from '@/hooks/useProgressHistory';
-import { useAnimeByMalId } from '@/hooks/useAnimeApi';
+import { useAnimeWithFallback } from '@/hooks/useAnimeWithFallback';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
@@ -51,13 +52,13 @@ const statusOptions: { value: AnimeStatus; label: string; color: string }[] = [
 
 /**
  * Modal de detalhes do anime com informações completas e avaliação
- * Usa a nova API de catálogo para buscar dados
+ * Usa a nova API de catálogo com fallback para Jikan
  */
 export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps>(
   function AnimeDetailModal({ open, onOpenChange, catalogAnime, malId, userEntry }, ref) {
-  // Só busca detalhes se não tiver dados locais
+  // Busca detalhes com fallback para Jikan se não estiver no catálogo
   const shouldFetchDetails = malId && !catalogAnime;
-  const { data: fetchedAnime, isLoading: loadingDetails } = useAnimeByMalId(shouldFetchDetails ? malId : null);
+  const { anime: fetchedAnime, source: dataSource, isLoading: loadingDetails } = useAnimeWithFallback(shouldFetchDetails ? malId : null);
   const { data: userEntries } = useAnimeEntries();
   const addEntry = useAddAnimeEntry();
   const updateEntry = useUpdateAnimeEntry();
@@ -269,9 +270,16 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
                 />
                 <div className="flex-1 min-w-0 pb-1 md:pb-2">
                   <DialogHeader>
-                    <DialogTitle className="text-base md:text-2xl font-display font-bold line-clamp-2 leading-tight">
-                      {title}
-                    </DialogTitle>
+                    <div className="flex items-start gap-2">
+                      <DialogTitle className="text-base md:text-2xl font-display font-bold line-clamp-2 leading-tight flex-1">
+                        {title}
+                      </DialogTitle>
+                      {/* Indicador de fonte dos dados */}
+                      <DataSourceBadge 
+                        source={catalogAnime ? 'catalog' : dataSource} 
+                        className="shrink-0 mt-1"
+                      />
+                    </div>
                   </DialogHeader>
                   
                   {/* Info rápida */}

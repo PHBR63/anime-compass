@@ -1,7 +1,10 @@
 import { useMemo } from 'react';
 import { useAnimeEntries } from './useAnimeEntries';
-import { useAnimeByMalId } from './useAnimeApi';
 import { useQueries } from '@tanstack/react-query';
+
+// URLs das APIs
+const CATALOG_API_URL = 'https://xhyairbedwqezegopjan.supabase.co/functions/v1/anime-api';
+const JIKAN_API_URL = 'https://api.jikan.moe/v4';
 
 /**
  * Interface para gênero/estúdio favorito
@@ -19,8 +22,47 @@ interface FavoriteStats {
 }
 
 /**
+ * Busca anime com fallback para Jikan
+ */
+async function fetchAnimeWithFallback(malId: number) {
+  // Tentar catálogo primeiro
+  try {
+    const response = await fetch(`${CATALOG_API_URL}?mal_id=${malId}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.data) {
+        return data.data;
+      }
+    }
+  } catch (e) {
+    // Silenciar erro e tentar fallback
+  }
+
+  // Fallback para Jikan
+  try {
+    await new Promise(resolve => setTimeout(resolve, 350)); // Rate limiting
+    const response = await fetch(`${JIKAN_API_URL}/anime/${malId}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.data) {
+        // Converter formato Jikan
+        return {
+          ...data.data,
+          genres: data.data.genres || [],
+          studios: data.data.studios || [],
+        };
+      }
+    }
+  } catch (e) {
+    // Silenciar erro
+  }
+
+  return null;
+}
+
+/**
  * Hook para calcular gêneros e estúdios favoritos baseado no histórico de animes
- * Usa a API do catálogo local para buscar detalhes sem rate limiting
+ * Usa a API do catálogo com fallback para Jikan
  */
 export function useFavoriteGenresStudios() {
   const { data: entries } = useAnimeEntries();
@@ -37,18 +79,11 @@ export function useFavoriteGenresStudios() {
       .slice(0, 20);
   }, [entries]);
 
-  // Buscar detalhes de cada anime via API do catálogo
+  // Buscar detalhes de cada anime com fallback
   const animeQueries = useQueries({
     queries: prioritizedEntries.map(entry => ({
-      queryKey: ['anime-catalog', 'by-mal-id', entry.mal_id],
-      queryFn: async () => {
-        const response = await fetch(
-          `https://xhyairbedwqezegopjan.supabase.co/functions/v1/anime-api?mal_id=${entry.mal_id}`
-        );
-        if (!response.ok) return null;
-        const data = await response.json();
-        return data.data || null;
-      },
+      queryKey: ['anime-with-fallback', 'favorites', entry.mal_id],
+      queryFn: () => fetchAnimeWithFallback(entry.mal_id),
       staleTime: 1000 * 60 * 60, // 1 hora
       enabled: !!entry.mal_id,
     })),

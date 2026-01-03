@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Database, 
@@ -20,13 +20,18 @@ import {
   ArrowRightLeft,
   Play,
   HardDrive,
-  CloudUpload
+  CloudUpload,
+  Zap,
+  Pause,
+  CheckCircle2
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { FREEAPI_URL } from "@/lib/apiConfig";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -179,6 +184,10 @@ export function FreeApiStatus() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [importLogs, setImportLogs] = useState<string[]>([]);
   const [imageSyncLogs, setImageSyncLogs] = useState<string[]>([]);
+  const [autoSync, setAutoSync] = useState(() => {
+    // Persistir preferência de auto-sync
+    return localStorage.getItem("admin-auto-image-sync") === "true";
+  });
   const [importProgress, setImportProgress] = useState<{
     isRunning: boolean;
     total: number;
@@ -195,7 +204,7 @@ export function FreeApiStatus() {
     refetchInterval: 60 * 1000, // Atualiza a cada minuto
   });
 
-  // Query para estatísticas de imagens locais
+  // Query para estatísticas de imagens locais com polling dinâmico
   const { data: imageStats, refetch: refetchImageStats } = useQuery<ImageSyncStats>({
     queryKey: ["image-sync-stats"],
     queryFn: async () => {
@@ -205,12 +214,29 @@ export function FreeApiStatus() {
       if (error) throw error;
       return data;
     },
-    staleTime: 30 * 1000,
+    staleTime: 5 * 1000, // 5 segundos
     refetchInterval: (query) => {
-      // Polling rápido se sincronização em andamento
-      return query.state.data?.syncProgress?.isRunning ? 2000 : 30000;
+      // Polling rápido (1s) se sincronização em andamento, senão 30s
+      const isRunning = query.state.data?.syncProgress?.isRunning;
+      return isRunning ? 1000 : 30000;
     },
   });
+
+  // Auto-iniciar sincronização quando ativado
+  useEffect(() => {
+    if (autoSync && imageStats && !imageStats.syncProgress?.isRunning) {
+      // Verificar se há imagens para sincronizar e cobertura < 90%
+      if (imageStats.localCoverage < 90 && imageStats.withExternalImage > 0) {
+        console.log("[FreeApiStatus] Auto-sync: iniciando sincronização automática...");
+        imageSyncMutation.mutate(undefined);
+      }
+    }
+  }, [autoSync, imageStats?.localCoverage, imageStats?.syncProgress?.isRunning]);
+
+  // Salvar preferência de auto-sync
+  useEffect(() => {
+    localStorage.setItem("admin-auto-image-sync", String(autoSync));
+  }, [autoSync]);
 
   // Query para monitorar status da importação (polling enquanto em execução)
   const { data: importStatus } = useQuery({
@@ -535,20 +561,47 @@ export function FreeApiStatus() {
       </Card>
 
       {/* Seção de Sincronização de Imagens */}
-      <Card className={`border-blue-500/20 bg-gradient-to-r from-blue-500/5 to-transparent ${isImageSyncing ? 'ring-2 ring-blue-500/50 animate-pulse' : ''}`}>
+      <Card className={`border-blue-500/20 bg-gradient-to-r from-blue-500/5 to-transparent ${isImageSyncing ? 'ring-2 ring-blue-500/50' : ''}`}>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <HardDrive className="h-5 w-5 text-blue-500" />
-            CDN Local de Imagens
-            {isImageSyncing && (
-              <Badge variant="default" className="ml-2 bg-blue-500 animate-pulse">
-                Sincronizando
-              </Badge>
-            )}
-          </CardTitle>
-          <CardDescription>
-            Sincronize imagens para o CDN próprio e elimine dependência do MyAnimeList
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <HardDrive className="h-5 w-5 text-blue-500" />
+                CDN Local de Imagens
+                {isImageSyncing && (
+                  <Badge variant="default" className="ml-2 bg-blue-500 animate-pulse">
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    Sincronizando
+                  </Badge>
+                )}
+                {!isImageSyncing && imageStats && imageStats.localCoverage >= 90 && (
+                  <Badge variant="default" className="ml-2 bg-green-500">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Completo
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                Sincronize imagens para o CDN próprio e elimine dependência do MyAnimeList
+              </CardDescription>
+            </div>
+            
+            {/* Toggle Auto-Sync */}
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+              <div className="flex items-center gap-2">
+                <Zap className={`h-4 w-4 ${autoSync ? 'text-yellow-500' : 'text-muted-foreground'}`} />
+                <Label htmlFor="auto-sync" className="text-sm font-medium cursor-pointer">
+                  Auto-Sync
+                </Label>
+              </div>
+              <Switch
+                id="auto-sync"
+                checked={autoSync}
+                onCheckedChange={setAutoSync}
+                disabled={imageStats?.localCoverage && imageStats.localCoverage >= 90}
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Estatísticas de imagens */}
@@ -567,7 +620,7 @@ export function FreeApiStatus() {
                 <p className="text-xs text-muted-foreground">Apenas Externo</p>
               </div>
               <div className="p-3 rounded-lg bg-muted/50 text-center">
-                <p className="text-2xl font-bold text-green-500">
+                <p className={`text-2xl font-bold ${imageStats.localCoverage >= 90 ? 'text-green-500' : imageStats.localCoverage >= 50 ? 'text-yellow-500' : 'text-orange-500'}`}>
                   {imageStats.localCoverage}%
                 </p>
                 <p className="text-xs text-muted-foreground">Cobertura Local</p>
@@ -581,36 +634,72 @@ export function FreeApiStatus() {
             </div>
           )}
           
-          {/* Progresso da sincronização */}
+          {/* Progresso da sincronização em tempo real */}
           {imageStats?.syncProgress?.isRunning && (
             <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
-                  <span className="font-medium text-foreground">Sincronizando imagens...</span>
+                  <span className="font-medium text-foreground">Sincronizando imagens em tempo real...</span>
                 </div>
-                <Badge variant="outline" className="gap-1">
-                  {imageStats.syncProgress.processed} / {imageStats.syncProgress.total}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="gap-1 font-mono">
+                    {imageStats.syncProgress.processed.toLocaleString("pt-BR")} / {imageStats.syncProgress.total.toLocaleString("pt-BR")}
+                  </Badge>
+                  <Badge variant="secondary" className="gap-1">
+                    {Math.round((imageStats.syncProgress.processed / imageStats.syncProgress.total) * 100)}%
+                  </Badge>
+                </div>
               </div>
               
               <Progress 
                 value={(imageStats.syncProgress.processed / imageStats.syncProgress.total) * 100} 
-                className="h-2" 
+                className="h-3" 
               />
               
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>✅ {imageStats.syncProgress.success} sucesso</span>
-                <span>❌ {imageStats.syncProgress.failed} falhas</span>
+              <div className="flex flex-wrap justify-between text-xs text-muted-foreground gap-2">
+                <span className="flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3 text-green-500" />
+                  {imageStats.syncProgress.success.toLocaleString("pt-BR")} sucesso
+                </span>
+                <span className="flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3 text-red-500" />
+                  {imageStats.syncProgress.failed.toLocaleString("pt-BR")} falhas
+                </span>
                 {imageStats.syncProgress.currentMalId && (
-                  <span>Atual: MAL #{imageStats.syncProgress.currentMalId}</span>
+                  <span className="font-mono">
+                    Processando: MAL #{imageStats.syncProgress.currentMalId}
+                  </span>
                 )}
               </div>
+              
+              {/* Tempo estimado */}
+              {imageStats.syncProgress.processed > 10 && (
+                <div className="pt-2 border-t border-blue-500/20">
+                  <p className="text-xs text-muted-foreground">
+                    ⏱️ Estimativa: ~{Math.ceil((imageStats.syncProgress.total - imageStats.syncProgress.processed) / (imageStats.syncProgress.processed / ((Date.now() - new Date(imageStats.syncProgress.startedAt || Date.now()).getTime()) / 60000)))} min restantes
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Sincronização concluída recentemente */}
+          {!imageStats?.syncProgress?.isRunning && imageStats && imageStats.localCoverage >= 90 && (
+            <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20 space-y-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <span className="font-medium text-foreground">Sincronização completa!</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {imageStats.withLocalImage.toLocaleString("pt-BR")} imagens estão armazenadas no CDN local. 
+                A cobertura está em {imageStats.localCoverage}%.
+              </p>
             </div>
           )}
           
           {/* Botões de ação */}
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button
               onClick={() => imageSyncMutation.mutate(undefined)}
               disabled={isImageSyncing}
@@ -622,7 +711,7 @@ export function FreeApiStatus() {
               ) : (
                 <CloudUpload className="h-4 w-4" />
               )}
-              Sincronizar Todas
+              {isImageSyncing ? 'Sincronizando...' : 'Sincronizar Todas'}
             </Button>
             <Button
               variant="ghost"
@@ -633,13 +722,20 @@ export function FreeApiStatus() {
               <Image className="h-4 w-4" />
               Sincronizar 100 (Teste)
             </Button>
+            
+            {autoSync && !isImageSyncing && imageStats && imageStats.localCoverage < 90 && (
+              <Badge variant="outline" className="gap-1.5 text-yellow-600 border-yellow-500/50">
+                <Zap className="h-3 w-3" />
+                Auto-sync ativo - iniciará automaticamente
+              </Badge>
+            )}
           </div>
           
           {/* Logs de sincronização de imagens */}
           {imageSyncLogs.length > 0 && (
             <div className="mt-4 p-3 bg-muted/50 rounded-lg max-h-32 overflow-y-auto">
               <p className="text-xs font-medium text-muted-foreground mb-2">
-                Logs de imagens:
+                Logs de imagens {isImageSyncing && <span className="animate-pulse">(em tempo real)</span>}:
               </p>
               <div className="space-y-1 text-xs font-mono">
                 {imageSyncLogs.slice(-10).map((log, i) => (

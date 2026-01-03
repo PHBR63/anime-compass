@@ -3,31 +3,32 @@ import { Search, TrendingUp, Sparkles, Filter, Tv, Loader2, Star, ChevronDown } 
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { JikanAnimeCard } from '@/components/anime/JikanAnimeCard';
+import { CatalogAnimeCard } from '@/components/anime/CatalogAnimeCard';
 import { 
-  useInfiniteTopAnimes, 
-  useInfiniteSeasonNow, 
-  useInfiniteSearchAnimes, 
-  useInfiniteAnimesByGenre,
-  GENRES,
-  JikanAnime
-} from '@/hooks/useJikanApi';
+  useTopAnimes, 
+  useSeasonAnimes, 
+  useSearchAnimes, 
+  useAnimesByGenre,
+  useAnimeGenres,
+  POPULAR_GENRES
+} from '@/hooks/useAnimeApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AnimeDetailModal } from '@/components/anime/AnimeDetailModal';
 import { SakuraPetals, WavePattern } from '@/components/backgrounds';
 import { AnimatedContent, NeonText } from '@/components/animations';
 import { ToriiDivider } from '@/components/decorative';
+import type { CatalogAnime } from '@/types/catalog';
 
 /**
  * Página de descoberta de animes com scroll infinito
- * Com estética oriental (SakuraPetals, WavePattern, NeonText)
+ * Usa API própria do catálogo local (mais rápida e sem rate limit)
  */
 export default function Discover() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'season' | 'top'>('season');
-  const [selectedAnime, setSelectedAnime] = useState<JikanAnime | null>(null);
+  const [selectedAnime, setSelectedAnime] = useState<CatalogAnime | null>(null);
   
   // Ref para observar scroll infinito
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -40,14 +41,17 @@ export default function Discover() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Hooks de dados com paginação infinita
+  // Buscar gêneros disponíveis do catálogo
+  const { data: catalogGenres } = useAnimeGenres();
+
+  // Hooks de dados com paginação infinita (API própria)
   const {
     data: topAnimesData,
     fetchNextPage: fetchNextTop,
     hasNextPage: hasNextTop,
     isFetchingNextPage: isFetchingTop,
     isLoading: loadingTop
-  } = useInfiniteTopAnimes();
+  } = useTopAnimes();
 
   const {
     data: seasonAnimesData,
@@ -55,7 +59,7 @@ export default function Discover() {
     hasNextPage: hasNextSeason,
     isFetchingNextPage: isFetchingSeason,
     isLoading: loadingSeason
-  } = useInfiniteSeasonNow();
+  } = useSeasonAnimes();
 
   const {
     data: searchData,
@@ -63,7 +67,7 @@ export default function Discover() {
     hasNextPage: hasNextSearch,
     isFetchingNextPage: isFetchingSearch,
     isLoading: loadingSearch
-  } = useInfiniteSearchAnimes(debouncedQuery);
+  } = useSearchAnimes(debouncedQuery);
 
   const {
     data: genreData,
@@ -71,10 +75,10 @@ export default function Discover() {
     hasNextPage: hasNextGenre,
     isFetchingNextPage: isFetchingGenre,
     isLoading: loadingGenre
-  } = useInfiniteAnimesByGenre(selectedGenre || 0);
+  } = useAnimesByGenre(selectedGenre);
 
   // Função memoizada para remover duplicatas por mal_id
-  const removeDuplicates = useCallback((animes: JikanAnime[]): JikanAnime[] => {
+  const removeDuplicates = useCallback((animes: CatalogAnime[]): CatalogAnime[] => {
     const seen = new Set<number>();
     return animes.filter((anime) => {
       if (seen.has(anime.mal_id)) {
@@ -148,6 +152,16 @@ export default function Discover() {
     return () => observer.disconnect();
   }, [loadMoreConfig]);
 
+  // Gêneros para exibir nos filtros (usa catálogo ou fallback)
+  const displayGenres = useMemo(() => {
+    if (catalogGenres && catalogGenres.length > 0) {
+      // Usar gêneros do catálogo ordenados por contagem
+      return catalogGenres.slice(0, 12).map(g => ({ id: g.mal_id, name: g.name }));
+    }
+    // Fallback para gêneros populares
+    return POPULAR_GENRES.map(g => ({ id: g.mal_id, name: g.name }));
+  }, [catalogGenres]);
+
   // Funções de controle - MEMOIZADAS
   const handleGenreClick = useCallback((genreId: number) => {
     if (selectedGenre === genreId) {
@@ -169,7 +183,7 @@ export default function Discover() {
     setSearchQuery(e.target.value);
   }, []);
 
-  const handleSelectAnime = useCallback((anime: JikanAnime) => {
+  const handleSelectAnime = useCallback((anime: CatalogAnime) => {
     setSelectedAnime(anime);
   }, []);
 
@@ -221,6 +235,23 @@ export default function Discover() {
   // Destaques memoizados
   const highlightAnimes = useMemo(() => seasonAnimes.slice(0, 3), [seasonAnimes]);
 
+  // Encontrar nome do gênero selecionado
+  const selectedGenreName = useMemo(() => {
+    if (!selectedGenre) return 'Gênero';
+    const genre = displayGenres.find(g => g.id === selectedGenre);
+    return genre?.name || 'Gênero';
+  }, [selectedGenre, displayGenres]);
+
+  // Helper para obter URL da imagem do anime
+  const getAnimeImage = (anime: CatalogAnime) => {
+    return anime.local_image_url || anime.image_url || '/placeholder.svg';
+  };
+
+  // Helper para obter sinopse do anime (prioriza PT-BR)
+  const getAnimeSynopsis = (anime: CatalogAnime) => {
+    return anime.synopsis_pt || anime.synopsis || 'Sem sinopse disponível';
+  };
+
   return (
     <div className="relative space-y-8 pt-12 md:pt-0 pb-8 min-h-screen">
       {/* Backgrounds orientais */}
@@ -238,7 +269,7 @@ export default function Discover() {
             Descubra Novos <NeonText color="primary">Animes</NeonText>
           </h1>
           <p className="text-muted-foreground">
-            Explore animes reais do MyAnimeList e adicione à sua lista
+            Explore animes do catálogo e adicione à sua lista
           </p>
         </div>
       </AnimatedContent>
@@ -264,7 +295,7 @@ export default function Discover() {
       {/* Filtros de gênero */}
       <AnimatedContent direction="up" delay={0.2}>
         <div className="flex flex-wrap justify-center gap-2">
-          {GENRES.map((genre) => (
+          {displayGenres.map((genre) => (
             <Badge
               key={genre.id}
               variant={selectedGenre === genre.id ? "default" : "outline"}
@@ -311,7 +342,7 @@ export default function Discover() {
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {searchAnimes.map((anime) => (
-                  <JikanAnimeCard key={anime.mal_id} anime={anime} />
+                  <CatalogAnimeCard key={anime.mal_id} anime={anime} />
                 ))}
               </div>
               <LoadMoreButton />
@@ -331,7 +362,7 @@ export default function Discover() {
             <div className="flex items-center gap-2">
               <Filter className="h-5 w-5 text-primary" />
               <h2 className="font-zen text-xl font-semibold">
-                {GENRES.find(g => g.id === selectedGenre)?.name || 'Gênero'}
+                {selectedGenreName}
               </h2>
             </div>
             <span className="text-sm text-muted-foreground">
@@ -345,7 +376,7 @@ export default function Discover() {
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {genreAnimes.map((anime) => (
-                  <JikanAnimeCard key={anime.mal_id} anime={anime} />
+                  <CatalogAnimeCard key={anime.mal_id} anime={anime} />
                 ))}
               </div>
               <LoadMoreButton />
@@ -400,7 +431,7 @@ export default function Discover() {
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                     {seasonAnimes.map((anime) => (
-                      <JikanAnimeCard key={anime.mal_id} anime={anime} />
+                      <CatalogAnimeCard key={anime.mal_id} anime={anime} />
                     ))}
                   </div>
                   <LoadMoreButton />
@@ -425,7 +456,7 @@ export default function Discover() {
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                     {topAnimes.map((anime, index) => (
-                      <JikanAnimeCard 
+                      <CatalogAnimeCard 
                         key={anime.mal_id} 
                         anime={anime} 
                         rank={index + 1}
@@ -461,18 +492,18 @@ export default function Discover() {
                     onClick={() => handleSelectAnime(anime)}
                   >
                     <img
-                      src={anime.images.jpg.image_url}
+                      src={getAnimeImage(anime)}
                       alt={anime.title}
                       className="w-20 h-28 object-cover rounded-lg"
                       loading="lazy"
                     />
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold line-clamp-1">{anime.title}</h3>
+                      <h3 className="font-semibold line-clamp-1">{anime.title_english || anime.title}</h3>
                       <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                        {anime.synopsis || 'Sem sinopse disponível'}
+                        {getAnimeSynopsis(anime)}
                       </p>
                       <div className="flex flex-wrap gap-1 mt-2">
-                        {anime.genres.slice(0, 2).map((genre) => (
+                        {anime.genres?.slice(0, 2).map((genre) => (
                           <Badge key={genre.mal_id} variant="secondary" className="text-xs">
                             {genre.name}
                           </Badge>
@@ -481,7 +512,7 @@ export default function Discover() {
                       {anime.score && (
                         <p className="text-xs text-primary mt-2 flex items-center gap-1">
                           <Star className="h-3 w-3 fill-primary" />
-                          Nota: {anime.score.toFixed(1)}
+                          Nota: {Number(anime.score).toFixed(1)}
                         </p>
                       )}
                     </div>
@@ -498,7 +529,7 @@ export default function Discover() {
         <AnimeDetailModal
           open={!!selectedAnime}
           onOpenChange={handleCloseModal}
-          jikanAnime={selectedAnime}
+          catalogAnime={selectedAnime}
         />
       )}
     </div>

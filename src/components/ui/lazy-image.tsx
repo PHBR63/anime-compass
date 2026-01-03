@@ -76,6 +76,7 @@ const OfflineIndicator = React.memo(function OfflineIndicator() {
 
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
+  localSrc?: string; // URL local do CDN (prioridade)
   alt: string;
   fallback?: string;
   className?: string;
@@ -92,6 +93,7 @@ interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
  */
 export const LazyImage = React.memo(function LazyImage({
   src,
+  localSrc,
   alt,
   fallback = '/placeholder.svg',
   className,
@@ -107,8 +109,12 @@ export const LazyImage = React.memo(function LazyImage({
   const [isCached, setIsCached] = useState(false);
   const [isFromCache, setIsFromCache] = useState(false);
   const [imageSrc, setImageSrc] = useState<string | undefined>(undefined);
+  const [isLocalImage, setIsLocalImage] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // URL efetiva: prioriza local, depois src
+  const effectiveSrc = localSrc || src;
 
   // Intersection Observer para detectar quando imagem entra no viewport
   useEffect(() => {
@@ -134,15 +140,22 @@ export const LazyImage = React.memo(function LazyImage({
     return () => observer.disconnect();
   }, []);
 
-  // Quando entra no viewport, tenta carregar do cache primeiro
+  // Quando entra no viewport, tenta carregar do cache primeiro ou usa local
   useEffect(() => {
-    if (!isInView || !src) return;
+    if (!isInView || !effectiveSrc) return;
     
     async function loadImage() {
+      // Se tem URL local do CDN, usa diretamente
+      if (localSrc) {
+        setImageSrc(localSrc);
+        setIsLocalImage(true);
+        return;
+      }
+      
       // Verifica se está em cache local
       if (enableCache) {
         try {
-          const cached = await getCachedImage(src);
+          const cached = await getCachedImage(effectiveSrc);
           if (cached) {
             const blob = await cached.blob();
             const objectUrl = URL.createObjectURL(blob);
@@ -157,7 +170,7 @@ export const LazyImage = React.memo(function LazyImage({
       }
       
       // Se não estiver em cache, usa a URL original
-      setImageSrc(src);
+      setImageSrc(effectiveSrc);
     }
     
     loadImage();
@@ -168,15 +181,15 @@ export const LazyImage = React.memo(function LazyImage({
         URL.revokeObjectURL(imageSrc);
       }
     };
-  }, [isInView, src, enableCache]);
+  }, [isInView, effectiveSrc, localSrc, enableCache]);
 
   // Handler para quando imagem carrega - adiciona ao cache em background
   const handleLoad = useCallback(() => {
     setIsLoaded(true);
     
-    // Adiciona ao cache em background se habilitado e não veio do cache
-    if (enableCache && src && !isFromCache) {
-      cacheImage(src)
+    // Adiciona ao cache em background se habilitado e não veio do cache/local
+    if (enableCache && effectiveSrc && !isFromCache && !isLocalImage) {
+      cacheImage(effectiveSrc)
         .then((cached) => {
           if (cached) setIsCached(true);
         })
@@ -184,7 +197,7 @@ export const LazyImage = React.memo(function LazyImage({
           // Silencia erros de cache - não afeta UX
         });
     }
-  }, [enableCache, src, isFromCache]);
+  }, [enableCache, effectiveSrc, isFromCache, isLocalImage]);
 
   // Handler para erro de carregamento
   const handleError = useCallback(() => {
@@ -202,7 +215,8 @@ export const LazyImage = React.memo(function LazyImage({
       <img
         ref={imgRef}
         src={hasError ? fallback : imageSrc}
-        data-src={src}
+        data-src={effectiveSrc}
+        data-local={isLocalImage ? 'true' : undefined}
         alt={alt}
         className={cn(
           'transition-opacity duration-300',
@@ -231,12 +245,14 @@ export const LazyImage = React.memo(function LazyImage({
  */
 export const AnimeCardImage = React.memo(function AnimeCardImage({
   src,
+  localSrc,
   alt,
   className,
   showHoverEffect = true,
   enableCache = true,
 }: {
   src: string;
+  localSrc?: string; // URL local do CDN (prioridade)
   alt: string;
   className?: string;
   showHoverEffect?: boolean;
@@ -248,7 +264,11 @@ export const AnimeCardImage = React.memo(function AnimeCardImage({
   const [isCached, setIsCached] = useState(false);
   const [isFromCache, setIsFromCache] = useState(false);
   const [imageSrc, setImageSrc] = useState<string | undefined>(undefined);
+  const [isLocalImage, setIsLocalImage] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // URL efetiva: prioriza local, depois src
+  const effectiveSrc = localSrc || src;
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -273,15 +293,22 @@ export const AnimeCardImage = React.memo(function AnimeCardImage({
     return () => observer.disconnect();
   }, []);
 
-  // Quando entra no viewport, tenta carregar do cache primeiro
+  // Quando entra no viewport, tenta carregar do cache primeiro ou usa local
   useEffect(() => {
-    if (!isInView || !src) return;
+    if (!isInView || !effectiveSrc) return;
     
     async function loadImage() {
+      // Se tem URL local do CDN, usa diretamente
+      if (localSrc) {
+        setImageSrc(localSrc);
+        setIsLocalImage(true);
+        return;
+      }
+      
       // Verifica se está em cache local
       if (enableCache) {
         try {
-          const cached = await getCachedImage(src);
+          const cached = await getCachedImage(effectiveSrc);
           if (cached) {
             const blob = await cached.blob();
             const objectUrl = URL.createObjectURL(blob);
@@ -296,7 +323,7 @@ export const AnimeCardImage = React.memo(function AnimeCardImage({
       }
       
       // Se não estiver em cache, usa a URL original
-      setImageSrc(src);
+      setImageSrc(effectiveSrc);
     }
     
     loadImage();
@@ -307,15 +334,15 @@ export const AnimeCardImage = React.memo(function AnimeCardImage({
         URL.revokeObjectURL(imageSrc);
       }
     };
-  }, [isInView, src, enableCache]);
+  }, [isInView, effectiveSrc, localSrc, enableCache]);
 
   // Handler de load com cache
   const handleLoad = useCallback(() => {
     setIsLoaded(true);
     
-    // Adiciona ao cache em background se não veio do cache
-    if (enableCache && src && !isFromCache) {
-      cacheImage(src)
+    // Adiciona ao cache em background se não veio do cache/local
+    if (enableCache && effectiveSrc && !isFromCache && !isLocalImage) {
+      cacheImage(effectiveSrc)
         .then((cached) => {
           if (cached) setIsCached(true);
         })
@@ -323,7 +350,7 @@ export const AnimeCardImage = React.memo(function AnimeCardImage({
           // Silencia erros de cache - não afeta UX
         });
     }
-  }, [enableCache, src, isFromCache]);
+  }, [enableCache, effectiveSrc, isFromCache, isLocalImage]);
 
   // Handler de erro
   const handleError = useCallback(() => {
@@ -341,6 +368,7 @@ export const AnimeCardImage = React.memo(function AnimeCardImage({
       {isInView && (
         <img
           src={hasError ? '/placeholder.svg' : imageSrc}
+          data-local={isLocalImage ? 'true' : undefined}
           alt={alt}
           className={cn(
             'w-full h-full object-cover transition-all duration-500',

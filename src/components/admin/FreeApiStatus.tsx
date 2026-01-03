@@ -18,7 +18,9 @@ import {
   Loader2,
   Download,
   ArrowRightLeft,
-  Play
+  Play,
+  HardDrive,
+  CloudUpload
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +45,27 @@ interface FreeApiStats {
   year_range: { min: number; max: number };
   score_range: { min: number; max: number };
   last_sync: string | null;
+}
+
+/**
+ * Interface para estatísticas de imagens locais
+ */
+interface ImageSyncStats {
+  totalAnimes: number;
+  withLocalImage: number;
+  withExternalImage: number;
+  withoutImage: number;
+  localCoverage: number;
+  syncProgress?: {
+    total: number;
+    processed: number;
+    success: number;
+    failed: number;
+    isRunning: boolean;
+    currentMalId?: number;
+    startedAt?: string;
+    lastError?: string;
+  } | null;
 }
 
 /**
@@ -155,6 +178,7 @@ function getTypeIcon(type: string) {
 export function FreeApiStatus() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [importLogs, setImportLogs] = useState<string[]>([]);
+  const [imageSyncLogs, setImageSyncLogs] = useState<string[]>([]);
   const [importProgress, setImportProgress] = useState<{
     isRunning: boolean;
     total: number;
@@ -169,6 +193,23 @@ export function FreeApiStatus() {
     queryFn: fetchFreeApiStats,
     staleTime: 5 * 60 * 1000, // 5 minutos
     refetchInterval: 60 * 1000, // Atualiza a cada minuto
+  });
+
+  // Query para estatísticas de imagens locais
+  const { data: imageStats, refetch: refetchImageStats } = useQuery<ImageSyncStats>({
+    queryKey: ["image-sync-stats"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("sync-images", {
+        method: "GET"
+      });
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 30 * 1000,
+    refetchInterval: (query) => {
+      // Polling rápido se sincronização em andamento
+      return query.state.data?.syncProgress?.isRunning ? 2000 : 30000;
+    },
   });
 
   // Query para monitorar status da importação (polling enquanto em execução)
@@ -260,7 +301,35 @@ export function FreeApiStatus() {
     }
   });
 
+  // Mutation para sincronização de imagens
+  const imageSyncMutation = useMutation({
+    mutationFn: async (limit?: number) => {
+      setImageSyncLogs(["🖼️ Iniciando sincronização de imagens..."]);
+      
+      const { data, error } = await supabase.functions.invoke("sync-images", {
+        method: "POST",
+        body: limit ? { limit } : {}
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data.error) {
+        toast.error(data.error);
+      } else {
+        toast.success(`Sincronização iniciada: ${data.total} imagens para processar`);
+        setImageSyncLogs(prev => [...prev, `✅ ${data.total} imagens para sincronizar`]);
+        refetchImageStats();
+      }
+    },
+    onError: (error) => {
+      toast.error(`Erro: ${error.message}`);
+      setImageSyncLogs(prev => [...prev, `❌ Erro: ${error.message}`]);
+    }
+  });
+
   const isImporting = fullImportMutation.isPending || deltaSyncMutation.isPending || importProgress.isRunning;
+  const isImageSyncing = imageSyncMutation.isPending || imageStats?.syncProgress?.isRunning;
 
   // Calcula tempo decorrido
   const getElapsedTime = () => {
@@ -455,6 +524,125 @@ export function FreeApiStatus() {
               </p>
               <div className="space-y-1 text-xs font-mono">
                 {importLogs.slice(-15).map((log, i) => (
+                  <p key={i} className={`${log.includes('❌') ? 'text-destructive' : log.includes('✅') ? 'text-green-500' : 'text-muted-foreground'}`}>
+                    {log}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Seção de Sincronização de Imagens */}
+      <Card className={`border-blue-500/20 bg-gradient-to-r from-blue-500/5 to-transparent ${isImageSyncing ? 'ring-2 ring-blue-500/50 animate-pulse' : ''}`}>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <HardDrive className="h-5 w-5 text-blue-500" />
+            CDN Local de Imagens
+            {isImageSyncing && (
+              <Badge variant="default" className="ml-2 bg-blue-500 animate-pulse">
+                Sincronizando
+              </Badge>
+            )}
+          </CardTitle>
+          <CardDescription>
+            Sincronize imagens para o CDN próprio e elimine dependência do MyAnimeList
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Estatísticas de imagens */}
+          {imageStats && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-3 rounded-lg bg-muted/50 text-center">
+                <p className="text-2xl font-bold text-foreground">
+                  {imageStats.withLocalImage.toLocaleString("pt-BR")}
+                </p>
+                <p className="text-xs text-muted-foreground">No CDN Local</p>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50 text-center">
+                <p className="text-2xl font-bold text-foreground">
+                  {imageStats.withExternalImage.toLocaleString("pt-BR")}
+                </p>
+                <p className="text-xs text-muted-foreground">Apenas Externo</p>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50 text-center">
+                <p className="text-2xl font-bold text-green-500">
+                  {imageStats.localCoverage}%
+                </p>
+                <p className="text-xs text-muted-foreground">Cobertura Local</p>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50 text-center">
+                <p className="text-2xl font-bold text-muted-foreground">
+                  {imageStats.withoutImage.toLocaleString("pt-BR")}
+                </p>
+                <p className="text-xs text-muted-foreground">Sem Imagem</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Progresso da sincronização */}
+          {imageStats?.syncProgress?.isRunning && (
+            <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+                  <span className="font-medium text-foreground">Sincronizando imagens...</span>
+                </div>
+                <Badge variant="outline" className="gap-1">
+                  {imageStats.syncProgress.processed} / {imageStats.syncProgress.total}
+                </Badge>
+              </div>
+              
+              <Progress 
+                value={(imageStats.syncProgress.processed / imageStats.syncProgress.total) * 100} 
+                className="h-2" 
+              />
+              
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>✅ {imageStats.syncProgress.success} sucesso</span>
+                <span>❌ {imageStats.syncProgress.failed} falhas</span>
+                {imageStats.syncProgress.currentMalId && (
+                  <span>Atual: MAL #{imageStats.syncProgress.currentMalId}</span>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Botões de ação */}
+          <div className="flex flex-wrap gap-3">
+            <Button
+              onClick={() => imageSyncMutation.mutate(undefined)}
+              disabled={isImageSyncing}
+              variant="outline"
+              className="gap-2 border-blue-500/50 hover:bg-blue-500/10"
+            >
+              {isImageSyncing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CloudUpload className="h-4 w-4" />
+              )}
+              Sincronizar Todas
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => imageSyncMutation.mutate(100)}
+              disabled={isImageSyncing}
+              className="gap-2"
+            >
+              <Image className="h-4 w-4" />
+              Sincronizar 100 (Teste)
+            </Button>
+          </div>
+          
+          {/* Logs de sincronização de imagens */}
+          {imageSyncLogs.length > 0 && (
+            <div className="mt-4 p-3 bg-muted/50 rounded-lg max-h-32 overflow-y-auto">
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                Logs de imagens:
+              </p>
+              <div className="space-y-1 text-xs font-mono">
+                {imageSyncLogs.slice(-10).map((log, i) => (
                   <p key={i} className={`${log.includes('❌') ? 'text-destructive' : log.includes('✅') ? 'text-green-500' : 'text-muted-foreground'}`}>
                     {log}
                   </p>

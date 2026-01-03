@@ -366,7 +366,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Modo AUTO: Continua de onde parou automaticamente
+    // Modo AUTO: Continua de onde parou automaticamente (SEM LIMITE)
     if (mode === 'auto') {
       const syncState = await getSyncState(supabase);
       
@@ -380,16 +380,16 @@ serve(async (req) => {
         });
       }
       
-      // Se já completou todas as páginas
-      if (syncState.current_page >= syncState.max_page) {
-        console.log(`[sync-auto] Already completed all ${syncState.max_page} pages`);
+      // Se já completou (modo = 'completed' ou 'finished')
+      if (syncState.mode === 'completed' || syncState.mode === 'finished') {
+        console.log(`[sync-auto] Already completed - no more animes to import`);
         return new Response(JSON.stringify({
           success: true,
-          message: 'Sync already completed',
+          message: 'Sync already completed - no more new animes',
           data: { 
             current_page: syncState.current_page,
-            max_page: syncState.max_page,
             total_synced: syncState.total_synced,
+            status: 'finished',
           },
         }), {
           status: 200,
@@ -410,9 +410,11 @@ serve(async (req) => {
       let currentPage = syncState.current_page;
       let consecutiveErrors = 0;
       let pagesProcessed = 0;
+      let consecutiveEmptyPages = 0;
+      let reachedEnd = false;
       
-      // Processar páginas até atingir limite ou encontrar erros
-      while (pagesProcessed < pagesPerRun && currentPage <= syncState.max_page && consecutiveErrors < 3) {
+      // Processar páginas até atingir limite de execução ou encontrar fim dos dados
+      while (pagesProcessed < pagesPerRun && consecutiveErrors < 3 && !reachedEnd) {
         const result = await fetchAndSavePage(supabase, currentPage, stats);
         
         if (result.success) {
@@ -420,19 +422,32 @@ serve(async (req) => {
           currentPage++;
           pagesProcessed++;
           
+          // Verificar se página retornou 0 animes (indica fim dos dados)
+          if (result.animesCount === 0) {
+            consecutiveEmptyPages++;
+            console.log(`[sync-auto] Empty page detected (${consecutiveEmptyPages} consecutive)`);
+            
+            // 3 páginas vazias consecutivas = fim dos dados
+            if (consecutiveEmptyPages >= 3) {
+              reachedEnd = true;
+              console.log(`[sync-auto] Reached end of Jikan API data at page ${currentPage}`);
+            }
+          } else {
+            consecutiveEmptyPages = 0;
+          }
+          
+          // Se API indica que não há próxima página
+          if (!result.hasNextPage) {
+            reachedEnd = true;
+            console.log(`[sync-auto] API indicates no more pages at ${currentPage - 1}`);
+          }
+          
           // Atualizar progresso a cada 5 páginas
           if (pagesProcessed % 5 === 0) {
             await updateSyncState(supabase, {
               current_page: currentPage,
               total_synced: syncState.total_synced + stats.total_updated,
             });
-          }
-          
-          // Se não há mais páginas, finalizou
-          if (!result.hasNextPage) {
-            console.log(`[sync-auto] Reached end of data at page ${currentPage - 1}`);
-            currentPage = syncState.max_page + 1; // Marca como completo
-            break;
           }
         } else {
           consecutiveErrors++;
@@ -454,8 +469,10 @@ serve(async (req) => {
         finalState.last_error = stats.errors[stats.errors.length - 1];
       }
       
-      if (currentPage > syncState.max_page) {
-        finalState.mode = 'completed';
+      // Marcar como finalizado se chegou ao fim
+      if (reachedEnd) {
+        finalState.mode = 'finished';
+        console.log(`[sync-auto] SYNC COMPLETED! Total pages: ${currentPage}, Total animes: ${finalState.total_synced}`);
       }
       
       await updateSyncState(supabase, finalState);
@@ -464,15 +481,16 @@ serve(async (req) => {
       stats.current_page = currentPage;
       
       const duration = new Date(stats.completed_at).getTime() - new Date(stats.started_at).getTime();
-      console.log(`[sync-auto] Run completed in ${Math.round(duration / 1000)}s - Pages: ${pagesProcessed}, Updated: ${stats.total_updated}, Current: ${currentPage}/${syncState.max_page}`);
+      console.log(`[sync-auto] Run completed in ${Math.round(duration / 1000)}s - Pages: ${pagesProcessed}, Updated: ${stats.total_updated}, Current: ${currentPage}, Finished: ${reachedEnd}`);
       
       return new Response(JSON.stringify({
         success: true,
         data: { 
           stats,
           next_page: currentPage,
-          max_page: syncState.max_page,
-          progress: Math.round((currentPage / syncState.max_page) * 100),
+          total_synced: finalState.total_synced,
+          finished: reachedEnd,
+          status: reachedEnd ? 'finished' : 'in_progress',
         },
       }), {
         status: 200,
@@ -480,29 +498,45 @@ serve(async (req) => {
       });
     }
     
-    // Modo SEQUENTIAL: Busca páginas sequenciais com estado persistente
+    // Modo SEQUENTIAL: Busca páginas sequenciais SEM LIMITE - para até não encontrar mais animes
     if (mode === 'sequential') {
       const requestedStartPage = body.start_page || 1;
-      const requestedMaxPage = body.max_page || 1000;
+      const resetState = body.reset === true;
       
       // Resetar ou iniciar estado
-      await updateSyncState(supabase, {
-        mode: 'sequential',
-        current_page: requestedStartPage,
-        max_page: requestedMaxPage,
-        is_running: true,
-        last_run_at: new Date().toISOString(),
-        last_error: null,
-        total_synced: 0,
-      });
+      if (resetState) {
+        await updateSyncState(supabase, {
+          mode: 'sequential',
+          current_page: requestedStartPage,
+          max_page: 99999, // Sem limite prático
+          is_running: true,
+          last_run_at: new Date().toISOString(),
+          last_error: null,
+          total_synced: 0,
+        });
+        console.log(`[sync-seq] RESET: Starting fresh from page ${requestedStartPage}`);
+      } else {
+        await updateSyncState(supabase, {
+          mode: 'sequential',
+          is_running: true,
+          last_run_at: new Date().toISOString(),
+          last_error: null,
+        });
+      }
       
-      console.log(`[sync-seq] Starting sequential sync from page ${requestedStartPage} to ${requestedMaxPage}`);
+      // Pegar estado atual
+      const currentState = await getSyncState(supabase);
+      const startFromPage = resetState ? requestedStartPage : (currentState?.current_page || requestedStartPage);
       
-      let currentPage = requestedStartPage;
+      console.log(`[sync-seq] Starting sequential sync from page ${startFromPage} (unlimited)`);
+      
+      let currentPage = startFromPage;
       let consecutiveErrors = 0;
       let pagesProcessed = 0;
+      let consecutiveEmptyPages = 0;
+      let reachedEnd = false;
       
-      while (pagesProcessed < pagesPerRun && currentPage <= requestedMaxPage && consecutiveErrors < 3) {
+      while (pagesProcessed < pagesPerRun && consecutiveErrors < 3 && !reachedEnd) {
         const result = await fetchAndSavePage(supabase, currentPage, stats);
         
         if (result.success) {
@@ -510,16 +544,27 @@ serve(async (req) => {
           currentPage++;
           pagesProcessed++;
           
-          if (pagesProcessed % 5 === 0) {
-            await updateSyncState(supabase, {
-              current_page: currentPage,
-              total_synced: stats.total_updated,
-            });
+          // Verificar páginas vazias
+          if (result.animesCount === 0) {
+            consecutiveEmptyPages++;
+            if (consecutiveEmptyPages >= 3) {
+              reachedEnd = true;
+              console.log(`[sync-seq] Reached end - 3 consecutive empty pages at ${currentPage}`);
+            }
+          } else {
+            consecutiveEmptyPages = 0;
           }
           
           if (!result.hasNextPage) {
+            reachedEnd = true;
             console.log(`[sync-seq] Reached end at page ${currentPage - 1}`);
-            break;
+          }
+          
+          if (pagesProcessed % 5 === 0) {
+            await updateSyncState(supabase, {
+              current_page: currentPage,
+              total_synced: (currentState?.total_synced || 0) + stats.total_updated,
+            });
           }
         } else {
           consecutiveErrors++;
@@ -527,13 +572,13 @@ serve(async (req) => {
         }
       }
       
-      const completed = currentPage > requestedMaxPage || consecutiveErrors >= 3;
+      const totalSynced = (currentState?.total_synced || 0) + stats.total_updated;
       
       await updateSyncState(supabase, {
         current_page: currentPage,
         is_running: false,
-        mode: completed ? 'completed' : 'sequential',
-        total_synced: stats.total_updated,
+        mode: reachedEnd ? 'finished' : 'sequential',
+        total_synced: totalSynced,
         last_error: stats.errors.length > 0 ? stats.errors[stats.errors.length - 1] : null,
       });
       
@@ -541,16 +586,16 @@ serve(async (req) => {
       stats.current_page = currentPage;
       
       const duration = new Date(stats.completed_at).getTime() - new Date(stats.started_at).getTime();
-      console.log(`[sync-seq] Run completed in ${Math.round(duration / 1000)}s - Pages: ${pagesProcessed}, Updated: ${stats.total_updated}`);
+      console.log(`[sync-seq] Run completed in ${Math.round(duration / 1000)}s - Pages: ${pagesProcessed}, Updated: ${stats.total_updated}, Finished: ${reachedEnd}`);
       
       return new Response(JSON.stringify({
         success: true,
         data: { 
           stats,
           next_page: currentPage,
-          max_page: requestedMaxPage,
-          progress: Math.round((currentPage / requestedMaxPage) * 100),
-          needs_continuation: !completed,
+          total_synced: totalSynced,
+          finished: reachedEnd,
+          status: reachedEnd ? 'finished' : 'in_progress',
         },
       }), {
         status: 200,

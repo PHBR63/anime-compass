@@ -150,20 +150,6 @@ export default defineConfig(({ mode }) => ({
         importScripts: ['/custom-sw.js'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/api\.jikan\.moe\/.*/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "jikan-api-cache",
-              expiration: {
-                maxEntries: 500,
-                maxAgeSeconds: 60 * 60 * 24 // 24 horas
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-          {
             urlPattern: /^https:\/\/cdn\.myanimelist\.net\/.*/i,
             handler: "CacheFirst",
             options: {

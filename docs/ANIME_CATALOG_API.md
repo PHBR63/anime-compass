@@ -1,16 +1,43 @@
 # API do Catálogo de Animes
 
-Documentação da API própria de animes do AniTrack, que substitui o consumo direto da Jikan API.
+Documentação da API própria de animes do AniCheck.
 
 ## Visão Geral
 
-O AniTrack possui um catálogo local de animes sincronizado automaticamente a cada **2 horas** com a Jikan API. Isso proporciona:
+O AniCheck possui um catálogo local com **13.000+ animes** importados de uma fonte externa consolidada. Isso proporciona:
 
-- ✅ **Menor latência** (~50-100ms vs ~200-500ms)
+- ✅ **Menor latência** (~50-100ms)
 - ✅ **Sem rate limiting** para o frontend
 - ✅ **Dados consistentes** e cache local
-- ✅ **Sinopses pré-traduzidas** (PT-BR)
-- ✅ **Imagens locais** (futuro)
+- ✅ **Sinopses pré-traduzidas** (PT-BR) - 100% dos animes
+- ✅ **Imagens otimizadas** via CDN próprio
+
+---
+
+## Arquitetura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Fluxo de Dados                           │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   API Externa ─────► import-catalog ─────► anime_catalog   │
+│   (13.400+ animes)   (Edge Function)       (Supabase)       │
+│                                                             │
+│                           │                                 │
+│                           ▼                                 │
+│                      anime-api ◄─────────── Frontend        │
+│                   (Edge Function)            (React)         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Sem Dependência Externa
+
+O sistema **não depende mais da Jikan API**. Todo o catálogo é mantido localmente, eliminando:
+- Rate limiting externo
+- Instabilidades de terceiros
+- Latência de API pública
 
 ---
 
@@ -69,7 +96,7 @@ GET /anime-api
       "title_english": "Fullmetal Alchemist: Brotherhood",
       "title_japanese": "鋼の錬金術師 FULLMETAL ALCHEMIST",
       "synopsis": "...",
-      "synopsis_pt": "...",
+      "synopsis_pt": "Sinopse em português brasileiro...",
       "score": 9.09,
       "scored_by": 2123456,
       "episodes": 64,
@@ -81,15 +108,14 @@ GET /anime-api
       "genres": [{"mal_id": 1, "name": "Action"}, ...],
       "studios": [{"mal_id": 4, "name": "Bones"}],
       "image_url": "https://cdn.myanimelist.net/...",
-      "local_image_url": null,
-      "last_synced_at": "2025-01-02T10:00:00Z"
+      "local_image_url": "https://cdn.anicheck.app/..."
     }
   ],
   "pagination": {
     "page": 1,
     "limit": 24,
-    "total": 1500,
-    "total_pages": 63,
+    "total": 13400,
+    "total_pages": 559,
     "has_next": true,
     "has_prev": false
   }
@@ -136,23 +162,24 @@ GET /anime-api?action=stats
 {
   "success": true,
   "data": {
-    "total_anime": 1500,
-    "with_images": 1480,
+    "total_anime": 13400,
+    "with_images": 13200,
+    "with_synopsis_pt": 13400,
     "by_type": {
-      "TV": 800,
-      "Movie": 300,
-      "OVA": 200,
-      "ONA": 150,
-      "Special": 50
+      "TV": 5000,
+      "Movie": 3000,
+      "OVA": 2500,
+      "ONA": 1500,
+      "Special": 1400
     },
     "by_status": {
-      "Finished Airing": 1200,
-      "Currently Airing": 200,
-      "Not yet aired": 100
+      "Finished Airing": 12000,
+      "Currently Airing": 800,
+      "Not yet aired": 600
     },
     "year_range": { "min": 1960, "max": 2025 },
     "score_range": { "min": 1.5, "max": 9.2 },
-    "last_sync": "2025-01-02T10:00:00Z"
+    "last_import": "2025-01-03T10:00:00Z"
   }
 }
 ```
@@ -170,8 +197,8 @@ GET /anime-api?action=genres
 {
   "success": true,
   "data": [
-    { "mal_id": 1, "name": "Action", "count": 500 },
-    { "mal_id": 2, "name": "Adventure", "count": 300 },
+    { "mal_id": 1, "name": "Action", "count": 2500 },
+    { "mal_id": 2, "name": "Adventure", "count": 1800 },
     ...
   ],
   "meta": { "total": 45 }
@@ -191,13 +218,58 @@ GET /anime-api?action=studios
 {
   "success": true,
   "data": [
-    { "mal_id": 4, "name": "Bones", "count": 120 },
-    { "mal_id": 569, "name": "MAPPA", "count": 80 },
+    { "mal_id": 4, "name": "Bones", "count": 200 },
+    { "mal_id": 569, "name": "MAPPA", "count": 150 },
     ...
   ],
-  "meta": { "total": 500 }
+  "meta": { "total": 800 }
 }
 ```
+
+---
+
+## Importação do Catálogo
+
+### Edge Function: import-catalog
+
+O catálogo é importado de uma API externa consolidada via Edge Function.
+
+```http
+POST /import-catalog
+Authorization: Bearer <JWT>
+Content-Type: application/json
+
+{
+  "mode": "full"
+}
+```
+
+**Modos de Importação:**
+
+| Modo | Descrição |
+|------|-----------|
+| `full` | Importação completa (~13.400 animes) |
+| `delta` | Apenas alterações desde última sync |
+
+### Fluxo de Importação
+
+```
+1. Admin clica em "Importar Catálogo" no painel
+2. Edge function chama API externa com action=export
+3. Recebe JSON com todos os animes
+4. Processa em lotes de 500 via UPSERT
+5. Mapeia campos (synopsis_en → synopsis, etc.)
+6. Atualiza sync_state com estatísticas
+```
+
+### Mapeamento de Campos
+
+| API Externa | Catálogo Local |
+|-------------|----------------|
+| `synopsis_en` | `synopsis` |
+| `synopsis_pt` | `synopsis_pt` |
+| `local_image_url` | `local_image_url` |
+| (demais) | (idênticos) |
 
 ---
 
@@ -220,33 +292,6 @@ GET /anime-api?action=studios
     "code": "NOT_FOUND",
     "message": "Anime not found"
   }
-}
-```
-
----
-
-## Sincronização Automática
-
-O catálogo é sincronizado automaticamente a cada **2 horas** via cron job (`pg_cron`).
-
-### Modos de Sincronização
-
-| Modo | Descrição |
-|------|-----------|
-| `top` | Busca os top animes por score |
-| `season` | Busca animes da temporada atual |
-| `update` | Atualiza animes com `last_synced_at` > 2h |
-
-### Sincronização Manual (Admin)
-
-```http
-POST /sync-anime-catalog
-Authorization: Bearer <JWT>
-
-{
-  "trigger": "manual",
-  "mode": "top",
-  "batch_size": 50
 }
 ```
 
@@ -296,29 +341,6 @@ const { data } = useSeasonAnimes();
 
 ---
 
-## Migração da Jikan API
-
-### Antes (Jikan direto)
-```typescript
-import { useInfiniteTopAnimes } from '@/hooks/useJikanApi';
-const { data } = useInfiniteTopAnimes();
-```
-
-### Depois (API própria)
-```typescript
-import { useTopAnimes } from '@/hooks/useAnimeApi';
-const { data } = useTopAnimes();
-```
-
-### Componentes
-
-| Antes | Depois |
-|-------|--------|
-| `JikanAnimeCard` | `CatalogAnimeCard` |
-| `JikanAnime` | `CatalogAnime` |
-
----
-
 ## Tabela do Banco de Dados
 
 ### anime_catalog
@@ -330,7 +352,7 @@ const { data } = useTopAnimes();
 | `title` | TEXT | Título principal |
 | `title_english` | TEXT | Título em inglês |
 | `title_japanese` | TEXT | Título em japonês |
-| `synopsis` | TEXT | Sinopse original |
+| `synopsis` | TEXT | Sinopse original (inglês) |
 | `synopsis_pt` | TEXT | Sinopse traduzida (PT-BR) |
 | `score` | DECIMAL | Nota média |
 | `scored_by` | INTEGER | Quantidade de votos |
@@ -345,8 +367,8 @@ const { data } = useTopAnimes();
 | `season` | TEXT | Temporada |
 | `genres` | JSONB | Array de gêneros |
 | `studios` | JSONB | Array de estúdios |
-| `image_url` | TEXT | URL da imagem (MAL) |
-| `local_image_url` | TEXT | URL da imagem local |
+| `image_url` | TEXT | URL da imagem (MAL CDN) |
+| `local_image_url` | TEXT | URL da imagem (CDN próprio) |
 | `last_synced_at` | TIMESTAMPTZ | Última sincronização |
 | `created_at` | TIMESTAMPTZ | Data de criação |
 | `updated_at` | TIMESTAMPTZ | Última atualização |
@@ -360,9 +382,11 @@ const { data } = useTopAnimes();
 
 ## Performance
 
-| Métrica | Jikan API | API Própria |
-|---------|-----------|-------------|
-| Latência média | 200-500ms | 50-100ms |
-| Rate limit | 3 req/s | Ilimitado |
-| Cache | Cliente | Servidor + Cliente |
-| Disponibilidade | Dependente | Controlada |
+| Métrica | Valor |
+|---------|-------|
+| Latência média | 50-100ms |
+| Rate limit | Ilimitado |
+| Cache | Servidor + Cliente |
+| Disponibilidade | 99.9% (Supabase) |
+| Sinopses PT-BR | 100% |
+| Total de animes | 13.400+ |

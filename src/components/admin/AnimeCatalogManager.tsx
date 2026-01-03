@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   RefreshCw, 
   Database, 
@@ -23,11 +24,14 @@ import {
   Radio,
   Zap,
   Timer,
-  Activity
+  Activity,
+  Terminal,
+  Settings
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { CatalogSyncLogs } from "./CatalogSyncLogs";
 
 /**
  * Interface para estatísticas do catálogo
@@ -207,8 +211,30 @@ export function AnimeCatalogManager() {
     ? Math.round((stats.with_images / stats.total_anime) * 100) 
     : 0;
 
+  // Estado para tab ativa
+  const [activeTab, setActiveTab] = useState<'monitoring' | 'logs' | 'settings'>('monitoring');
+
   return (
     <div className="space-y-6">
+      {/* Tabs principais */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
+          <TabsTrigger value="monitoring" className="gap-2">
+            <Radio className="h-4 w-4" />
+            <span className="hidden sm:inline">Monitoramento</span>
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="gap-2">
+            <Terminal className="h-4 w-4" />
+            <span className="hidden sm:inline">Logs Detalhados</span>
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="gap-2">
+            <Settings className="h-4 w-4" />
+            <span className="hidden sm:inline">Configurações</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Tab de Monitoramento */}
+        <TabsContent value="monitoring" className="mt-6 space-y-6">
       {/* Painel de monitoramento em tempo real */}
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
         <CardHeader>
@@ -601,6 +627,71 @@ export function AnimeCatalogManager() {
           </CardContent>
         </Card>
       </div>
+        </TabsContent>
+
+        {/* Tab de Logs Detalhados */}
+        <TabsContent value="logs" className="mt-6">
+          <CatalogSyncLogs />
+        </TabsContent>
+
+        {/* Tab de Configurações */}
+        <TabsContent value="settings" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Configurações do Cron Job
+              </CardTitle>
+              <CardDescription>
+                Gerencie as configurações de sincronização automática
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 rounded-lg bg-muted/50 border">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium">Status do Cron Job</span>
+                  <Badge className="bg-green-500">
+                    <Zap className="h-3 w-3 mr-1" />
+                    Ativo
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Sincronização automática executada a cada 5 minutos
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-lg border">
+                  <h4 className="font-medium mb-2">Intervalo Atual</h4>
+                  <p className="text-2xl font-bold text-primary">5 minutos</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Padrão: */5 * * * *
+                  </p>
+                </div>
+                <div className="p-4 rounded-lg border">
+                  <h4 className="font-medium mb-2">Modo de Sincronização</h4>
+                  <p className="text-2xl font-bold">Top Animes</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Busca os mais populares do MAL
+                  </p>
+                </div>
+              </div>
+              
+              <div className="p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/5">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-yellow-500">Aviso</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Para alterar as configurações do cron job, é necessário executar comandos SQL diretamente no banco de dados.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -265,7 +265,7 @@ async function deltaSync(
   since: string
 ): Promise<{ success: boolean; stats: Record<string, number>; logs: string[] }> {
   const logs: string[] = [];
-  const stats = { total: 0, inserted: 0, errors: 0, batches: 0 };
+  const stats = { total: 0, created: 0, updated: 0, deleted: 0, inserted: 0, errors: 0 };
   
   logs.push(`🔄 Iniciando sincronização delta desde ${since}...`);
   
@@ -280,26 +280,68 @@ async function deltaSync(
       throw new Error(`API retornou status ${response.status}`);
     }
     
-    const data = await response.json();
+    const result = await response.json();
     
-    if (!data.success) {
-      throw new Error(data.error?.message || "Erro na API externa");
+    if (!result.success) {
+      throw new Error(result.error?.message || "Erro na API externa");
     }
     
-    const animes: ExternalAnime[] = data.data || [];
-    stats.total = animes.length;
+    // A API retorna { data: { created: [], updated: [], deleted_ids: [] }, meta: {...} }
+    const data = result.data || {};
+    const createdAnimes: ExternalAnime[] = data.created || [];
+    const updatedAnimes: ExternalAnime[] = data.updated || [];
+    const deletedIds: number[] = data.deleted_ids || [];
     
-    if (animes.length === 0) {
+    stats.created = createdAnimes.length;
+    stats.updated = updatedAnimes.length;
+    stats.deleted = deletedIds.length;
+    stats.total = stats.created + stats.updated + stats.deleted;
+    
+    logs.push(`📦 Mudanças: ${stats.created} novos, ${stats.updated} atualizados, ${stats.deleted} removidos`);
+    
+    if (stats.total === 0) {
       logs.push("✅ Nenhuma atualização encontrada");
+      
+      // Atualiza timestamp mesmo sem mudanças
+      await supabase
+        .from("sync_state")
+        .upsert({
+          id: "import",
+          mode: "delta",
+          is_running: false,
+          total_synced: 0,
+          last_run_at: new Date().toISOString(),
+          last_error: null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "id" });
+      
       return { success: true, stats, logs };
     }
     
-    logs.push(`📦 Recebidas ${stats.total} atualizações`);
+    // Combina novos e atualizados para processar
+    const animesToProcess = [...createdAnimes, ...updatedAnimes];
     
-    // Processa em batches
-    const batchStats = await processBatch(supabase, animes, logs);
-    stats.inserted = batchStats.inserted;
-    stats.errors = batchStats.errors;
+    if (animesToProcess.length > 0) {
+      logs.push(`📥 Processando ${animesToProcess.length} animes...`);
+      const batchStats = await processBatch(supabase, animesToProcess, logs);
+      stats.inserted = batchStats.inserted;
+      stats.errors = batchStats.errors;
+    }
+    
+    // Processa deletados (se houver)
+    if (deletedIds.length > 0) {
+      logs.push(`🗑️ Removendo ${deletedIds.length} animes...`);
+      const { error } = await supabase
+        .from("anime_catalog")
+        .delete()
+        .in("mal_id", deletedIds);
+      
+      if (error) {
+        logs.push(`⚠️ Erro ao remover: ${error.message}`);
+      } else {
+        logs.push(`✅ ${deletedIds.length} animes removidos`);
+      }
+    }
     
     // Atualiza timestamp
     await supabase
@@ -314,12 +356,23 @@ async function deltaSync(
         updated_at: new Date().toISOString(),
       }, { onConflict: "id" });
     
-    logs.push(`✅ Delta sync completo! ${stats.inserted} atualizações aplicadas`);
+    logs.push(`✅ Delta sync completo! ${stats.inserted} inseridos/atualizados`);
     
     return { success: true, stats, logs };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     logs.push(`❌ Erro no delta sync: ${errorMessage}`);
+    
+    // Registra erro no sync_state
+    await supabase
+      .from("sync_state")
+      .upsert({
+        id: "import",
+        mode: "delta",
+        is_running: false,
+        last_error: errorMessage,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "id" });
     
     return { success: false, stats, logs };
   }

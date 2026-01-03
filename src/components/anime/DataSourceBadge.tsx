@@ -12,7 +12,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-type DataSource = 'catalog' | 'jikan' | 'local' | null;
+export type DataSource = 'catalog' | 'jikan' | 'local' | 'cache' | null;
 
 interface DataSourceBadgeProps {
   source: DataSource;
@@ -22,7 +22,7 @@ interface DataSourceBadgeProps {
 }
 
 // Configurações visuais para cada fonte
-const sourceConfig: Record<NonNullable<DataSource>, {
+const sourceConfig: Record<NonNullable<Exclude<DataSource, null>>, {
   icon: typeof Database;
   label: string;
   description: string;
@@ -50,6 +50,13 @@ const sourceConfig: Record<NonNullable<DataSource>, {
     color: 'text-amber-500',
     bgColor: 'bg-amber-500/20',
   },
+  cache: {
+    icon: HardDrive,
+    label: 'Cache',
+    description: 'Dados obtidos do cache local (offline)',
+    color: 'text-purple-500',
+    bgColor: 'bg-purple-500/20',
+  },
 };
 
 /**
@@ -61,8 +68,8 @@ export function DataSourceBadge({
   showLabel = false,
   size = 'sm'
 }: DataSourceBadgeProps) {
-  // Se não tem fonte ou é catálogo (completo), não mostra nada
-  if (!source || source === 'catalog') {
+  // Se não tem fonte ou é catálogo/cache (completo), não mostra nada
+  if (!source || source === 'catalog' || source === 'cache') {
     return null;
   }
 

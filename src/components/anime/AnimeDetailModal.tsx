@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { StarRating } from './StarRating';
 import { ReviewsList } from './ReviewsList';
 import { ProgressHistory } from './ProgressHistory';
-import { DataSourceBadge } from './DataSourceBadge';
+import { DataSourceBadge, type DataSource } from './DataSourceBadge';
 import { useAnimeEntries, useAddAnimeEntry, useUpdateAnimeEntry } from '@/hooks/useAnimeEntries';
 import { useAddProgressHistory } from '@/hooks/useProgressHistory';
 import { useAnimeWithFallback } from '@/hooks/useAnimeWithFallback';

@@ -5,7 +5,7 @@
 
 // Configuração do banco de dados
 const DB_NAME = 'anicheck-cache';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incrementado para adicionar store do catálogo
 
 // Stores de cache
 const STORES = {
@@ -13,6 +13,7 @@ const STORES = {
   USER_STATS: 'user-stats',
   CUSTOM_LISTS: 'custom-lists',
   LAST_SYNC: 'last-sync',
+  ANIME_CATALOG: 'anime-catalog', // Cache para dados do catálogo/Jikan
 } as const;
 
 /**
@@ -59,6 +60,12 @@ function openCacheDB(): Promise<IDBDatabase> {
       // Store para metadados de sincronização
       if (!db.objectStoreNames.contains(STORES.LAST_SYNC)) {
         db.createObjectStore(STORES.LAST_SYNC, { keyPath: 'dataType' });
+      }
+
+      // Store para cache do catálogo de animes (dados da API externa/Jikan)
+      if (!db.objectStoreNames.contains(STORES.ANIME_CATALOG)) {
+        const catalogStore = db.createObjectStore(STORES.ANIME_CATALOG, { keyPath: 'mal_id' });
+        catalogStore.createIndex('cached_at', 'cached_at', { unique: false });
       }
     };
   });
@@ -350,4 +357,180 @@ export async function isCacheValid(userId: string, maxAgeMs = 24 * 60 * 60 * 100
   const lastSync = await getLastSyncTime(userId);
   if (!lastSync) return false;
   return Date.now() - lastSync < maxAgeMs;
+}
+
+// ========================================
+// Cache do Catálogo de Animes (Jikan/API)
+// ========================================
+
+interface CachedCatalogAnime {
+  mal_id: number;
+  data: Record<string, unknown>;
+  source: 'catalog' | 'jikan';
+  cached_at: number;
+}
+
+// TTL padrão: 7 dias para dados do catálogo
+const CATALOG_CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Salva dados de anime do catálogo no cache IndexedDB
+ */
+export async function cacheCatalogAnime(
+  malId: number,
+  data: Record<string, unknown>,
+  source: 'catalog' | 'jikan'
+): Promise<void> {
+  try {
+    const db = await openCacheDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORES.ANIME_CATALOG, 'readwrite');
+      const store = transaction.objectStore(STORES.ANIME_CATALOG);
+      
+      store.put({
+        mal_id: malId,
+        data,
+        source,
+        cached_at: Date.now(),
+      } as CachedCatalogAnime);
+
+      transaction.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      transaction.onerror = () => {
+        db.close();
+        reject(transaction.error);
+      };
+    });
+  } catch (error) {
+    console.warn('[CatalogCache] Erro ao salvar no cache:', error);
+  }
+}
+
+/**
+ * Obtém dados de anime do cache IndexedDB
+ * Retorna null se não encontrado ou expirado
+ */
+export async function getCachedCatalogAnime(
+  malId: number,
+  maxAgeMs = CATALOG_CACHE_TTL
+): Promise<{ data: Record<string, unknown>; source: 'catalog' | 'jikan' } | null> {
+  try {
+    const db = await openCacheDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORES.ANIME_CATALOG, 'readonly');
+      const store = transaction.objectStore(STORES.ANIME_CATALOG);
+      const request = store.get(malId);
+
+      request.onsuccess = () => {
+        const result = request.result as CachedCatalogAnime | undefined;
+        
+        if (!result) {
+          resolve(null);
+          return;
+        }
+
+        // Verifica se o cache expirou
+        if (Date.now() - result.cached_at > maxAgeMs) {
+          resolve(null);
+          return;
+        }
+
+        resolve({ data: result.data, source: result.source });
+      };
+      request.onerror = () => reject(request.error);
+
+      transaction.oncomplete = () => db.close();
+    });
+  } catch (error) {
+    console.warn('[CatalogCache] Erro ao ler do cache:', error);
+    return null;
+  }
+}
+
+/**
+ * Limpa entradas expiradas do cache do catálogo
+ */
+export async function cleanExpiredCatalogCache(maxAgeMs = CATALOG_CACHE_TTL): Promise<number> {
+  try {
+    const db = await openCacheDB();
+    const cutoffTime = Date.now() - maxAgeMs;
+    let deletedCount = 0;
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORES.ANIME_CATALOG, 'readwrite');
+      const store = transaction.objectStore(STORES.ANIME_CATALOG);
+      const request = store.openCursor();
+
+      request.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+        if (cursor) {
+          const entry = cursor.value as CachedCatalogAnime;
+          if (entry.cached_at < cutoffTime) {
+            cursor.delete();
+            deletedCount++;
+          }
+          cursor.continue();
+        }
+      };
+
+      transaction.oncomplete = () => {
+        db.close();
+        console.log(`[CatalogCache] ${deletedCount} entradas expiradas removidas`);
+        resolve(deletedCount);
+      };
+      transaction.onerror = () => {
+        db.close();
+        reject(transaction.error);
+      };
+    });
+  } catch (error) {
+    console.warn('[CatalogCache] Erro ao limpar cache expirado:', error);
+    return 0;
+  }
+}
+
+/**
+ * Obtém estatísticas do cache do catálogo
+ */
+export async function getCatalogCacheStats(): Promise<{
+  totalEntries: number;
+  catalogCount: number;
+  jikanCount: number;
+  oldestEntry: number | null;
+}> {
+  try {
+    const db = await openCacheDB();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORES.ANIME_CATALOG, 'readonly');
+      const store = transaction.objectStore(STORES.ANIME_CATALOG);
+      const request = store.getAll();
+
+      request.onsuccess = () => {
+        const entries = request.result as CachedCatalogAnime[];
+        const catalogCount = entries.filter(e => e.source === 'catalog').length;
+        const jikanCount = entries.filter(e => e.source === 'jikan').length;
+        const oldestEntry = entries.length > 0 
+          ? Math.min(...entries.map(e => e.cached_at))
+          : null;
+
+        resolve({
+          totalEntries: entries.length,
+          catalogCount,
+          jikanCount,
+          oldestEntry,
+        });
+      };
+      request.onerror = () => reject(request.error);
+
+      transaction.oncomplete = () => db.close();
+    });
+  } catch (error) {
+    console.warn('[CatalogCache] Erro ao obter estatísticas:', error);
+    return { totalEntries: 0, catalogCount: 0, jikanCount: 0, oldestEntry: null };
+  }
 }

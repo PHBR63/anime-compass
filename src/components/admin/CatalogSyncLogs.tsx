@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   FileText, 
   RefreshCw, 
@@ -16,17 +17,15 @@ import {
   AlertTriangle,
   Clock,
   Loader2,
-  Download,
-  Trash2,
   Terminal,
   Activity,
   Zap,
   ArrowRight,
-  PlayCircle,
-  StopCircle
+  PlayCircle
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 /**
  * Interface para log de sincronização detalhado
@@ -37,8 +36,8 @@ interface SyncLogEntry {
   level: 'info' | 'warn' | 'error' | 'success';
   message: string;
   details?: Record<string, unknown>;
-  trigger?: 'cron' | 'manual';
-  mode?: 'top' | 'season' | 'update';
+  trigger?: string;
+  mode?: string;
   stats?: {
     fetched?: number;
     inserted?: number;
@@ -55,8 +54,8 @@ interface SyncRun {
   id: string;
   started_at: string;
   completed_at?: string;
-  trigger: 'cron' | 'manual';
-  mode: 'top' | 'season' | 'update';
+  trigger: string;
+  mode: string;
   status: 'running' | 'completed' | 'failed';
   stats: {
     fetched: number;
@@ -66,77 +65,67 @@ interface SyncRun {
     errors: number;
   };
   duration_ms?: number;
+  logs: SyncLogEntry[];
+}
+
+/**
+ * Interface para resposta da API de logs
+ */
+interface SyncLogsResponse {
+  success: boolean;
+  data: {
+    runs: SyncRun[];
+    logs: SyncLogEntry[];
+    stats: {
+      total_runs: number;
+      total_processed: number;
+      total_inserted: number;
+      total_updated: number;
+      total_errors: number;
+      period_hours: number;
+    };
+  };
 }
 
 /**
  * Componente de logs detalhados para sincronização do catálogo
  */
 export function CatalogSyncLogs() {
-  const queryClient = useQueryClient();
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [selectedRun, setSelectedRun] = useState<string | null>(null);
   const [logLevel, setLogLevel] = useState<'all' | 'info' | 'warn' | 'error'>('all');
+  const [periodHours, setPeriodHours] = useState<string>('24');
 
-  // Buscar histórico de sincronizações dos logs de auditoria
-  const { data: syncHistory, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
-    queryKey: ['admin', 'sync-history'],
-    queryFn: async () => {
-      // Buscar das últimas sincronizações registradas no catálogo
-      const { data, error } = await supabase
-        .from('anime_catalog')
-        .select('last_synced_at')
-        .order('last_synced_at', { ascending: false })
-        .limit(100);
-
-      if (error) return [];
-
-      // Agrupar por intervalo de tempo para identificar "runs"
-      const runs: SyncRun[] = [];
-      let currentRun: SyncRun | null = null;
+  // Buscar logs reais da edge function
+  const { data: logsData, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ['admin', 'sync-logs', periodHours],
+    queryFn: async (): Promise<SyncLogsResponse | null> => {
+      const { data: session } = await supabase.auth.getSession();
       
-      data.forEach((item, index) => {
-        if (!item.last_synced_at) return;
-        
-        const syncTime = new Date(item.last_synced_at);
-        
-        if (!currentRun || (currentRun && 
-            Math.abs(syncTime.getTime() - new Date(currentRun.started_at).getTime()) > 60000)) {
-          // Nova run (mais de 1 minuto de diferença)
-          if (currentRun) {
-            runs.push(currentRun);
-          }
-          currentRun = {
-            id: `run-${runs.length + 1}`,
-            started_at: item.last_synced_at,
-            completed_at: item.last_synced_at,
-            trigger: 'cron', // Por padrão assumimos cron
-            mode: 'top',
-            status: 'completed',
-            stats: {
-              fetched: 0,
-              inserted: 0,
-              updated: 1,
-              skipped: 0,
-              errors: 0
-            }
-          };
-        } else if (currentRun) {
-          // Mesmo run, incrementar contador
-          currentRun.stats.updated++;
-          if (new Date(item.last_synced_at) < new Date(currentRun.started_at)) {
-            currentRun.started_at = item.last_synced_at;
-          }
-        }
-      });
-      
-      if (currentRun) {
-        runs.push(currentRun);
+      if (!session?.session?.access_token) {
+        throw new Error('Não autenticado');
       }
 
-      return runs.slice(0, 20); // Últimas 20 runs
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-sync-logs?hours=${periodHours}&limit=100`,
+        {
+          headers: {
+            'Authorization': `Bearer ${session.session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erro ao buscar logs');
+      }
+
+      return response.json();
     },
     staleTime: 1000 * 10,
     refetchInterval: autoRefresh ? 15000 : false,
+    retry: 1,
   });
 
   // Buscar logs de auditoria relacionados ao catálogo
@@ -157,34 +146,10 @@ export function CatalogSyncLogs() {
     refetchInterval: autoRefresh ? 30000 : false,
   });
 
-  // Gerar logs simulados baseados nos dados reais
-  const syncLogs: SyncLogEntry[] = [
-    // Logs das últimas sincronizações
-    ...(syncHistory?.flatMap((run, index) => [
-      {
-        id: `${run.id}-start`,
-        timestamp: run.started_at,
-        level: 'info' as const,
-        message: `[sync] Starting sync - trigger: ${run.trigger}, mode: ${run.mode}`,
-        trigger: run.trigger,
-        mode: run.mode
-      },
-      {
-        id: `${run.id}-fetch`,
-        timestamp: run.started_at,
-        level: 'info' as const,
-        message: `[sync] Fetched ${run.stats.updated} animes from Jikan`,
-        details: { count: run.stats.updated }
-      },
-      {
-        id: `${run.id}-complete`,
-        timestamp: run.completed_at || run.started_at,
-        level: 'success' as const,
-        message: `[sync] Completed - Inserted: ${run.stats.inserted}, Updated: ${run.stats.updated}, Skipped: ${run.stats.skipped}, Errors: ${run.stats.errors}`,
-        stats: run.stats
-      }
-    ]) || [])
-  ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  // Dados extraídos da resposta
+  const syncRuns = logsData?.data?.runs || [];
+  const syncLogs = logsData?.data?.logs || [];
+  const apiStats = logsData?.data?.stats;
 
   // Filtrar logs por nível
   const filteredLogs = syncLogs.filter(log => {
@@ -206,37 +171,48 @@ export function CatalogSyncLogs() {
     }
   };
 
-  // Função para obter cor do badge do nível
-  const getLevelBadge = (level: string) => {
-    switch (level) {
-      case 'success':
-        return <Badge className="bg-green-500/20 text-green-500 border-green-500/30">SUCCESS</Badge>;
-      case 'error':
-        return <Badge className="bg-red-500/20 text-red-500 border-red-500/30">ERROR</Badge>;
-      case 'warn':
-        return <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30">WARN</Badge>;
-      default:
-        return <Badge className="bg-blue-500/20 text-blue-500 border-blue-500/30">INFO</Badge>;
-    }
+  // Função para atualizar manualmente
+  const handleRefresh = () => {
+    refetch();
+    refetchAudit();
+    toast.success('Logs atualizados!');
   };
 
-  // Estatísticas gerais
-  const totalRuns = syncHistory?.length || 0;
-  const successfulRuns = syncHistory?.filter(r => r.status === 'completed').length || 0;
-  const failedRuns = syncHistory?.filter(r => r.status === 'failed').length || 0;
-  const totalProcessed = syncHistory?.reduce((acc, r) => acc + (r.stats.updated + r.stats.inserted), 0) || 0;
+  // Estatísticas
+  const totalRuns = apiStats?.total_runs || syncRuns.length;
+  const successfulRuns = syncRuns.filter(r => r.status === 'completed').length;
+  const failedRuns = syncRuns.filter(r => r.status === 'failed').length;
+  const totalProcessed = apiStats?.total_processed || 0;
 
   return (
     <div className="space-y-6">
       {/* Header com estatísticas rápidas */}
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-2">
               <Terminal className="h-5 w-5 text-primary" />
               <CardTitle>Logs de Sincronização</CardTitle>
+              {isRefetching && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Seletor de período */}
+              <div className="flex items-center gap-2">
+                <Label className="text-sm">Período:</Label>
+                <Select value={periodHours} onValueChange={setPeriodHours}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 hora</SelectItem>
+                    <SelectItem value="6">6 horas</SelectItem>
+                    <SelectItem value="24">24 horas</SelectItem>
+                    <SelectItem value="48">48 horas</SelectItem>
+                    <SelectItem value="168">7 dias</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
               <div className="flex items-center gap-2">
                 <Switch
                   id="auto-refresh-logs"
@@ -250,18 +226,17 @@ export function CatalogSyncLogs() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  refetchHistory();
-                  refetchAudit();
-                }}
+                onClick={handleRefresh}
+                disabled={isLoading}
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Atualizar
               </Button>
             </div>
           </div>
           <CardDescription>
             Monitoramento detalhado das sincronizações com a API Jikan
+            {apiStats && ` • Período: ${apiStats.period_hours}h`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -272,28 +247,36 @@ export function CatalogSyncLogs() {
                 <Activity className="h-4 w-4" />
                 <span className="text-xs">Total de Runs</span>
               </div>
-              <p className="text-2xl font-bold">{totalRuns}</p>
+              <p className="text-2xl font-bold">
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : totalRuns}
+              </p>
             </div>
             <div className="p-4 rounded-lg bg-background/50 border">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
                 <span className="text-xs">Sucesso</span>
               </div>
-              <p className="text-2xl font-bold text-green-500">{successfulRuns}</p>
+              <p className="text-2xl font-bold text-green-500">
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : successfulRuns}
+              </p>
             </div>
             <div className="p-4 rounded-lg bg-background/50 border">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
                 <XCircle className="h-4 w-4 text-red-500" />
                 <span className="text-xs">Falhas</span>
               </div>
-              <p className="text-2xl font-bold text-red-500">{failedRuns}</p>
+              <p className="text-2xl font-bold text-red-500">
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : failedRuns}
+              </p>
             </div>
             <div className="p-4 rounded-lg bg-background/50 border">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
                 <Zap className="h-4 w-4 text-primary" />
                 <span className="text-xs">Processados</span>
               </div>
-              <p className="text-2xl font-bold text-primary">{totalProcessed}</p>
+              <p className="text-2xl font-bold text-primary">
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : totalProcessed}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -323,15 +306,15 @@ export function CatalogSyncLogs() {
         <TabsContent value="live" className="mt-4">
           <Card>
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <CardTitle className="text-sm font-medium">Console de Logs</CardTitle>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button
                     variant={logLevel === 'all' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setLogLevel('all')}
                   >
-                    Todos
+                    Todos ({syncLogs.length})
                   </Button>
                   <Button
                     variant={logLevel === 'info' ? 'default' : 'outline'}
@@ -339,13 +322,6 @@ export function CatalogSyncLogs() {
                     onClick={() => setLogLevel('info')}
                   >
                     Info
-                  </Button>
-                  <Button
-                    variant={logLevel === 'warn' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setLogLevel('warn')}
-                  >
-                    Warn
                   </Button>
                   <Button
                     variant={logLevel === 'error' ? 'default' : 'outline'}
@@ -359,20 +335,25 @@ export function CatalogSyncLogs() {
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[400px] rounded-lg border bg-black/90 p-4 font-mono text-sm">
-                {filteredLogs.length === 0 ? (
+                {isLoading ? (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                    <Loader2 className="h-8 w-8 mb-2 animate-spin" />
+                    <p>Carregando logs...</p>
+                  </div>
+                ) : filteredLogs.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                     <Terminal className="h-8 w-8 mb-2 opacity-50" />
-                    <p>Nenhum log disponível</p>
+                    <p>Nenhum log disponível no período selecionado</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {filteredLogs.map((log) => (
                       <div key={log.id} className="flex items-start gap-3 text-gray-300">
                         <span className="text-gray-500 whitespace-nowrap text-xs">
-                          {format(new Date(log.timestamp), "HH:mm:ss")}
+                          {format(new Date(log.timestamp), "dd/MM HH:mm:ss")}
                         </span>
                         {getLevelIcon(log.level)}
-                        <span className={`flex-1 ${
+                        <span className={`flex-1 break-all ${
                           log.level === 'error' ? 'text-red-400' :
                           log.level === 'warn' ? 'text-yellow-400' :
                           log.level === 'success' ? 'text-green-400' :
@@ -393,76 +374,113 @@ export function CatalogSyncLogs() {
         <TabsContent value="runs" className="mt-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Execuções Recentes</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Execuções Recentes
+                {syncRuns.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {syncRuns.length} runs
+                  </Badge>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              {historyLoading ? (
+              {isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
-              ) : syncHistory && syncHistory.length > 0 ? (
-                <div className="space-y-3">
-                  {syncHistory.map((run) => (
-                    <div 
-                      key={run.id}
-                      className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                        selectedRun === run.id 
-                          ? 'border-primary bg-primary/5' 
-                          : 'hover:bg-muted/50'
-                      }`}
-                      onClick={() => setSelectedRun(selectedRun === run.id ? null : run.id)}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          {run.status === 'completed' ? (
-                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                          ) : run.status === 'failed' ? (
-                            <XCircle className="h-4 w-4 text-red-500" />
-                          ) : (
-                            <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                          )}
-                          <span className="font-medium text-sm">
-                            {format(new Date(run.started_at), "dd/MM HH:mm:ss", { locale: ptBR })}
+              ) : syncRuns.length > 0 ? (
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-3 pr-4">
+                    {syncRuns.map((run) => (
+                      <div 
+                        key={run.id}
+                        className={`p-4 rounded-lg border transition-colors cursor-pointer ${
+                          selectedRun === run.id 
+                            ? 'border-primary bg-primary/5' 
+                            : 'hover:bg-muted/50'
+                        }`}
+                        onClick={() => setSelectedRun(selectedRun === run.id ? null : run.id)}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {run.status === 'completed' ? (
+                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                            ) : run.status === 'failed' ? (
+                              <XCircle className="h-4 w-4 text-red-500" />
+                            ) : (
+                              <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                            )}
+                            <span className="font-medium text-sm">
+                              {format(new Date(run.started_at), "dd/MM HH:mm:ss", { locale: ptBR })}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {run.trigger.toUpperCase()}
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              {run.mode}
+                            </Badge>
+                            {run.duration_ms && (
+                              <Badge variant="outline" className="text-xs">
+                                {run.duration_ms}ms
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(run.started_at), { 
+                              addSuffix: true, 
+                              locale: ptBR 
+                            })}
                           </span>
-                          <Badge variant="outline" className="text-xs">
-                            {run.trigger.toUpperCase()}
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs">
-                            {run.mode}
-                          </Badge>
                         </div>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(run.started_at), { 
-                            addSuffix: true, 
-                            locale: ptBR 
-                          })}
-                        </span>
-                      </div>
-                      
-                      {/* Estatísticas da run */}
-                      <div className="flex gap-4 text-xs">
-                        <span className="text-muted-foreground">
-                          Atualizados: <span className="text-green-500 font-medium">{run.stats.updated}</span>
-                        </span>
-                        <span className="text-muted-foreground">
-                          Inseridos: <span className="text-blue-500 font-medium">{run.stats.inserted}</span>
-                        </span>
-                        <span className="text-muted-foreground">
-                          Ignorados: <span className="text-yellow-500 font-medium">{run.stats.skipped}</span>
-                        </span>
-                        {run.stats.errors > 0 && (
+                        
+                        {/* Estatísticas da run */}
+                        <div className="flex gap-4 text-xs flex-wrap">
                           <span className="text-muted-foreground">
-                            Erros: <span className="text-red-500 font-medium">{run.stats.errors}</span>
+                            Fetched: <span className="text-blue-500 font-medium">{run.stats.fetched}</span>
                           </span>
+                          <span className="text-muted-foreground">
+                            Inseridos: <span className="text-green-500 font-medium">{run.stats.inserted}</span>
+                          </span>
+                          <span className="text-muted-foreground">
+                            Atualizados: <span className="text-yellow-500 font-medium">{run.stats.updated}</span>
+                          </span>
+                          {run.stats.errors > 0 && (
+                            <span className="text-muted-foreground">
+                              Erros: <span className="text-red-500 font-medium">{run.stats.errors}</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Logs detalhados da run (expandido) */}
+                        {selectedRun === run.id && run.logs && run.logs.length > 0 && (
+                          <div className="mt-3 pt-3 border-t">
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Animes processados ({run.logs.length}):
+                            </p>
+                            <ScrollArea className="h-[150px]">
+                              <div className="space-y-1">
+                                {run.logs.slice(0, 10).map((log) => (
+                                  <div key={log.id} className="text-xs text-muted-foreground">
+                                    • {log.message}
+                                  </div>
+                                ))}
+                                {run.logs.length > 10 && (
+                                  <div className="text-xs text-primary">
+                                    ... e mais {run.logs.length - 10} itens
+                                  </div>
+                                )}
+                              </div>
+                            </ScrollArea>
+                          </div>
                         )}
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               ) : (
                 <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                   <Clock className="h-8 w-8 mb-2 opacity-50" />
-                  <p>Nenhuma execução registrada</p>
+                  <p>Nenhuma execução registrada no período</p>
                 </div>
               )}
             </CardContent>
@@ -473,12 +491,19 @@ export function CatalogSyncLogs() {
         <TabsContent value="audit" className="mt-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Logs de Auditoria do Catálogo</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Logs de Auditoria do Catálogo
+                {auditLogs && auditLogs.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {auditLogs.length} registros
+                  </Badge>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {auditLogs && auditLogs.length > 0 ? (
                 <ScrollArea className="h-[400px]">
-                  <div className="space-y-2">
+                  <div className="space-y-2 pr-4">
                     {auditLogs.map((log) => (
                       <div 
                         key={log.id}

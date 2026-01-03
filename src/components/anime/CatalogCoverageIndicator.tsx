@@ -21,9 +21,10 @@ import {
 import { useAnimeEntries } from '@/hooks/useAnimeEntries';
 import { useCatalogStatus } from '@/hooks/useAnimeApi';
 import { useQuery } from '@tanstack/react-query';
+import { CATALOG_API_URL } from '@/lib/apiConfig';
 
-// URL da API externa de animes
-const API_URL = 'https://xhyairbedwqezegopjan.supabase.co/functions/v1/anime-api';
+// Usar URL centralizada
+const API_URL = CATALOG_API_URL;
 
 /**
  * Verifica quais animes da lista do usuário estão no catálogo

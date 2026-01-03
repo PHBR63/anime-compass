@@ -36,11 +36,13 @@ import {
   Loader2
 } from "lucide-react";
 
+import { CATALOG_API_URL } from '@/lib/apiConfig';
+
 // Quantidade de estúdios por página
 const STUDIOS_PER_PAGE = 10;
 
-// URL da API de animes
-const API_URL = 'https://xhyairbedwqezegopjan.supabase.co/functions/v1/anime-api';
+// Usar URL centralizada
+const API_URL = CATALOG_API_URL;
 
 // Interface para dados do estúdio
 interface StudioData {

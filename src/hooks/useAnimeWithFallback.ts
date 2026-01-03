@@ -158,17 +158,38 @@ export function useAnimeWithFallback(malId: number | null): AnimeWithSource {
 /**
  * Hook para buscar múltiplos animes com fallback (para listas)
  * Limita chamadas paralelas para evitar rate limiting
+ * Prioriza cache local para máxima performance offline
  */
 export function useAnimesWithFallback(malIds: number[]) {
   return useQuery({
     queryKey: ['animes-with-fallback', malIds.sort().join(',')],
     queryFn: async () => {
-      const results: Map<number, { anime: CatalogAnime | null; source: 'catalog' | 'jikan' | null }> = new Map();
+      const results: Map<number, { anime: CatalogAnime | null; source: 'catalog' | 'jikan' | 'local' | null }> = new Map();
+      const uncachedIds: number[] = [];
       
-      // Processar em lotes de 3 para evitar rate limiting
+      // 1. Primeiro, verificar cache local para todos os IDs
+      for (const malId of malIds) {
+        try {
+          const cached = await getCachedCatalogAnime(malId);
+          if (cached) {
+            results.set(malId, { 
+              anime: cached.data as unknown as CatalogAnime, 
+              source: 'local' 
+            });
+          } else {
+            uncachedIds.push(malId);
+          }
+        } catch {
+          uncachedIds.push(malId);
+        }
+      }
+      
+      console.log(`[AnimesWithFallback] Cache: ${malIds.length - uncachedIds.length}/${malIds.length} | Buscar: ${uncachedIds.length}`);
+      
+      // 2. Buscar apenas os não-cacheados em lotes
       const batchSize = 3;
-      for (let i = 0; i < malIds.length; i += batchSize) {
-        const batch = malIds.slice(i, i + batchSize);
+      for (let i = 0; i < uncachedIds.length; i += batchSize) {
+        const batch = uncachedIds.slice(i, i + batchSize);
         const batchResults = await Promise.all(
           batch.map(malId => fetchAnimeWithFallback(malId))
         );
@@ -178,7 +199,7 @@ export function useAnimesWithFallback(malIds: number[]) {
         });
         
         // Aguardar entre lotes para rate limiting
-        if (i + batchSize < malIds.length) {
+        if (i + batchSize < uncachedIds.length) {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
@@ -186,6 +207,63 @@ export function useAnimesWithFallback(malIds: number[]) {
       return results;
     },
     enabled: malIds.length > 0,
-    staleTime: 30 * 60 * 1000,
+    staleTime: 30 * 60 * 1000, // 30 minutos
+    gcTime: 60 * 60 * 1000, // 1 hora
   });
+}
+
+/**
+ * Pré-carrega animes no cache em background
+ * Útil para preparar dados para modo offline
+ */
+export async function prefetchAnimesToCache(malIds: number[]): Promise<{
+  cached: number;
+  fetched: number;
+  failed: number;
+}> {
+  let cached = 0;
+  let fetched = 0;
+  let failed = 0;
+  
+  const uncachedIds: number[] = [];
+  
+  // Verificar quais já estão em cache
+  for (const malId of malIds) {
+    try {
+      const existing = await getCachedCatalogAnime(malId);
+      if (existing) {
+        cached++;
+      } else {
+        uncachedIds.push(malId);
+      }
+    } catch {
+      uncachedIds.push(malId);
+    }
+  }
+  
+  // Buscar os não-cacheados em lotes pequenos
+  const batchSize = 2;
+  for (let i = 0; i < uncachedIds.length; i += batchSize) {
+    const batch = uncachedIds.slice(i, i + batchSize);
+    
+    const results = await Promise.allSettled(
+      batch.map(malId => fetchAnimeWithFallback(malId))
+    );
+    
+    results.forEach((result) => {
+      if (result.status === 'fulfilled' && result.value.anime) {
+        fetched++;
+      } else {
+        failed++;
+      }
+    });
+    
+    // Delay maior para não sobrecarregar APIs
+    if (i + batchSize < uncachedIds.length) {
+      await new Promise(resolve => setTimeout(resolve, 800));
+    }
+  }
+  
+  console.log(`[PrefetchCache] Resultado: ${cached} em cache, ${fetched} buscados, ${failed} falhas`);
+  return { cached, fetched, failed };
 }

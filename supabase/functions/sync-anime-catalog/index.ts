@@ -6,10 +6,14 @@
  * Parâmetros (body JSON):
  * - trigger: 'cron' | 'manual' - Tipo de disparo
  * - batch_size: number - Quantidade de animes por batch (default: 25)
- * - mode: 'top' | 'season' | 'update' | 'genre' | 'popular' | 'bulk' - Modo de sincronização
+ * - mode: 'top' | 'season' | 'update' | 'genre' | 'popular' | 'bulk' | 'sequential' | 'auto' - Modo de sincronização
  * - page: number - Página inicial (para mode 'top', 'season', 'popular')
  * - genre_id: number - ID do gênero para mode 'genre'
  * - max_pages: number - Número máximo de páginas a buscar (para mode 'bulk')
+ * - pages_per_run: number - Páginas por execução no modo sequential (default: 20)
+ * 
+ * Modo 'sequential': Busca animes página por página, salvando progresso no banco
+ * Modo 'auto': Verifica estado salvo e continua de onde parou automaticamente
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -103,7 +107,19 @@ interface SyncStats {
   total_updated: number;
   total_skipped: number;
   total_pages_processed: number;
+  current_page?: number;
   errors: string[];
+}
+
+interface SyncState {
+  id: string;
+  mode: string;
+  current_page: number;
+  max_page: number;
+  last_error: string | null;
+  last_run_at: string | null;
+  total_synced: number;
+  is_running: boolean;
 }
 
 // Função auxiliar para delay
@@ -221,6 +237,99 @@ async function fetchAnimesFromUrl(
   return animes;
 }
 
+// Buscar uma única página e salvar imediatamente
+async function fetchAndSavePage(
+  supabase: any,
+  page: number,
+  stats: SyncStats
+): Promise<{ success: boolean; hasNextPage: boolean; animesCount: number }> {
+  const url = `${JIKAN_BASE_URL}/anime?order_by=members&sort=desc&sfw=true&page=${page}`;
+  console.log(`[sync-seq] Fetching page ${page}: ${url}`);
+  
+  try {
+    await delay(JIKAN_DELAY_MS);
+    const response = await fetchWithRetry(url);
+    
+    if (!response.ok) {
+      stats.errors.push(`HTTP ${response.status} for page ${page}`);
+      return { success: false, hasNextPage: false, animesCount: 0 };
+    }
+    
+    const data = await response.json();
+    
+    if (!data.data || !Array.isArray(data.data) || data.data.length === 0) {
+      console.log(`[sync-seq] Page ${page}: No data, reached end`);
+      return { success: true, hasNextPage: false, animesCount: 0 };
+    }
+    
+    // Filtrar e mapear animes
+    const validAnimes = data.data
+      .filter(shouldIncludeAnime)
+      .map(mapToCatalog);
+    
+    if (validAnimes.length > 0) {
+      // Salvar imediatamente
+      const { error } = await supabase
+        .from('anime_catalog')
+        .upsert(validAnimes, {
+          onConflict: 'mal_id',
+          ignoreDuplicates: false,
+        });
+      
+      if (error) {
+        stats.errors.push(`Page ${page} upsert error: ${error.message}`);
+        return { success: false, hasNextPage: true, animesCount: 0 };
+      }
+      
+      stats.total_updated += validAnimes.length;
+      stats.total_fetched += data.data.length;
+      console.log(`[sync-seq] Page ${page}: Saved ${validAnimes.length} animes`);
+    }
+    
+    stats.total_pages_processed++;
+    const hasNextPage = data.pagination?.has_next_page || false;
+    
+    return { success: true, hasNextPage, animesCount: validAnimes.length };
+  } catch (error) {
+    stats.errors.push(`Page ${page} exception: ${error}`);
+    return { success: false, hasNextPage: true, animesCount: 0 };
+  }
+}
+
+// Atualizar estado de sincronização
+async function updateSyncState(
+  supabase: any,
+  updates: Partial<SyncState>
+): Promise<void> {
+  const { error } = await supabase
+    .from('sync_state')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', 'default');
+  
+  if (error) {
+    console.error('[sync] Failed to update sync state:', error);
+  }
+}
+
+// Obter estado atual de sincronização
+async function getSyncState(supabase: any): Promise<SyncState | null> {
+  const { data, error } = await supabase
+    .from('sync_state')
+    .select('*')
+    .eq('id', 'default')
+    .single();
+  
+  if (error) {
+    console.error('[sync] Failed to get sync state:', error);
+    return null;
+  }
+  
+  return data;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -247,6 +356,7 @@ serve(async (req) => {
     const startPage = body.page || 1;
     const genreId = body.genre_id;
     const maxPages = body.max_pages || 4; // Padrão: 4 páginas (100 animes)
+    const pagesPerRun = body.pages_per_run || 20; // Páginas por execução no modo sequential
     
     stats.mode = mode;
     console.log(`[sync] Starting sync - trigger: ${trigger}, mode: ${mode}, batch: ${batchSize}, maxPages: ${maxPages}`);
@@ -255,6 +365,198 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Modo AUTO: Continua de onde parou automaticamente
+    if (mode === 'auto') {
+      const syncState = await getSyncState(supabase);
+      
+      if (!syncState) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Sync state not found',
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Se já completou todas as páginas
+      if (syncState.current_page >= syncState.max_page) {
+        console.log(`[sync-auto] Already completed all ${syncState.max_page} pages`);
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Sync already completed',
+          data: { 
+            current_page: syncState.current_page,
+            max_page: syncState.max_page,
+            total_synced: syncState.total_synced,
+          },
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Marcar como em execução
+      await updateSyncState(supabase, {
+        mode: 'sequential',
+        is_running: true,
+        last_run_at: new Date().toISOString(),
+        last_error: null,
+      });
+      
+      console.log(`[sync-auto] Resuming from page ${syncState.current_page}`);
+      
+      let currentPage = syncState.current_page;
+      let consecutiveErrors = 0;
+      let pagesProcessed = 0;
+      
+      // Processar páginas até atingir limite ou encontrar erros
+      while (pagesProcessed < pagesPerRun && currentPage <= syncState.max_page && consecutiveErrors < 3) {
+        const result = await fetchAndSavePage(supabase, currentPage, stats);
+        
+        if (result.success) {
+          consecutiveErrors = 0;
+          currentPage++;
+          pagesProcessed++;
+          
+          // Atualizar progresso a cada 5 páginas
+          if (pagesProcessed % 5 === 0) {
+            await updateSyncState(supabase, {
+              current_page: currentPage,
+              total_synced: syncState.total_synced + stats.total_updated,
+            });
+          }
+          
+          // Se não há mais páginas, finalizou
+          if (!result.hasNextPage) {
+            console.log(`[sync-auto] Reached end of data at page ${currentPage - 1}`);
+            currentPage = syncState.max_page + 1; // Marca como completo
+            break;
+          }
+        } else {
+          consecutiveErrors++;
+          console.log(`[sync-auto] Error on page ${currentPage}, consecutive errors: ${consecutiveErrors}`);
+          
+          // Esperar um pouco antes de tentar novamente
+          await delay(2000);
+        }
+      }
+      
+      // Atualizar estado final
+      const finalState: Partial<SyncState> = {
+        current_page: currentPage,
+        is_running: false,
+        total_synced: syncState.total_synced + stats.total_updated,
+      };
+      
+      if (stats.errors.length > 0) {
+        finalState.last_error = stats.errors[stats.errors.length - 1];
+      }
+      
+      if (currentPage > syncState.max_page) {
+        finalState.mode = 'completed';
+      }
+      
+      await updateSyncState(supabase, finalState);
+      
+      stats.completed_at = new Date().toISOString();
+      stats.current_page = currentPage;
+      
+      const duration = new Date(stats.completed_at).getTime() - new Date(stats.started_at).getTime();
+      console.log(`[sync-auto] Run completed in ${Math.round(duration / 1000)}s - Pages: ${pagesProcessed}, Updated: ${stats.total_updated}, Current: ${currentPage}/${syncState.max_page}`);
+      
+      return new Response(JSON.stringify({
+        success: true,
+        data: { 
+          stats,
+          next_page: currentPage,
+          max_page: syncState.max_page,
+          progress: Math.round((currentPage / syncState.max_page) * 100),
+        },
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    // Modo SEQUENTIAL: Busca páginas sequenciais com estado persistente
+    if (mode === 'sequential') {
+      const requestedStartPage = body.start_page || 1;
+      const requestedMaxPage = body.max_page || 1000;
+      
+      // Resetar ou iniciar estado
+      await updateSyncState(supabase, {
+        mode: 'sequential',
+        current_page: requestedStartPage,
+        max_page: requestedMaxPage,
+        is_running: true,
+        last_run_at: new Date().toISOString(),
+        last_error: null,
+        total_synced: 0,
+      });
+      
+      console.log(`[sync-seq] Starting sequential sync from page ${requestedStartPage} to ${requestedMaxPage}`);
+      
+      let currentPage = requestedStartPage;
+      let consecutiveErrors = 0;
+      let pagesProcessed = 0;
+      
+      while (pagesProcessed < pagesPerRun && currentPage <= requestedMaxPage && consecutiveErrors < 3) {
+        const result = await fetchAndSavePage(supabase, currentPage, stats);
+        
+        if (result.success) {
+          consecutiveErrors = 0;
+          currentPage++;
+          pagesProcessed++;
+          
+          if (pagesProcessed % 5 === 0) {
+            await updateSyncState(supabase, {
+              current_page: currentPage,
+              total_synced: stats.total_updated,
+            });
+          }
+          
+          if (!result.hasNextPage) {
+            console.log(`[sync-seq] Reached end at page ${currentPage - 1}`);
+            break;
+          }
+        } else {
+          consecutiveErrors++;
+          await delay(2000);
+        }
+      }
+      
+      const completed = currentPage > requestedMaxPage || consecutiveErrors >= 3;
+      
+      await updateSyncState(supabase, {
+        current_page: currentPage,
+        is_running: false,
+        mode: completed ? 'completed' : 'sequential',
+        total_synced: stats.total_updated,
+        last_error: stats.errors.length > 0 ? stats.errors[stats.errors.length - 1] : null,
+      });
+      
+      stats.completed_at = new Date().toISOString();
+      stats.current_page = currentPage;
+      
+      const duration = new Date(stats.completed_at).getTime() - new Date(stats.started_at).getTime();
+      console.log(`[sync-seq] Run completed in ${Math.round(duration / 1000)}s - Pages: ${pagesProcessed}, Updated: ${stats.total_updated}`);
+      
+      return new Response(JSON.stringify({
+        success: true,
+        data: { 
+          stats,
+          next_page: currentPage,
+          max_page: requestedMaxPage,
+          progress: Math.round((currentPage / requestedMaxPage) * 100),
+          needs_continuation: !completed,
+        },
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Buscar animes baseado no modo
     let animesToSync: JikanAnime[] = [];

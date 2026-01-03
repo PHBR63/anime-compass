@@ -1045,6 +1045,45 @@ export type Database = {
           },
         ]
       }
+      sync_state: {
+        Row: {
+          created_at: string
+          current_page: number
+          id: string
+          is_running: boolean | null
+          last_error: string | null
+          last_run_at: string | null
+          max_page: number | null
+          mode: string
+          total_synced: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_page?: number
+          id?: string
+          is_running?: boolean | null
+          last_error?: string | null
+          last_run_at?: string | null
+          max_page?: number | null
+          mode?: string
+          total_synced?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_page?: number
+          id?: string
+          is_running?: boolean | null
+          last_error?: string | null
+          last_run_at?: string | null
+          max_page?: number | null
+          mode?: string
+          total_synced?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       system_tests: {
         Row: {
           category: string

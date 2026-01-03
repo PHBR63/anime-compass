@@ -22,6 +22,7 @@ import { useAnimeEntries, useAddAnimeEntry, useUpdateAnimeEntry } from '@/hooks/
 import { useAddProgressHistory } from '@/hooks/useProgressHistory';
 import { useAnimeWithFallback } from '@/hooks/useAnimeWithFallback';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useTranslationPreferences } from '@/hooks/useTranslationPreferences';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
@@ -96,10 +97,13 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
   // Estado para controlar tradução sob demanda
   const [wantsTranslation, setWantsTranslation] = useState(false);
   
-  // Hook de tradução - só ativa se quiser traduzir e não tiver PT-BR
-  const needsTranslation = !hasSynopsisPt && !!originalSynopsis && wantsTranslation;
+  // Preferência global de tradução automática
+  const { isAutoTranslateEnabled } = useTranslationPreferences();
+  
+  // Hook de tradução - ativa se: (quiser traduzir manualmente OU tradução automática habilitada) E não tiver PT-BR
+  const shouldTranslate = !hasSynopsisPt && !!originalSynopsis && (wantsTranslation || isAutoTranslateEnabled);
   const { data: translatedSynopsis, isLoading: isTranslating, isError: translationError } = useTranslation(
-    needsTranslation ? originalSynopsis : null
+    shouldTranslate ? originalSynopsis : null
   );
   
   // Sinopse final para exibir
@@ -492,8 +496,8 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
                     )}
                   </div>
                   
-                  {/* Aviso quando não há tradução PT-BR disponível */}
-                  {!hasSynopsisPt && !translatedSynopsis && originalSynopsis && (
+                  {/* Aviso quando não há tradução PT-BR disponível e tradução automática está desabilitada */}
+                  {!hasSynopsisPt && !translatedSynopsis && originalSynopsis && !isAutoTranslateEnabled && !isTranslating && (
                     <div className="mb-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                       <div className="flex items-start gap-2">
                         <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
@@ -508,17 +512,8 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
                             onClick={() => setWantsTranslation(true)}
                             disabled={isTranslating}
                           >
-                            {isTranslating ? (
-                              <>
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                Traduzindo...
-                              </>
-                            ) : (
-                              <>
-                                <Languages className="h-3 w-3 mr-1" />
-                                Traduzir automaticamente
-                              </>
-                            )}
+                            <Languages className="h-3 w-3 mr-1" />
+                            Traduzir automaticamente
                           </Button>
                         </div>
                       </div>

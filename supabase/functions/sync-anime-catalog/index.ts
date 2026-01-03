@@ -6,8 +6,10 @@
  * Parâmetros (body JSON):
  * - trigger: 'cron' | 'manual' - Tipo de disparo
  * - batch_size: number - Quantidade de animes por batch (default: 25)
- * - mode: 'top' | 'season' | 'update' - Modo de sincronização
- * - page: number - Página inicial (para mode 'top' ou 'season')
+ * - mode: 'top' | 'season' | 'update' | 'genre' | 'popular' | 'bulk' - Modo de sincronização
+ * - page: number - Página inicial (para mode 'top', 'season', 'popular')
+ * - genre_id: number - ID do gênero para mode 'genre'
+ * - max_pages: number - Número máximo de páginas a buscar (para mode 'bulk')
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -27,6 +29,27 @@ const MAX_RETRIES = 3;
 // Tipos de ratings a excluir
 const EXCLUDED_RATINGS = ['Rx - Hentai', 'R+ - Mild Nudity'];
 const EXCLUDED_TYPES = ['Music'];
+
+// Lista de gêneros populares para sincronização em massa
+const POPULAR_GENRES = [
+  { id: 1, name: 'Action' },
+  { id: 2, name: 'Adventure' },
+  { id: 4, name: 'Comedy' },
+  { id: 8, name: 'Drama' },
+  { id: 10, name: 'Fantasy' },
+  { id: 14, name: 'Horror' },
+  { id: 7, name: 'Mystery' },
+  { id: 22, name: 'Romance' },
+  { id: 24, name: 'Sci-Fi' },
+  { id: 36, name: 'Slice of Life' },
+  { id: 30, name: 'Sports' },
+  { id: 37, name: 'Supernatural' },
+  { id: 41, name: 'Suspense' },
+  { id: 27, name: 'Shounen' },
+  { id: 25, name: 'Shoujo' },
+  { id: 42, name: 'Seinen' },
+  { id: 43, name: 'Josei' },
+];
 
 interface JikanAnime {
   mal_id: number;
@@ -63,6 +86,7 @@ interface SyncStats {
   total_inserted: number;
   total_updated: number;
   total_skipped: number;
+  total_pages_processed: number;
   errors: string[];
 }
 
@@ -130,6 +154,57 @@ function mapToCatalog(anime: JikanAnime) {
   };
 }
 
+// Buscar animes de uma URL com paginação
+async function fetchAnimesFromUrl(
+  baseUrl: string, 
+  startPage: number, 
+  maxPages: number, 
+  stats: SyncStats
+): Promise<JikanAnime[]> {
+  const animes: JikanAnime[] = [];
+  let currentPage = startPage;
+  let hasNextPage = true;
+  let pagesProcessed = 0;
+
+  while (hasNextPage && pagesProcessed < maxPages) {
+    const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}page=${currentPage}`;
+    console.log(`[sync] Fetching: ${url}`);
+    
+    await delay(JIKAN_DELAY_MS);
+    
+    try {
+      const response = await fetchWithRetry(url);
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.data && Array.isArray(data.data)) {
+          animes.push(...data.data);
+          stats.total_fetched += data.data.length;
+          pagesProcessed++;
+          stats.total_pages_processed++;
+          
+          console.log(`[sync] Page ${currentPage}: ${data.data.length} animes (total: ${animes.length})`);
+          
+          // Verificar se há próxima página
+          hasNextPage = data.pagination?.has_next_page || false;
+        } else {
+          hasNextPage = false;
+        }
+      } else {
+        stats.errors.push(`HTTP ${response.status} for ${url}`);
+        hasNextPage = false;
+      }
+    } catch (error) {
+      stats.errors.push(`Failed page ${currentPage}: ${error}`);
+      hasNextPage = false;
+    }
+
+    currentPage++;
+  }
+
+  return animes;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -143,6 +218,7 @@ serve(async (req) => {
     total_inserted: 0,
     total_updated: 0,
     total_skipped: 0,
+    total_pages_processed: 0,
     errors: [],
   };
 
@@ -150,12 +226,14 @@ serve(async (req) => {
     // Parse body
     const body = await req.json().catch(() => ({}));
     const trigger = body.trigger || 'manual';
-    const batchSize = Math.min(body.batch_size || 25, 50);
+    const batchSize = Math.min(body.batch_size || 25, 100);
     const mode = body.mode || 'top';
     const startPage = body.page || 1;
+    const genreId = body.genre_id;
+    const maxPages = body.max_pages || 4; // Padrão: 4 páginas (100 animes)
     
     stats.mode = mode;
-    console.log(`[sync] Starting sync - trigger: ${trigger}, mode: ${mode}, batch: ${batchSize}`);
+    console.log(`[sync] Starting sync - trigger: ${trigger}, mode: ${mode}, batch: ${batchSize}, maxPages: ${maxPages}`);
 
     // Inicializar Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -163,123 +241,164 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Buscar animes baseado no modo
-    const animesToSync: JikanAnime[] = [];
-    let currentPage = startPage;
-    const maxPages = Math.ceil(batchSize / 25); // Jikan retorna 25 por página
+    let animesToSync: JikanAnime[] = [];
 
-    for (let i = 0; i < maxPages && animesToSync.length < batchSize; i++) {
-      let url = '';
-      
-      switch (mode) {
-        case 'season':
-          // Temporada atual
-          url = `${JIKAN_BASE_URL}/seasons/now?page=${currentPage}&sfw=true`;
-          break;
-        case 'update':
-          // Buscar animes que precisam atualização (mais de 2h desde último sync)
-          const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-          const { data: staleAnimes } = await supabase
-            .from('anime_catalog')
-            .select('mal_id')
-            .lt('last_synced_at', twoHoursAgo)
-            .order('last_synced_at', { ascending: true })
-            .limit(batchSize);
-          
-          if (staleAnimes && staleAnimes.length > 0) {
-            // Buscar detalhes de cada anime que precisa atualização
-            for (const stale of staleAnimes) {
-              await delay(JIKAN_DELAY_MS);
-              try {
-                const response = await fetchWithRetry(`${JIKAN_BASE_URL}/anime/${stale.mal_id}`);
-                if (response.ok) {
-                  const data = await response.json();
-                  if (data.data) {
-                    animesToSync.push(data.data);
-                    stats.total_fetched++;
-                  }
-                }
-              } catch (error) {
-                stats.errors.push(`Failed to fetch anime ${stale.mal_id}: ${error}`);
-              }
-            }
-          }
-          break;
-        case 'top':
-        default:
-          // Top animes por score
-          url = `${JIKAN_BASE_URL}/top/anime?page=${currentPage}&sfw=true`;
-          break;
-      }
+    switch (mode) {
+      case 'season':
+        // Temporada atual
+        animesToSync = await fetchAnimesFromUrl(
+          `${JIKAN_BASE_URL}/seasons/now?sfw=true`,
+          startPage,
+          maxPages,
+          stats
+        );
+        break;
 
-      // Buscar da API (exceto modo update que já buscou acima)
-      if (url && mode !== 'update') {
-        await delay(JIKAN_DELAY_MS);
-        
-        try {
-          const response = await fetchWithRetry(url);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.data && Array.isArray(data.data)) {
-              animesToSync.push(...data.data);
-              stats.total_fetched += data.data.length;
-            }
-          }
-        } catch (error) {
-          stats.errors.push(`Failed to fetch page ${currentPage}: ${error}`);
+      case 'popular':
+        // Animes por popularidade (membros)
+        animesToSync = await fetchAnimesFromUrl(
+          `${JIKAN_BASE_URL}/top/anime?filter=bypopularity&sfw=true`,
+          startPage,
+          maxPages,
+          stats
+        );
+        break;
+
+      case 'genre':
+        // Animes de um gênero específico
+        if (genreId) {
+          animesToSync = await fetchAnimesFromUrl(
+            `${JIKAN_BASE_URL}/anime?genres=${genreId}&order_by=members&sort=desc&sfw=true`,
+            startPage,
+            maxPages,
+            stats
+          );
+        } else {
+          stats.errors.push('genre_id is required for mode "genre"');
         }
-      }
+        break;
 
-      currentPage++;
+      case 'bulk':
+        // Sincronização em massa - busca de múltiplos gêneros
+        console.log(`[sync] Bulk mode - fetching from ${POPULAR_GENRES.length} genres`);
+        
+        for (const genre of POPULAR_GENRES) {
+          console.log(`[sync] Fetching genre: ${genre.name} (ID: ${genre.id})`);
+          
+          const genreAnimes = await fetchAnimesFromUrl(
+            `${JIKAN_BASE_URL}/anime?genres=${genre.id}&order_by=members&sort=desc&sfw=true`,
+            1,
+            2, // 2 páginas por gênero (50 animes)
+            stats
+          );
+          
+          animesToSync.push(...genreAnimes);
+          
+          // Pausa maior entre gêneros para evitar rate limiting
+          await delay(1000);
+        }
+        break;
+
+      case 'update':
+        // Buscar animes que precisam atualização (mais de 24h desde último sync)
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: staleAnimes } = await supabase
+          .from('anime_catalog')
+          .select('mal_id')
+          .lt('last_synced_at', oneDayAgo)
+          .order('last_synced_at', { ascending: true })
+          .limit(batchSize);
+        
+        if (staleAnimes && staleAnimes.length > 0) {
+          console.log(`[sync] Updating ${staleAnimes.length} stale animes`);
+          
+          for (const stale of staleAnimes) {
+            await delay(JIKAN_DELAY_MS);
+            try {
+              const response = await fetchWithRetry(`${JIKAN_BASE_URL}/anime/${stale.mal_id}`);
+              if (response.ok) {
+                const data = await response.json();
+                if (data.data) {
+                  animesToSync.push(data.data);
+                  stats.total_fetched++;
+                }
+              }
+            } catch (error) {
+              stats.errors.push(`Failed to fetch anime ${stale.mal_id}: ${error}`);
+            }
+          }
+        }
+        break;
+
+      case 'top':
+      default:
+        // Top animes por score
+        animesToSync = await fetchAnimesFromUrl(
+          `${JIKAN_BASE_URL}/top/anime?sfw=true`,
+          startPage,
+          maxPages,
+          stats
+        );
+        break;
     }
 
-    console.log(`[sync] Fetched ${animesToSync.length} animes from Jikan`);
+    console.log(`[sync] Total fetched: ${animesToSync.length} animes`);
 
-    // Processar e salvar animes
-    for (const anime of animesToSync) {
-      if (!shouldIncludeAnime(anime)) {
-        stats.total_skipped++;
+    // Remover duplicatas por mal_id
+    const uniqueAnimes = Array.from(
+      new Map(animesToSync.map(a => [a.mal_id, a])).values()
+    );
+    console.log(`[sync] Unique animes: ${uniqueAnimes.length}`);
+
+    // Processar e salvar animes em batches
+    const UPSERT_BATCH_SIZE = 50;
+    const batches = [];
+    
+    for (let i = 0; i < uniqueAnimes.length; i += UPSERT_BATCH_SIZE) {
+      batches.push(uniqueAnimes.slice(i, i + UPSERT_BATCH_SIZE));
+    }
+
+    for (const batch of batches) {
+      const validAnimes = batch
+        .filter(shouldIncludeAnime)
+        .map(mapToCatalog);
+
+      if (validAnimes.length === 0) {
+        stats.total_skipped += batch.length;
         continue;
       }
 
-      const catalogData = mapToCatalog(anime);
-
       try {
-        // Upsert no catálogo
-        const { error } = await supabase
+        // Upsert em batch
+        const { error, data } = await supabase
           .from('anime_catalog')
-          .upsert(catalogData, {
+          .upsert(validAnimes, {
             onConflict: 'mal_id',
             ignoreDuplicates: false,
-          });
+          })
+          .select('mal_id');
 
         if (error) {
-          stats.errors.push(`Failed to upsert anime ${anime.mal_id}: ${error.message}`);
+          stats.errors.push(`Batch upsert error: ${error.message}`);
+          stats.total_skipped += validAnimes.length;
         } else {
-          // Verificar se foi insert ou update
-          const { data: existing } = await supabase
-            .from('anime_catalog')
-            .select('created_at, updated_at')
-            .eq('mal_id', anime.mal_id)
-            .single();
-          
-          if (existing && existing.created_at === existing.updated_at) {
-            stats.total_inserted++;
-          } else {
-            stats.total_updated++;
-          }
+          // Contar como updated (upsert não diferencia bem)
+          stats.total_updated += validAnimes.length;
         }
       } catch (error) {
-        stats.errors.push(`Exception for anime ${anime.mal_id}: ${error}`);
+        stats.errors.push(`Batch exception: ${error}`);
+        stats.total_skipped += validAnimes.length;
       }
     }
 
     stats.completed_at = new Date().toISOString();
     
-    console.log(`[sync] Completed - Inserted: ${stats.total_inserted}, Updated: ${stats.total_updated}, Skipped: ${stats.total_skipped}, Errors: ${stats.errors.length}`);
+    const duration = new Date(stats.completed_at).getTime() - new Date(stats.started_at).getTime();
+    console.log(`[sync] Completed in ${Math.round(duration / 1000)}s - Fetched: ${stats.total_fetched}, Updated: ${stats.total_updated}, Skipped: ${stats.total_skipped}, Pages: ${stats.total_pages_processed}, Errors: ${stats.errors.length}`);
 
     return new Response(JSON.stringify({
       success: true,
-      stats,
+      data: { stats },
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -293,7 +412,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: false,
       error: 'Sync failed',
-      stats,
+      data: { stats },
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

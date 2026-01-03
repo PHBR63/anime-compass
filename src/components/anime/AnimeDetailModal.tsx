@@ -272,7 +272,7 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Modal responsiva com scroll interno */}
-      <DialogContent className="w-[95vw] max-w-3xl h-[90vh] max-h-[800px] overflow-y-auto glass-card border-border/50 p-0">
+      <DialogContent className="w-[95vw] max-w-3xl h-[90vh] max-h-[800px] overflow-y-auto glass-card border-border/50 p-0" showBeams={false} hideCloseButton={true}>
         {loadingDetails ? (
           <div className="flex items-center justify-center h-48 md:h-64">
             <Loader2 className="h-6 w-6 md:h-8 md:w-8 animate-spin text-primary" />

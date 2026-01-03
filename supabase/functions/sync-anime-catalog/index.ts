@@ -30,8 +30,9 @@ const MAX_RETRIES = 3;
 const EXCLUDED_RATINGS = ['Rx - Hentai', 'R+ - Mild Nudity'];
 const EXCLUDED_TYPES = ['Music'];
 
-// Lista de gêneros populares para sincronização em massa
+// Lista de gêneros para sincronização em massa (30 gêneros)
 const POPULAR_GENRES = [
+  // Gêneros principais
   { id: 1, name: 'Action' },
   { id: 2, name: 'Adventure' },
   { id: 4, name: 'Comedy' },
@@ -45,10 +46,25 @@ const POPULAR_GENRES = [
   { id: 30, name: 'Sports' },
   { id: 37, name: 'Supernatural' },
   { id: 41, name: 'Suspense' },
+  // Demographics
   { id: 27, name: 'Shounen' },
   { id: 25, name: 'Shoujo' },
   { id: 42, name: 'Seinen' },
   { id: 43, name: 'Josei' },
+  // Gêneros adicionais
+  { id: 62, name: 'Isekai' },
+  { id: 18, name: 'Mecha' },
+  { id: 38, name: 'Military' },
+  { id: 40, name: 'Psychological' },
+  { id: 23, name: 'School' },
+  { id: 20, name: 'Parody' },
+  { id: 21, name: 'Samurai' },
+  { id: 13, name: 'Historical' },
+  { id: 29, name: 'Space' },
+  { id: 32, name: 'Vampire' },
+  { id: 47, name: 'Gourmet' },
+  { id: 46, name: 'Award Winning' },
+  { id: 17, name: 'Martial Arts' },
 ];
 
 interface JikanAnime {
@@ -280,7 +296,8 @@ serve(async (req) => {
 
       case 'bulk':
         // Sincronização em massa - busca de múltiplos gêneros
-        console.log(`[sync] Bulk mode - fetching from ${POPULAR_GENRES.length} genres`);
+        // Salva progressivamente após cada gênero para evitar perda de dados em timeout
+        console.log(`[sync] Bulk mode - fetching from ${POPULAR_GENRES.length} genres (saving progressively)`);
         
         for (const genre of POPULAR_GENRES) {
           console.log(`[sync] Fetching genre: ${genre.name} (ID: ${genre.id})`);
@@ -288,16 +305,55 @@ serve(async (req) => {
           const genreAnimes = await fetchAnimesFromUrl(
             `${JIKAN_BASE_URL}/anime?genres=${genre.id}&order_by=members&sort=desc&sfw=true`,
             1,
-            5, // 5 páginas por gênero (125 animes)
+            10, // 10 páginas por gênero (250 animes)
             stats
           );
           
-          animesToSync.push(...genreAnimes);
+          // Salvar imediatamente após cada gênero
+          if (genreAnimes.length > 0) {
+            const validAnimes = genreAnimes
+              .filter(shouldIncludeAnime)
+              .map(mapToCatalog);
+            
+            if (validAnimes.length > 0) {
+              try {
+                const { error } = await supabase
+                  .from('anime_catalog')
+                  .upsert(validAnimes, {
+                    onConflict: 'mal_id',
+                    ignoreDuplicates: false,
+                  });
+                
+                if (error) {
+                  stats.errors.push(`Genre ${genre.name} upsert error: ${error.message}`);
+                  stats.total_skipped += validAnimes.length;
+                } else {
+                  stats.total_updated += validAnimes.length;
+                  console.log(`[sync] Saved ${validAnimes.length} animes from ${genre.name}`);
+                }
+              } catch (error) {
+                stats.errors.push(`Genre ${genre.name} exception: ${error}`);
+                stats.total_skipped += validAnimes.length;
+              }
+            }
+          }
           
           // Pausa maior entre gêneros para evitar rate limiting
           await delay(1000);
         }
-        break;
+        
+        // Retornar imediatamente - dados já foram salvos
+        stats.completed_at = new Date().toISOString();
+        const bulkDuration = new Date(stats.completed_at).getTime() - new Date(stats.started_at).getTime();
+        console.log(`[sync] Completed in ${Math.round(bulkDuration / 1000)}s - Fetched: ${stats.total_fetched}, Updated: ${stats.total_updated}, Skipped: ${stats.total_skipped}, Pages: ${stats.total_pages_processed}, Errors: ${stats.errors.length}`);
+        
+        return new Response(JSON.stringify({
+          success: true,
+          data: { stats },
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
 
       case 'update':
         // Buscar animes que precisam atualização (mais de 24h desde último sync)

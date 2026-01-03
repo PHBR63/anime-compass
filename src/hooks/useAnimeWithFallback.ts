@@ -1,10 +1,11 @@
 /**
  * Hook para buscar dados de anime com fallback para Jikan API
- * Prioriza a nova API externa, mas usa Jikan como fallback para animes não encontrados
+ * Prioriza cache local → API do catálogo → Jikan como fallback
  */
 
 import { useQuery } from '@tanstack/react-query';
 import type { CatalogAnime } from '@/types/catalog';
+import { getCachedCatalogAnime, cacheCatalogAnime } from '@/lib/offlineCache';
 
 // URLs das APIs
 const CATALOG_API_URL = 'https://xhyairbedwqezegopjan.supabase.co/functions/v1/anime-api';
@@ -79,16 +80,30 @@ function jikanToCatalogAnime(jikan: JikanAnimeData): CatalogAnime {
 }
 
 /**
- * Busca anime primeiro na API do catálogo, depois no Jikan como fallback
+ * Busca anime primeiro no cache local, depois na API do catálogo, depois no Jikan como fallback
  */
 async function fetchAnimeWithFallback(malId: number): Promise<{ anime: CatalogAnime | null; source: 'catalog' | 'jikan' | null }> {
-  // Tentar buscar na API do catálogo primeiro
+  // 1. Tentar buscar do cache IndexedDB primeiro
+  try {
+    const cached = await getCachedCatalogAnime(malId);
+    if (cached) {
+      console.log(`[AnimeWithFallback] Cache hit para mal_id: ${malId} (source: ${cached.source})`);
+      // O source original fica salvo, então retornamos ele
+      return { anime: cached.data as unknown as CatalogAnime, source: cached.source };
+    }
+  } catch (error) {
+    console.warn(`[AnimeWithFallback] Erro ao ler cache (mal_id: ${malId}):`, error);
+  }
+
+  // 2. Tentar buscar na API do catálogo
   try {
     const catalogResponse = await fetch(`${CATALOG_API_URL}?mal_id=${malId}`);
     
     if (catalogResponse.ok) {
       const catalogData = await catalogResponse.json();
       if (catalogData.success && catalogData.data) {
+        // Salvar no cache IndexedDB
+        await cacheCatalogAnime(malId, catalogData.data, 'catalog');
         return { anime: catalogData.data, source: 'catalog' };
       }
     }
@@ -96,7 +111,7 @@ async function fetchAnimeWithFallback(malId: number): Promise<{ anime: CatalogAn
     console.warn(`[AnimeWithFallback] Erro ao buscar do catálogo (mal_id: ${malId}):`, error);
   }
 
-  // Fallback para Jikan API
+  // 3. Fallback para Jikan API
   try {
     // Rate limiting básico - aguardar um pouco antes de chamar Jikan
     await new Promise(resolve => setTimeout(resolve, 350));
@@ -107,6 +122,8 @@ async function fetchAnimeWithFallback(malId: number): Promise<{ anime: CatalogAn
       const jikanData = await jikanResponse.json();
       if (jikanData.data) {
         const convertedAnime = jikanToCatalogAnime(jikanData.data);
+        // Salvar no cache IndexedDB
+        await cacheCatalogAnime(malId, convertedAnime as unknown as Record<string, unknown>, 'jikan');
         return { anime: convertedAnime, source: 'jikan' };
       }
     }

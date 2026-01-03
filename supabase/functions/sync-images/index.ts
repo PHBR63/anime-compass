@@ -17,6 +17,7 @@ const CHUNK_SIZE = 50; // Imagens por execução (evita timeout)
 const BATCH_SIZE = 5; // Imagens por lote interno
 const SYNC_STATE_KEY = 'image_sync'; // Chave para armazenar estado no banco
 const STALL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutos sem atualização = travado
+const PROJECT_ID = 'tawcauhcogjnthocdhce'; // ID do projeto Supabase para validação
 
 interface SyncProgress {
   total: number;
@@ -147,6 +148,23 @@ async function downloadImage(imageUrl: string, supabaseUrl: string): Promise<Arr
 }
 
 /**
+ * Valida se a URL pertence ao projeto correto
+ * Evita salvar URLs de outros projetos Supabase
+ */
+function isValidProjectUrl(url: string): boolean {
+  if (!url) return false;
+  
+  // A URL deve conter o ID do projeto correto
+  const isValid = url.includes(PROJECT_ID);
+  
+  if (!isValid) {
+    console.warn(`[sync-images] URL inválida (projeto incorreto): ${url}`);
+  }
+  
+  return isValid;
+}
+
+/**
  * Faz upload da imagem para Supabase Storage
  */
 async function uploadToStorage(
@@ -176,7 +194,15 @@ async function uploadToStorage(
       .from('anime-images')
       .getPublicUrl(fileName);
     
-    return publicUrl.publicUrl;
+    const finalUrl = publicUrl.publicUrl;
+    
+    // Validar se a URL gerada pertence ao projeto correto
+    if (!isValidProjectUrl(finalUrl)) {
+      console.error(`[sync-images] URL gerada não pertence ao projeto: ${finalUrl}`);
+      return null;
+    }
+    
+    return finalUrl;
   } catch (error) {
     console.error(`[sync-images] Erro no upload: ${error}`);
     return null;

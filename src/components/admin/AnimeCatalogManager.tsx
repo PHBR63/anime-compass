@@ -76,9 +76,10 @@ interface CronJobStatus {
  */
 export function AnimeCatalogManager() {
   const queryClient = useQueryClient();
-  const [syncMode, setSyncMode] = useState<'top' | 'season' | 'update'>('top');
+  const [syncMode, setSyncMode] = useState<'top' | 'season' | 'update' | 'popular' | 'bulk'>('top');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState(10); // segundos
+  const [maxPages, setMaxPages] = useState(4); // Páginas a buscar
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
   // Buscar estatísticas do catálogo em tempo real
@@ -155,7 +156,7 @@ export function AnimeCatalogManager() {
 
   // Mutation para executar sincronização manual
   const syncMutation = useMutation({
-    mutationFn: async (mode: 'top' | 'season' | 'update') => {
+    mutationFn: async (params: { mode: 'top' | 'season' | 'update' | 'popular' | 'bulk'; maxPages: number }) => {
       const { data: session } = await supabase.auth.getSession();
       
       const response = await fetch(
@@ -167,8 +168,9 @@ export function AnimeCatalogManager() {
             'Authorization': `Bearer ${session?.session?.access_token}`,
           },
           body: JSON.stringify({
-            mode,
-            batch_size: mode === 'update' ? 50 : 25,
+            mode: params.mode,
+            max_pages: params.maxPages,
+            batch_size: params.mode === 'update' ? 50 : 100,
             trigger: 'manual',
           }),
         }
@@ -182,8 +184,9 @@ export function AnimeCatalogManager() {
       return response.json();
     },
     onSuccess: (data) => {
+      const stats = data.data?.stats;
       toast.success(`Sincronização concluída!`, {
-        description: `Processados: ${data.data?.stats?.fetched || 0} animes`,
+        description: `Buscados: ${stats?.total_fetched || 0}, Atualizados: ${stats?.total_updated || 0}, Páginas: ${stats?.total_pages_processed || 0}`,
       });
       // Invalidar queries para atualizar dados
       refetchStats();
@@ -489,7 +492,15 @@ export function AnimeCatalogManager() {
               onClick={() => setSyncMode('top')}
             >
               <TrendingUp className="h-4 w-4 mr-2" />
-              Top Animes
+              Top Score
+            </Button>
+            <Button
+              variant={syncMode === 'popular' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSyncMode('popular')}
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Mais Populares
             </Button>
             <Button
               variant={syncMode === 'season' ? 'default' : 'outline'}
@@ -497,7 +508,15 @@ export function AnimeCatalogManager() {
               onClick={() => setSyncMode('season')}
             >
               <Calendar className="h-4 w-4 mr-2" />
-              Temporada Atual
+              Temporada
+            </Button>
+            <Button
+              variant={syncMode === 'bulk' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSyncMode('bulk')}
+            >
+              <Database className="h-4 w-4 mr-2" />
+              Importação em Massa
             </Button>
             <Button
               variant={syncMode === 'update' ? 'default' : 'outline'}
@@ -505,47 +524,79 @@ export function AnimeCatalogManager() {
               onClick={() => setSyncMode('update')}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Atualizar Existentes
+              Atualizar
             </Button>
           </div>
+
+          {/* Seletor de páginas */}
+          {syncMode !== 'update' && syncMode !== 'bulk' && (
+            <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
+              <Label className="text-sm font-medium">Páginas a buscar:</Label>
+              <div className="flex gap-2">
+                {[2, 4, 8, 12, 20].map((pages) => (
+                  <Button
+                    key={pages}
+                    variant={maxPages === pages ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setMaxPages(pages)}
+                    className="w-12"
+                  >
+                    {pages}
+                  </Button>
+                ))}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                (~{maxPages * 25} animes)
+              </span>
+            </div>
+          )}
 
           {/* Descrição do modo selecionado */}
           <div className="p-3 rounded-lg bg-muted/50">
             {syncMode === 'top' && (
               <p className="text-sm text-muted-foreground">
-                <strong>Top Animes:</strong> Busca os animes mais bem avaliados e populares do MyAnimeList.
-                Ideal para popular o catálogo inicialmente.
+                <strong>Top Score:</strong> Busca os animes mais bem avaliados do MyAnimeList ordenados por nota.
+              </p>
+            )}
+            {syncMode === 'popular' && (
+              <p className="text-sm text-muted-foreground">
+                <strong>Mais Populares:</strong> Busca os animes com mais membros no MyAnimeList, independente da nota.
               </p>
             )}
             {syncMode === 'season' && (
               <p className="text-sm text-muted-foreground">
-                <strong>Temporada Atual:</strong> Busca os animes da temporada atual.
-                Mantém o catálogo atualizado com lançamentos recentes.
+                <strong>Temporada Atual:</strong> Busca os animes lançando na temporada atual (Winter 2026).
+              </p>
+            )}
+            {syncMode === 'bulk' && (
+              <p className="text-sm text-muted-foreground">
+                <strong>Importação em Massa:</strong> Busca animes de 17 gêneros diferentes (Action, Adventure, Comedy, Drama, etc). 
+                Adiciona ~850 animes por execução. <span className="text-yellow-500 font-medium">⚠️ Pode demorar alguns minutos.</span>
               </p>
             )}
             {syncMode === 'update' && (
               <p className="text-sm text-muted-foreground">
                 <strong>Atualizar Existentes:</strong> Atualiza animes que não foram sincronizados nas últimas 24h.
-                Mantém scores e episódios atualizados.
               </p>
             )}
           </div>
 
           {/* Botão de sincronização */}
           <Button
-            onClick={() => syncMutation.mutate(syncMode)}
+            onClick={() => syncMutation.mutate({ mode: syncMode, maxPages })}
             disabled={syncMutation.isPending}
             className="w-full sm:w-auto"
+            size="lg"
           >
             {syncMutation.isPending ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Sincronizando...
+                Sincronizando... (pode demorar)
               </>
             ) : (
               <>
                 <Play className="h-4 w-4 mr-2" />
-                Iniciar Sincronização
+                {syncMode === 'bulk' ? 'Iniciar Importação em Massa' : 'Iniciar Sincronização'}
               </>
             )}
           </Button>

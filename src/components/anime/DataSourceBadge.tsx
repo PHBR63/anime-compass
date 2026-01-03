@@ -1,9 +1,9 @@
 /**
  * Badge indicador de fonte dos dados do anime
- * Mostra de onde os dados foram obtidos (catálogo, Jikan, ou apenas dados locais)
+ * Mostra de onde os dados foram obtidos (catálogo ou cache local)
  */
 
-import { Database, Cloud, HardDrive, AlertCircle } from 'lucide-react';
+import { Database, HardDrive, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -12,7 +12,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-export type DataSource = 'catalog' | 'jikan' | 'local' | 'cache' | null;
+export type DataSource = 'catalog' | 'local' | 'cache' | null;
 
 interface DataSourceBadgeProps {
   source: DataSource;
@@ -36,17 +36,10 @@ const sourceConfig: Record<NonNullable<Exclude<DataSource, null>>, {
     color: 'text-green-500',
     bgColor: 'bg-green-500/20',
   },
-  jikan: {
-    icon: Cloud,
-    label: 'Jikan',
-    description: 'Dados do MyAnimeList via Jikan API (sinopse em inglês)',
-    color: 'text-blue-500',
-    bgColor: 'bg-blue-500/20',
-  },
   local: {
     icon: HardDrive,
     label: 'Local',
-    description: 'Apenas dados básicos salvos localmente',
+    description: 'Dados salvos localmente',
     color: 'text-amber-500',
     bgColor: 'bg-amber-500/20',
   },
@@ -128,7 +121,7 @@ export function LimitedDataBadge({ className }: { className?: string }) {
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-[200px]">
           <p className="text-xs">
-            Dados limitados - Este anime não está no catálogo principal
+            Dados limitados - Este anime não está no catálogo
           </p>
         </TooltipContent>
       </Tooltip>

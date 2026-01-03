@@ -21,6 +21,7 @@ import { DataSourceBadge, type DataSource } from './DataSourceBadge';
 import { useAnimeEntries, useAddAnimeEntry, useUpdateAnimeEntry } from '@/hooks/useAnimeEntries';
 import { useAddProgressHistory } from '@/hooks/useProgressHistory';
 import { useAnimeWithFallback } from '@/hooks/useAnimeWithFallback';
+import { useTranslation } from '@/hooks/useTranslation';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
@@ -71,10 +72,15 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
   const catalogData = catalogAnime || fetchedAnime;
   
   // Dados combinados - PRIORIZA userEntry para preservar dados do usuário
+  const hasSynopsisPt = !!catalogData?.synopsis_pt;
+  const originalSynopsis = catalogData?.synopsis;
+  
   const displayData = {
     mal_id: userEntry?.mal_id || catalogData?.mal_id,
     title: userEntry?.title || catalogData?.title_english || catalogData?.title || '',
     synopsis: catalogData?.synopsis_pt || catalogData?.synopsis,
+    synopsisPt: catalogData?.synopsis_pt,
+    synopsisOriginal: originalSynopsis,
     // Imagem: prioriza userEntry > local_image_url > image_url
     image_url: userEntry?.image_url || catalogData?.local_image_url || catalogData?.image_url,
     score: catalogData?.score,
@@ -86,6 +92,18 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
     type: catalogData?.type,
     rating: catalogData?.rating,
   };
+  
+  // Estado para controlar tradução sob demanda
+  const [wantsTranslation, setWantsTranslation] = useState(false);
+  
+  // Hook de tradução - só ativa se quiser traduzir e não tiver PT-BR
+  const needsTranslation = !hasSynopsisPt && !!originalSynopsis && wantsTranslation;
+  const { data: translatedSynopsis, isLoading: isTranslating, isError: translationError } = useTranslation(
+    needsTranslation ? originalSynopsis : null
+  );
+  
+  // Sinopse final para exibir
+  const finalSynopsis = translatedSynopsis || displayData.synopsis;
 
   // Verifica se já está na lista
   const existingEntry = userEntries?.find(e => e.mal_id === (displayData.mal_id || userEntry?.mal_id));
@@ -455,10 +473,84 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
               <Separator />
 
               {/* Sinopse */}
-              {displayData.synopsis && (
+              {(displayData.synopsis || translatedSynopsis) && (
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Sinopse</h3>
-                  <p className="text-sm leading-relaxed">{displayData.synopsis}</p>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h3 className="text-sm font-medium text-muted-foreground">Sinopse</h3>
+                    
+                    {/* Badge indicando idioma */}
+                    {(hasSynopsisPt || translatedSynopsis) ? (
+                      <Badge variant="outline" className="text-xs gap-1 text-green-600 border-green-600/30 bg-green-500/10">
+                        <Languages className="h-3 w-3" />
+                        PT-BR
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs gap-1 text-amber-600 border-amber-600/30 bg-amber-500/10">
+                        <Languages className="h-3 w-3" />
+                        EN
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {/* Aviso quando não há tradução PT-BR disponível */}
+                  {!hasSynopsisPt && !translatedSynopsis && originalSynopsis && (
+                    <div className="mb-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-amber-600 dark:text-amber-400">
+                            Sinopse disponível apenas em inglês
+                          </p>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="h-auto p-0 mt-1 text-xs text-primary hover:text-primary/80"
+                            onClick={() => setWantsTranslation(true)}
+                            disabled={isTranslating}
+                          >
+                            {isTranslating ? (
+                              <>
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                Traduzindo...
+                              </>
+                            ) : (
+                              <>
+                                <Languages className="h-3 w-3 mr-1" />
+                                Traduzir automaticamente
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Indicador de tradução em andamento */}
+                  {isTranslating && (
+                    <div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Traduzindo sinopse...
+                    </div>
+                  )}
+                  
+                  {/* Erro na tradução */}
+                  {translationError && (
+                    <div className="mb-3 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                      <p className="text-xs text-destructive">
+                        Erro ao traduzir. Tente novamente mais tarde.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Texto da sinopse */}
+                  <p className="text-sm leading-relaxed">{finalSynopsis}</p>
+                  
+                  {/* Indicador de tradução automática */}
+                  {translatedSynopsis && !hasSynopsisPt && (
+                    <p className="text-xs text-muted-foreground mt-2 italic">
+                      Traduzido automaticamente
+                    </p>
+                  )}
                 </div>
               )}
 

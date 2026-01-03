@@ -8,12 +8,13 @@ import { CatalogAnimeCard } from '@/components/anime/CatalogAnimeCard';
 import { 
   useTopAnimes, 
   useSeasonAnimes, 
-  useSearchAnimes, 
-  useAnimesByGenre,
   useAnimeGenres,
   useCatalogStatus,
   POPULAR_GENRES
 } from '@/hooks/useAnimeApi';
+import { useAdvancedAnimeSearch, type DiscoverFilters, type DiscoverSort } from '@/hooks/useAdvancedAnimeFilters';
+import { DiscoverFiltersSheet, ActiveFiltersBadges } from '@/components/anime/DiscoverFilters';
+import { CatalogCoverageBadge } from '@/components/anime/CatalogCoverageIndicator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AnimeDetailModal } from '@/components/anime/AnimeDetailModal';
 import { SakuraPetals, WavePattern } from '@/components/backgrounds';
@@ -26,11 +27,15 @@ import type { CatalogAnime } from '@/types/catalog';
  * Usa API própria do catálogo local (mais rápida e sem rate limit)
  */
 export default function Discover() {
+  // Estados de pesquisa e filtros
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'season' | 'top'>('season');
   const [selectedAnime, setSelectedAnime] = useState<CatalogAnime | null>(null);
+  
+  // Estados de filtros avançados
+  const [advancedFilters, setAdvancedFilters] = useState<DiscoverFilters>({});
+  const [advancedSort, setAdvancedSort] = useState<DiscoverSort>({ field: 'score', order: 'desc' });
   
   // Ref para observar scroll infinito
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -43,13 +48,46 @@ export default function Discover() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Sincroniza busca de texto com filtros avançados
+  useEffect(() => {
+    if (debouncedQuery.length >= 2) {
+      setAdvancedFilters(prev => ({ ...prev, search: debouncedQuery }));
+    } else {
+      setAdvancedFilters(prev => {
+        const { search, ...rest } = prev;
+        return rest;
+      });
+    }
+  }, [debouncedQuery]);
+
   // Buscar gêneros disponíveis do catálogo
   const { data: catalogGenres } = useAnimeGenres();
   
   // Verificar status do catálogo (se está vazio ou populado)
   const { data: catalogStatus, isLoading: loadingStatus } = useCatalogStatus();
 
-  // Hooks de dados com paginação infinita (API própria)
+  // Verifica se há filtros ativos
+  const hasActiveFilters = useMemo(() => Boolean(
+    advancedFilters.search ||
+    advancedFilters.genre ||
+    advancedFilters.studio ||
+    advancedFilters.yearMin ||
+    advancedFilters.yearMax ||
+    advancedFilters.type ||
+    advancedFilters.status ||
+    advancedFilters.scoreMin
+  ), [advancedFilters]);
+
+  // Hook de busca avançada
+  const {
+    data: advancedSearchData,
+    fetchNextPage: fetchNextAdvanced,
+    hasNextPage: hasNextAdvanced,
+    isFetchingNextPage: isFetchingAdvanced,
+    isLoading: loadingAdvanced
+  } = useAdvancedAnimeSearch(advancedFilters, advancedSort);
+
+  // Hooks de dados padrão com paginação infinita
   const {
     data: topAnimesData,
     fetchNextPage: fetchNextTop,
@@ -66,22 +104,6 @@ export default function Discover() {
     isLoading: loadingSeason
   } = useSeasonAnimes();
 
-  const {
-    data: searchData,
-    fetchNextPage: fetchNextSearch,
-    hasNextPage: hasNextSearch,
-    isFetchingNextPage: isFetchingSearch,
-    isLoading: loadingSearch
-  } = useSearchAnimes(debouncedQuery);
-
-  const {
-    data: genreData,
-    fetchNextPage: fetchNextGenre,
-    hasNextPage: hasNextGenre,
-    isFetchingNextPage: isFetchingGenre,
-    isLoading: loadingGenre
-  } = useAnimesByGenre(selectedGenre);
-
   // Função memoizada para remover duplicatas por mal_id
   const removeDuplicates = useCallback((animes: CatalogAnime[]): CatalogAnime[] => {
     const seen = new Set<number>();
@@ -95,6 +117,11 @@ export default function Discover() {
   }, []);
 
   // Flatten dos dados paginados e remoção de duplicatas - MEMOIZADO
+  const advancedAnimes = useMemo(() => 
+    removeDuplicates(advancedSearchData?.pages.flatMap(page => page.data) || []),
+    [advancedSearchData, removeDuplicates]
+  );
+
   const topAnimes = useMemo(() => 
     removeDuplicates(topAnimesData?.pages.flatMap(page => page.data) || []),
     [topAnimesData, removeDuplicates]
@@ -104,37 +131,19 @@ export default function Discover() {
     removeDuplicates(seasonAnimesData?.pages.flatMap(page => page.data) || []),
     [seasonAnimesData, removeDuplicates]
   );
-  
-  const searchAnimes = useMemo(() => 
-    removeDuplicates(searchData?.pages.flatMap(page => page.data) || []),
-    [searchData, removeDuplicates]
-  );
-  
-  const genreAnimes = useMemo(() => 
-    removeDuplicates(genreData?.pages.flatMap(page => page.data) || []),
-    [genreData, removeDuplicates]
-  );
-
-  // Verifica estados - MEMOIZADO
-  const isSearching = useMemo(() => debouncedQuery.length >= 2, [debouncedQuery]);
-  const isFilteringByGenre = useMemo(() => selectedGenre !== null, [selectedGenre]);
 
   // Determina qual função de carregar mais usar - MEMOIZADO
   const loadMoreConfig = useMemo(() => {
-    if (isSearching) {
-      return { fetch: fetchNextSearch, hasNext: hasNextSearch, isFetching: isFetchingSearch };
-    }
-    if (isFilteringByGenre) {
-      return { fetch: fetchNextGenre, hasNext: hasNextGenre, isFetching: isFetchingGenre };
+    if (hasActiveFilters) {
+      return { fetch: fetchNextAdvanced, hasNext: hasNextAdvanced, isFetching: isFetchingAdvanced };
     }
     if (activeTab === 'top') {
       return { fetch: fetchNextTop, hasNext: hasNextTop, isFetching: isFetchingTop };
     }
     return { fetch: fetchNextSeason, hasNext: hasNextSeason, isFetching: isFetchingSeason };
   }, [
-    isSearching, isFilteringByGenre, activeTab,
-    fetchNextSearch, hasNextSearch, isFetchingSearch,
-    fetchNextGenre, hasNextGenre, isFetchingGenre,
+    hasActiveFilters, activeTab,
+    fetchNextAdvanced, hasNextAdvanced, isFetchingAdvanced,
     fetchNextTop, hasNextTop, isFetchingTop,
     fetchNextSeason, hasNextSeason, isFetchingSeason
   ]);
@@ -157,29 +166,29 @@ export default function Discover() {
     return () => observer.disconnect();
   }, [loadMoreConfig]);
 
-  // Gêneros para exibir nos filtros (usa catálogo ou fallback)
+  // Gêneros para exibir nos filtros rápidos
   const displayGenres = useMemo(() => {
     if (catalogGenres && catalogGenres.length > 0) {
-      // Usar gêneros do catálogo ordenados por contagem
-      return catalogGenres.slice(0, 12).map(g => ({ id: g.mal_id, name: g.name }));
+      return catalogGenres.slice(0, 8).map(g => ({ id: g.mal_id, name: g.name }));
     }
-    // Fallback para gêneros populares
-    return POPULAR_GENRES.map(g => ({ id: g.mal_id, name: g.name }));
+    return POPULAR_GENRES.slice(0, 8).map(g => ({ id: g.mal_id, name: g.name }));
   }, [catalogGenres]);
 
   // Funções de controle - MEMOIZADAS
   const handleGenreClick = useCallback((genreId: number) => {
-    if (selectedGenre === genreId) {
-      setSelectedGenre(null);
-    } else {
-      setSelectedGenre(genreId);
+    setAdvancedFilters(prev => ({
+      ...prev,
+      genre: prev.genre === genreId ? undefined : genreId
+    }));
+    // Limpa busca por texto ao selecionar gênero
+    if (advancedFilters.genre !== genreId) {
       setSearchQuery('');
       setDebouncedQuery('');
     }
-  }, [selectedGenre]);
+  }, [advancedFilters.genre]);
 
   const clearFilters = useCallback(() => {
-    setSelectedGenre(null);
+    setAdvancedFilters({});
     setSearchQuery('');
     setDebouncedQuery('');
   }, []);
@@ -237,32 +246,33 @@ export default function Discover() {
     );
   }, [loadMoreConfig]);
 
-  // Destaques memoizados
-  const highlightAnimes = useMemo(() => seasonAnimes.slice(0, 3), [seasonAnimes]);
-
   // Encontrar nome do gênero selecionado
   const selectedGenreName = useMemo(() => {
-    if (!selectedGenre) return 'Gênero';
-    const genre = displayGenres.find(g => g.id === selectedGenre);
-    return genre?.name || 'Gênero';
-  }, [selectedGenre, displayGenres]);
-
-  // Helper para obter URL da imagem do anime
-  const getAnimeImage = (anime: CatalogAnime) => {
-    return anime.local_image_url || anime.image_url || '/placeholder.svg';
-  };
-
-  // Helper para obter sinopse do anime (prioriza PT-BR)
-  const getAnimeSynopsis = (anime: CatalogAnime) => {
-    return anime.synopsis_pt || anime.synopsis || 'Sem sinopse disponível';
-  };
+    if (!advancedFilters.genre) return null;
+    const genre = displayGenres.find(g => g.id === advancedFilters.genre);
+    return genre?.name || null;
+  }, [advancedFilters.genre, displayGenres]);
 
   // Verifica se o catálogo está vazio
   const isCatalogEmpty = catalogStatus && !catalogStatus.isPopulated;
   const catalogCount = catalogStatus?.totalAnimes || 0;
 
+  // Título da seção baseado nos filtros
+  const sectionTitle = useMemo(() => {
+    if (advancedFilters.search) {
+      return `Resultados para "${advancedFilters.search}"`;
+    }
+    if (selectedGenreName) {
+      return `Animes de ${selectedGenreName}`;
+    }
+    if (hasActiveFilters) {
+      return 'Resultados da Busca';
+    }
+    return null;
+  }, [advancedFilters.search, selectedGenreName, hasActiveFilters]);
+
   return (
-    <div className="relative space-y-8 pt-12 md:pt-0 pb-8 min-h-screen">
+    <div className="relative space-y-6 pt-12 md:pt-0 pb-8 min-h-screen">
       {/* Backgrounds orientais */}
       <div className="fixed inset-0 -z-10 pointer-events-none opacity-40">
         <SakuraPetals petalCount={15} opacity={0.5} colors={['hsl(350, 100%, 85%)', 'hsl(var(--primary))']} />
@@ -278,8 +288,15 @@ export default function Discover() {
             Descubra Novos <NeonText color="primary">Animes</NeonText>
           </h1>
           <p className="text-muted-foreground">
-            Explore animes do catálogo e adicione à sua lista
+            Explore o catálogo com {catalogCount > 0 ? catalogCount.toLocaleString() : 'milhares de'} animes
           </p>
+        </div>
+      </AnimatedContent>
+
+      {/* Indicador de cobertura */}
+      <AnimatedContent direction="up" delay={0.05}>
+        <div className="flex justify-center">
+          <CatalogCoverageBadge />
         </div>
       </AnimatedContent>
 
@@ -291,39 +308,56 @@ export default function Discover() {
             <AlertTitle className="text-warning">Catálogo em Sincronização</AlertTitle>
             <AlertDescription className="text-muted-foreground">
               O catálogo de animes está sendo sincronizado. Em breve você poderá explorar milhares de títulos aqui.
-              Enquanto isso, você pode adicionar animes manualmente à sua lista.
             </AlertDescription>
           </Alert>
         </AnimatedContent>
       )}
 
-      {/* Barra de pesquisa */}
+      {/* Barra de pesquisa e filtros */}
       <AnimatedContent direction="up" delay={0.1}>
-        <div className="max-w-2xl mx-auto">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por título..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              className="pl-12 h-14 text-lg bg-secondary/50 border-border/50 rounded-xl"
+        <div className="max-w-3xl mx-auto space-y-3">
+          <div className="flex gap-2">
+            {/* Campo de busca */}
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por título..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                className="pl-12 h-12 text-base bg-secondary/50 border-border/50 rounded-xl"
+              />
+              {loadingAdvanced && debouncedQuery && (
+                <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-primary" />
+              )}
+            </div>
+            
+            {/* Botão de filtros avançados */}
+            <DiscoverFiltersSheet
+              filters={advancedFilters}
+              sort={advancedSort}
+              onFiltersChange={setAdvancedFilters}
+              onSortChange={setAdvancedSort}
+              onClear={clearFilters}
             />
-            {loadingSearch && debouncedQuery && (
-              <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-primary" />
-            )}
           </div>
+
+          {/* Badges de filtros ativos */}
+          <ActiveFiltersBadges 
+            filters={advancedFilters} 
+            onFiltersChange={setAdvancedFilters} 
+          />
         </div>
       </AnimatedContent>
 
-      {/* Filtros de gênero */}
+      {/* Filtros rápidos de gênero */}
       <AnimatedContent direction="up" delay={0.2}>
         <div className="flex flex-wrap justify-center gap-2">
           {displayGenres.map((genre) => (
             <Badge
               key={genre.id}
-              variant={selectedGenre === genre.id ? "default" : "outline"}
-              className={`px-4 py-2 text-sm cursor-pointer transition-colors ${
-                selectedGenre === genre.id 
+              variant={advancedFilters.genre === genre.id ? "default" : "outline"}
+              className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                advancedFilters.genre === genre.id 
                   ? 'bg-primary text-primary-foreground' 
                   : 'hover:bg-primary/10 hover:border-primary/50'
               }`}
@@ -332,10 +366,10 @@ export default function Discover() {
               {genre.name}
             </Badge>
           ))}
-          {(isSearching || isFilteringByGenre) && (
+          {hasActiveFilters && (
             <Badge
               variant="secondary"
-              className="px-4 py-2 text-sm cursor-pointer hover:bg-destructive/20"
+              className="px-3 py-1.5 text-sm cursor-pointer hover:bg-destructive/20"
               onClick={clearFilters}
             >
               Limpar Filtros
@@ -344,76 +378,48 @@ export default function Discover() {
         </div>
       </AnimatedContent>
 
-      {/* Resultados da pesquisa */}
-      {isSearching && (
-        <section>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <Search className="h-5 w-5 text-primary" />
-              <h2 className="font-zen text-xl font-semibold">
-                Resultados para "{debouncedQuery}"
-              </h2>
-            </div>
-            <span className="text-sm text-muted-foreground">
-              {searchAnimes.length} encontrados
-            </span>
-          </div>
-          
-          {loadingSearch ? (
-            <LoadingSkeleton count={12} />
-          ) : searchAnimes.length > 0 ? (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {searchAnimes.map((anime) => (
-                  <CatalogAnimeCard key={anime.mal_id} anime={anime} />
-                ))}
-              </div>
-              <LoadMoreButton />
-            </>
-          ) : (
-            <p className="text-center text-muted-foreground py-8">
-              Nenhum resultado encontrado para "{debouncedQuery}"
-            </p>
-          )}
-        </section>
-      )}
-
-      {/* Animes por gênero */}
-      {isFilteringByGenre && !isSearching && (
+      {/* Resultados com filtros */}
+      {hasActiveFilters && (
         <section>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Filter className="h-5 w-5 text-primary" />
               <h2 className="font-zen text-xl font-semibold">
-                {selectedGenreName}
+                {sectionTitle}
               </h2>
             </div>
             <span className="text-sm text-muted-foreground">
-              {genreAnimes.length} animes
+              {advancedAnimes.length} encontrados
             </span>
           </div>
           
-          {loadingGenre ? (
+          {loadingAdvanced ? (
             <LoadingSkeleton count={12} />
-          ) : genreAnimes.length > 0 ? (
+          ) : advancedAnimes.length > 0 ? (
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {genreAnimes.map((anime) => (
+                {advancedAnimes.map((anime) => (
                   <CatalogAnimeCard key={anime.mal_id} anime={anime} />
                 ))}
               </div>
               <LoadMoreButton />
             </>
           ) : (
-            <p className="text-center text-muted-foreground py-8">
-              Nenhum anime encontrado neste gênero
-            </p>
+            <div className="text-center py-12">
+              <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <p className="text-muted-foreground">
+                Nenhum anime encontrado com esses filtros
+              </p>
+              <Button variant="outline" onClick={clearFilters} className="mt-4">
+                Limpar Filtros
+              </Button>
+            </div>
           )}
         </section>
       )}
 
-      {/* Seções padrão (quando não há pesquisa ou filtro) */}
-      {!isSearching && !isFilteringByGenre && (
+      {/* Seções padrão (quando não há filtros ativos) */}
+      {!hasActiveFilters && (
         <>
           {/* Tabs de navegação */}
           <div className="flex justify-center gap-2">
@@ -491,70 +497,15 @@ export default function Discover() {
               )}
             </section>
           )}
-
-          {/* Separador decorativo Torii antes dos destaques */}
-          {activeTab === 'season' && highlightAnimes.length > 0 && <ToriiDivider variant="gradient" />}
-
-          {/* Destaques da temporada */}
-          {activeTab === 'season' && highlightAnimes.length > 0 && (
-            <section>
-              <div className="flex items-center gap-2 mb-6">
-                <Sparkles className="h-5 w-5 text-warning" />
-                <h2 className="font-zen text-xl font-semibold">Destaques</h2>
-              </div>
-              
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {highlightAnimes.map((anime, index) => (
-                  <div
-                    key={`highlight-${anime.mal_id}`}
-                    className="glass-card p-4 flex gap-4 hover:border-primary/30 transition-colors cursor-pointer animate-slide-up"
-                    style={{ 
-                      animationDelay: `${index * 100}ms`,
-                      borderImage: 'linear-gradient(135deg, hsl(var(--sakura)/0.3), hsl(var(--kintsugi)/0.3)) 1'
-                    }}
-                    onClick={() => handleSelectAnime(anime)}
-                  >
-                    <img
-                      src={getAnimeImage(anime)}
-                      alt={anime.title}
-                      className="w-20 h-28 object-cover rounded-lg"
-                      loading="lazy"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold line-clamp-1">{anime.title_english || anime.title}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                        {getAnimeSynopsis(anime)}
-                      </p>
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {anime.genres?.slice(0, 2).map((genre) => (
-                          <Badge key={genre.mal_id} variant="secondary" className="text-xs">
-                            {genre.name}
-                          </Badge>
-                        ))}
-                      </div>
-                      {anime.score && (
-                        <p className="text-xs text-primary mt-2 flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-primary" />
-                          Nota: {Number(anime.score).toFixed(1)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
         </>
       )}
 
       {/* Modal de detalhes */}
-      {selectedAnime && (
-        <AnimeDetailModal
-          open={!!selectedAnime}
-          onOpenChange={handleCloseModal}
-          catalogAnime={selectedAnime}
-        />
-      )}
+      <AnimeDetailModal
+        catalogAnime={selectedAnime || undefined}
+        open={!!selectedAnime}
+        onOpenChange={handleCloseModal}
+      />
     </div>
   );
 }

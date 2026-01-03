@@ -183,6 +183,22 @@ function getTypeIcon(type: string) {
 /**
  * Componente principal de status da FreeAPI
  */
+/**
+ * Interface para progresso de importação paginada
+ */
+interface ImportProgress {
+  isRunning: boolean;
+  page: number;
+  totalPages: number;
+  processed: number;
+  total: number;
+  startTime: Date | null;
+  isPaused: boolean;
+}
+
+/**
+ * Componente principal de status da FreeAPI
+ */
 export function FreeApiStatus() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [importLogs, setImportLogs] = useState<string[]>([]);
@@ -191,13 +207,15 @@ export function FreeApiStatus() {
     // Persistir preferência de auto-sync
     return localStorage.getItem("admin-auto-image-sync") === "true";
   });
-  const [importProgress, setImportProgress] = useState<{
-    isRunning: boolean;
-    total: number;
-    processed: number;
-    currentBatch: number;
-    startTime: Date | null;
-  }>({ isRunning: false, total: 0, processed: 0, currentBatch: 0, startTime: null });
+  const [importProgress, setImportProgress] = useState<ImportProgress>({
+    isRunning: false,
+    page: 0,
+    totalPages: 0,
+    processed: 0,
+    total: 0,
+    startTime: null,
+    isPaused: false
+  });
   const queryClient = useQueryClient();
   
   const { data: stats, isLoading, error, refetch } = useQuery({
@@ -242,7 +260,7 @@ export function FreeApiStatus() {
   }, [autoSync]);
 
   // Query para monitorar status da importação (polling enquanto em execução)
-  const { data: importStatus } = useQuery({
+  const { data: importStatus, refetch: refetchImportStatus } = useQuery({
     queryKey: ["import-status"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("import-catalog", {
@@ -251,57 +269,132 @@ export function FreeApiStatus() {
       if (error) throw error;
       return data?.data;
     },
-    refetchInterval: importProgress.isRunning ? 2000 : false, // Poll a cada 2s durante importação
-    enabled: importProgress.isRunning,
+    refetchInterval: importProgress.isRunning ? 2000 : 30000,
   });
 
-  // Mutation para importação completa
+  // Mutation para importação completa paginada (uma página por vez)
   const fullImportMutation = useMutation({
-    mutationFn: async () => {
-      // Marca início da importação
-      setImportProgress({
-        isRunning: true,
-        total: 13400, // Estimativa baseada na API externa
-        processed: 0,
-        currentBatch: 0,
-        startTime: new Date()
-      });
-      setImportLogs(["🚀 Iniciando importação completa..."]);
-      
+    mutationFn: async (page: number = 1) => {
       const { data, error } = await supabase.functions.invoke("import-catalog", {
-        body: { mode: "full" }
+        body: { mode: "full", page }
       });
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
-      setImportProgress(prev => ({ ...prev, isRunning: false }));
+    onSuccess: (data, page) => {
       if (data.success) {
-        const stats = data.data?.stats;
-        toast.success(`Importação concluída: ${stats?.inserted || 0} animes em ${stats?.batches || 0} batches`);
-        setImportLogs(data.data?.logs || []);
-        queryClient.invalidateQueries({ queryKey: ["freeapi-stats"] });
-        refetch();
+        const progress = data.data?.progress;
+        const logs = data.data?.logs || [];
+        
+        // Atualiza logs
+        setImportLogs(prev => [...prev.slice(-20), ...logs]);
+        
+        // Atualiza progresso
+        setImportProgress(prev => ({
+          ...prev,
+          isRunning: data.continue,
+          page: progress?.page || page,
+          totalPages: progress?.totalPages || 0,
+          processed: progress?.processed || 0,
+          total: progress?.total || 0,
+        }));
+        
+        // Se houver mais páginas e não estiver pausado, continua automaticamente
+        if (data.continue && !importProgress.isPaused) {
+          const nextPage = (progress?.page || page) + 1;
+          // Pequeno delay para não sobrecarregar
+          setTimeout(() => {
+            fullImportMutation.mutate(nextPage);
+          }, 500);
+        } else if (!data.continue) {
+          // Importação concluída
+          toast.success(`🎉 Importação completa! ${progress?.processed || 0} animes importados`);
+          setImportProgress(prev => ({ ...prev, isRunning: false }));
+          queryClient.invalidateQueries({ queryKey: ["freeapi-stats"] });
+          refetch();
+        }
       } else {
         toast.error("Falha na importação");
-        setImportLogs(data.data?.logs || []);
+        setImportLogs(prev => [...prev, `❌ Erro: ${data.error?.message || 'Desconhecido'}`]);
+        setImportProgress(prev => ({ ...prev, isRunning: false }));
       }
     },
     onError: (error) => {
-      setImportProgress(prev => ({ ...prev, isRunning: false }));
       toast.error(`Erro: ${error.message}`);
+      setImportLogs(prev => [...prev, `❌ Erro: ${error.message}`]);
+      setImportProgress(prev => ({ ...prev, isRunning: false }));
     }
   });
+
+  // Função para iniciar importação completa
+  const startFullImport = () => {
+    setImportProgress({
+      isRunning: true,
+      page: 0,
+      totalPages: 0,
+      processed: 0,
+      total: 0,
+      startTime: new Date(),
+      isPaused: false
+    });
+    setImportLogs(["🚀 Iniciando importação completa paginada..."]);
+    fullImportMutation.mutate(1);
+  };
+
+  // Função para pausar/retomar importação
+  const togglePauseImport = () => {
+    if (importProgress.isPaused) {
+      // Retoma
+      setImportProgress(prev => ({ ...prev, isPaused: false }));
+      setImportLogs(prev => [...prev, "▶️ Retomando importação..."]);
+      fullImportMutation.mutate(importProgress.page + 1);
+    } else {
+      // Pausa
+      setImportProgress(prev => ({ ...prev, isPaused: true }));
+      setImportLogs(prev => [...prev, "⏸️ Importação pausada pelo usuário"]);
+    }
+  };
+
+  // Função para resetar estado travado
+  const resetImportState = async () => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/import-catalog?action=reset`,
+        {
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          }
+        }
+      );
+      if (!response.ok) throw new Error('Falha ao resetar');
+      toast.success("Estado resetado com sucesso!");
+      setImportProgress({
+        isRunning: false,
+        page: 0,
+        totalPages: 0,
+        processed: 0,
+        total: 0,
+        startTime: null,
+        isPaused: false
+      });
+      setImportLogs(prev => [...prev, "🔄 Estado resetado"]);
+      refetchImportStatus();
+    } catch (error) {
+      toast.error(`Erro ao resetar: ${error instanceof Error ? error.message : 'Desconhecido'}`);
+    }
+  };
 
   // Mutation para sincronização delta
   const deltaSyncMutation = useMutation({
     mutationFn: async () => {
       setImportProgress({
         isRunning: true,
-        total: 0,
+        page: 0,
+        totalPages: 0,
         processed: 0,
-        currentBatch: 0,
-        startTime: new Date()
+        total: 0,
+        startTime: new Date(),
+        isPaused: false
       });
       setImportLogs(["🔄 Iniciando sincronização delta..."]);
       
@@ -516,69 +609,155 @@ export function FreeApiStatus() {
       </div>
 
       {/* Ações de Importação */}
-      <Card className={`border-primary/20 bg-gradient-to-r from-primary/5 to-transparent ${isImporting ? 'ring-2 ring-primary/50 animate-pulse' : ''}`}>
+      <Card className={`border-primary/20 bg-gradient-to-r from-primary/5 to-transparent ${isImporting ? 'ring-2 ring-primary/50' : ''}`}>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Download className="h-5 w-5 text-primary" />
             Importar Catálogo Externo
-            {isImporting && (
+            {isImporting && !importProgress.isPaused && (
               <Badge variant="default" className="ml-2 bg-primary animate-pulse">
                 Em andamento
               </Badge>
             )}
+            {importProgress.isPaused && (
+              <Badge variant="secondary" className="ml-2">
+                <Pause className="h-3 w-3 mr-1" />
+                Pausado
+              </Badge>
+            )}
+            {importStatus?.is_stalled && (
+              <Badge variant="destructive" className="ml-2">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Travado
+              </Badge>
+            )}
           </CardTitle>
           <CardDescription>
-            Importe animes de uma API externa com 13.400+ títulos
+            Importe animes de uma API externa com 13.400+ títulos (paginado, retomável)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Progresso em tempo real */}
-          {isImporting && (
-            <div className="p-4 rounded-lg bg-primary/10 border border-primary/20 space-y-3">
+          {/* Progresso em tempo real paginado */}
+          {(isImporting || importProgress.page > 0) && (
+            <div className={`p-4 rounded-lg border space-y-3 ${importProgress.isPaused ? 'bg-muted/50 border-muted' : 'bg-primary/10 border-primary/20'}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                  <span className="font-medium text-foreground">Importando...</span>
-                </div>
-                <Badge variant="outline" className="gap-1">
-                  <Clock className="h-3 w-3" />
-                  {getElapsedTime()}
-                </Badge>
-              </div>
-              
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Progresso estimado</span>
-                  <span className="font-medium">
-                    {importStatus?.catalog_size?.toLocaleString("pt-BR") || "..."} animes no catálogo
+                  {isImporting && !importProgress.isPaused ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  ) : importProgress.isPaused ? (
+                    <Pause className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  )}
+                  <span className="font-medium text-foreground">
+                    {isImporting && !importProgress.isPaused 
+                      ? `Importando página ${importProgress.page} de ${importProgress.totalPages || '?'}...`
+                      : importProgress.isPaused 
+                        ? 'Importação pausada' 
+                        : 'Importação concluída'}
                   </span>
                 </div>
-                <Progress value={undefined} className="h-2 animate-pulse" />
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="gap-1 font-mono">
+                    {importProgress.processed.toLocaleString("pt-BR")} / {importProgress.total.toLocaleString("pt-BR")}
+                  </Badge>
+                  <Badge variant="secondary" className="gap-1">
+                    <Clock className="h-3 w-3" />
+                    {getElapsedTime()}
+                  </Badge>
+                </div>
               </div>
               
-              <p className="text-xs text-muted-foreground">
-                A importação está processando os dados em batches. Aguarde a conclusão...
+              <Progress 
+                value={importProgress.total > 0 ? (importProgress.processed / importProgress.total) * 100 : 0} 
+                className="h-3" 
+              />
+              
+              <div className="flex flex-wrap justify-between text-xs text-muted-foreground gap-2">
+                <span>
+                  📄 Página {importProgress.page} / {importProgress.totalPages || '?'}
+                </span>
+                <span>
+                  {importProgress.total > 0 
+                    ? `${Math.round((importProgress.processed / importProgress.total) * 100)}% concluído`
+                    : 'Calculando...'}
+                </span>
+                <span>
+                  📦 {importStatus?.catalog_size?.toLocaleString("pt-BR") || '...'} no catálogo local
+                </span>
+              </div>
+              
+              {/* Estimativa de tempo restante */}
+              {importProgress.processed > 0 && importProgress.startTime && importProgress.total > importProgress.processed && (
+                <div className="pt-2 border-t border-primary/20">
+                  <p className="text-xs text-muted-foreground">
+                    ⏱️ Estimativa: ~{Math.ceil(
+                      ((importProgress.total - importProgress.processed) / importProgress.processed) * 
+                      ((Date.now() - importProgress.startTime.getTime()) / 60000)
+                    )} min restantes
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Alerta de estado travado */}
+          {importStatus?.is_stalled && (
+            <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/30 space-y-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                <span className="font-medium text-foreground">Importação travada detectada</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                O processo anterior foi interrompido inesperadamente (página {importStatus.current_page}). 
+                Clique em "Resetar" para limpar o estado e iniciar uma nova importação.
               </p>
+              <Button
+                onClick={resetImportState}
+                variant="outline"
+                className="gap-2 border-orange-500/50 hover:bg-orange-500/10"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Resetar Estado
+              </Button>
             </div>
           )}
           
           <div className="flex flex-wrap gap-3">
-            <Button
-              onClick={() => fullImportMutation.mutate()}
-              disabled={isImporting}
-              className="gap-2"
-            >
-              {fullImportMutation.isPending || (isImporting && !deltaSyncMutation.isPending) ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
+            {/* Botão Iniciar/Pausar/Retomar */}
+            {!isImporting && !importProgress.isPaused ? (
+              <Button
+                onClick={startFullImport}
+                disabled={isImporting || importStatus?.is_stalled}
+                className="gap-2"
+              >
                 <Play className="h-4 w-4" />
-              )}
-              Importação Completa
-            </Button>
+                Importação Completa
+              </Button>
+            ) : (
+              <Button
+                onClick={togglePauseImport}
+                variant={importProgress.isPaused ? "default" : "secondary"}
+                className="gap-2"
+              >
+                {importProgress.isPaused ? (
+                  <>
+                    <Play className="h-4 w-4" />
+                    Retomar
+                  </>
+                ) : (
+                  <>
+                    <Pause className="h-4 w-4" />
+                    Pausar
+                  </>
+                )}
+              </Button>
+            )}
+            
             <Button
               variant="secondary"
               onClick={() => deltaSyncMutation.mutate()}
-              disabled={isImporting}
+              disabled={isImporting || importStatus?.is_stalled}
               className="gap-2"
             >
               {deltaSyncMutation.isPending ? (
@@ -594,11 +773,11 @@ export function FreeApiStatus() {
           {importLogs.length > 0 && (
             <div className="mt-4 p-3 bg-muted/50 rounded-lg max-h-48 overflow-y-auto">
               <p className="text-xs font-medium text-muted-foreground mb-2">
-                Logs {isImporting && <span className="animate-pulse">(atualizando...)</span>}:
+                Logs {isImporting && !importProgress.isPaused && <span className="animate-pulse">(em tempo real)</span>}:
               </p>
               <div className="space-y-1 text-xs font-mono">
                 {importLogs.slice(-15).map((log, i) => (
-                  <p key={i} className={`${log.includes('❌') ? 'text-destructive' : log.includes('✅') ? 'text-green-500' : 'text-muted-foreground'}`}>
+                  <p key={i} className={`${log.includes('❌') ? 'text-destructive' : log.includes('✅') || log.includes('🎉') ? 'text-green-500' : 'text-muted-foreground'}`}>
                     {log}
                   </p>
                 ))}

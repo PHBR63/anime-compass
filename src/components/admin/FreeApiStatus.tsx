@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Database, 
   Image, 
@@ -15,7 +15,10 @@ import {
   Calendar,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  Download,
+  ArrowRightLeft,
+  Play
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +28,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FREEAPI_URL } from "@/lib/apiConfig";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 /**
  * Interface para estatísticas da FreeAPI
@@ -149,6 +154,8 @@ function getTypeIcon(type: string) {
  */
 export function FreeApiStatus() {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [importLogs, setImportLogs] = useState<string[]>([]);
+  const queryClient = useQueryClient();
   
   const { data: stats, isLoading, error, refetch } = useQuery({
     queryKey: ["freeapi-stats"],
@@ -156,6 +163,60 @@ export function FreeApiStatus() {
     staleTime: 5 * 60 * 1000, // 5 minutos
     refetchInterval: 60 * 1000, // Atualiza a cada minuto
   });
+
+  // Mutation para importação completa
+  const fullImportMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("import-catalog", {
+        body: { mode: "full" }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success(`Importação concluída: ${data.data?.stats?.inserted || 0} animes importados`);
+        setImportLogs(data.data?.logs || []);
+        queryClient.invalidateQueries({ queryKey: ["freeapi-stats"] });
+        refetch();
+      } else {
+        toast.error("Falha na importação");
+        setImportLogs(data.data?.logs || []);
+      }
+    },
+    onError: (error) => {
+      toast.error(`Erro: ${error.message}`);
+    }
+  });
+
+  // Mutation para sincronização delta
+  const deltaSyncMutation = useMutation({
+    mutationFn: async () => {
+      // Usa última sincronização como referência
+      const since = stats?.last_sync || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase.functions.invoke("import-catalog", {
+        body: { mode: "delta", since }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success(`Sync concluído: ${data.data?.stats?.inserted || 0} atualizações`);
+        setImportLogs(data.data?.logs || []);
+        queryClient.invalidateQueries({ queryKey: ["freeapi-stats"] });
+        refetch();
+      } else {
+        toast.error("Falha no sync");
+        setImportLogs(data.data?.logs || []);
+      }
+    },
+    onError: (error) => {
+      toast.error(`Erro: ${error.message}`);
+    }
+  });
+
+  const isImporting = fullImportMutation.isPending || deltaSyncMutation.isPending;
 
   // Handler para atualizar manualmente
   const handleRefresh = async () => {
@@ -237,7 +298,7 @@ export function FreeApiStatus() {
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="gap-1.5">
             <Clock className="h-3 w-3" />
             Atualizado {lastSyncText}
@@ -246,7 +307,7 @@ export function FreeApiStatus() {
             variant="outline" 
             size="sm" 
             onClick={handleRefresh}
-            disabled={isRefreshing}
+            disabled={isRefreshing || isImporting}
           >
             {isRefreshing ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -257,6 +318,60 @@ export function FreeApiStatus() {
           </Button>
         </div>
       </div>
+
+      {/* Ações de Importação */}
+      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Download className="h-5 w-5 text-primary" />
+            Importar Catálogo Externo
+          </CardTitle>
+          <CardDescription>
+            Importe animes de uma API externa com 13.400+ títulos
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-3">
+            <Button
+              onClick={() => fullImportMutation.mutate()}
+              disabled={isImporting}
+              className="gap-2"
+            >
+              {fullImportMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4" />
+              )}
+              Importação Completa
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => deltaSyncMutation.mutate()}
+              disabled={isImporting}
+              className="gap-2"
+            >
+              {deltaSyncMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowRightLeft className="h-4 w-4" />
+              )}
+              Sincronizar Atualizações
+            </Button>
+          </div>
+          
+          {/* Logs de importação */}
+          {importLogs.length > 0 && (
+            <div className="mt-4 p-3 bg-muted/50 rounded-lg max-h-40 overflow-y-auto">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Logs:</p>
+              <div className="space-y-1 text-xs font-mono">
+                {importLogs.slice(-10).map((log, i) => (
+                  <p key={i} className="text-muted-foreground">{log}</p>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Cards de estatísticas principais */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -25,7 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCommunityReviews, useToggleReviewReaction, type Review } from '@/hooks/useReviews';
-import { useAnimeDetails } from '@/hooks/useJikanApi';
+import { useAnimeDetails } from '@/hooks/useAnimeApi';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { GradientText, AnimatedContent, SpotlightCard } from '@/components/animations';
@@ -84,9 +84,7 @@ function ReviewStats({ reviews }: { reviews: Review[] | undefined }) {
 }
 
 /**
- * Card de preview do anime com dados da Jikan API
- * @param malId - ID do anime no MyAnimeList
- * @param onClick - Handler para clique no card (abre modal de detalhes)
+ * Card de preview do anime com dados da API do catálogo
  */
 function AnimePreviewCard({ malId, onClick }: { malId: number; onClick?: () => void }) {
   const { data: response, isLoading, isError } = useAnimeDetails(malId);
@@ -134,7 +132,8 @@ function AnimePreviewCard({ malId, onClick }: { malId: number; onClick?: () => v
   }
 
   // Pegar os 2 primeiros gêneros
-  const genres = anime.genres?.slice(0, 2).map((g: { name: string }) => g.name) || [];
+  const genres = (anime.genres as { mal_id: number; name: string }[] | null)?.slice(0, 2).map(g => g.name) || [];
+  const imageUrl = anime.local_image_url || anime.image_url;
 
   return (
     <TooltipProvider>
@@ -148,7 +147,7 @@ function AnimePreviewCard({ malId, onClick }: { malId: number; onClick?: () => v
               {/* Imagem do anime */}
               <div className="relative w-16 md:w-20 flex-shrink-0">
                 <img
-                  src={anime.images?.jpg?.image_url || anime.images?.jpg?.large_image_url}
+                  src={imageUrl || '/placeholder.svg'}
                   alt={anime.title}
                   className="w-full h-24 md:h-28 object-cover rounded-lg shadow-md"
                 />
@@ -200,7 +199,6 @@ function AnimePreviewCard({ malId, onClick }: { malId: number; onClick?: () => v
 
 /**
  * Card de review individual para o feed da comunidade
- * @param onAnimeClick - Handler para clique no card do anime
  */
 function CommunityReviewCard({ review, index, onAnimeClick }: { review: Review; index: number; onAnimeClick: (malId: number) => void }) {
   const { user } = useAuth();
@@ -460,12 +458,12 @@ function ReviewSkeleton() {
  * Página de Reviews da Comunidade
  */
 export default function Reviews() {
-  const [orderBy, setOrderBy] = useState<'recent' | 'popular'>('recent');
+  const { data: reviews, isLoading } = useCommunityReviews();
+  const [sortBy, setSortBy] = useState<'recent' | 'likes' | 'rating'>('recent');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMalId, setSelectedMalId] = useState<number | null>(null);
-  const { data: reviews, isLoading } = useCommunityReviews({ orderBy, limit: 50 });
 
-  // Filtra reviews pelo termo de busca
+  // Filtrar reviews por busca
   const filteredReviews = reviews?.filter(review => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -473,118 +471,113 @@ export default function Reviews() {
       review.title.toLowerCase().includes(query) ||
       review.content.toLowerCase().includes(query) ||
       review.author?.display_name?.toLowerCase().includes(query) ||
-      review.author?.username?.toLowerCase().includes(query) ||
-      review.tags?.some(tag => tag.toLowerCase().includes(query))
+      review.author?.username?.toLowerCase().includes(query)
     );
   });
 
+  // Ordenar reviews
+  const sortedReviews = [...(filteredReviews || [])].sort((a, b) => {
+    switch (sortBy) {
+      case 'likes':
+        return (b.likes_count || 0) - (a.likes_count || 0);
+      case 'rating':
+        return (Number(b.rating) || 0) - (Number(a.rating) || 0);
+      case 'recent':
+      default:
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+  });
+
   return (
-    <div className="relative min-h-screen">
-      {/* Background com efeito Light Pillar */}
-      <LightPillarBackground count={8} speed={0.7} intensity={0.25} />
+    <div className="min-h-screen relative overflow-hidden">
+      <LightPillarBackground />
       
-      <div className="relative z-10 space-y-6 pt-12 md:pt-0 pb-8">
+      <div className="relative z-10 container mx-auto px-4 py-6 md:py-8 max-w-4xl">
         {/* Header */}
         <AnimatedContent direction="down" duration={0.5}>
-          <div className="space-y-6">
-            {/* Título e descrição */}
-            <div className="text-center md:text-left">
-              <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">
-                <GradientText animate>Reviews da Comunidade</GradientText>
-              </h1>
-              <p className="text-muted-foreground max-w-2xl">
-                Descubra opiniões autênticas sobre seus animes favoritos, 
-                compartilhadas por membros da nossa comunidade.
-              </p>
-            </div>
+          <div className="text-center mb-6 md:mb-8">
+            <h1 className="font-display text-3xl md:text-4xl font-bold mb-2">
+              <GradientText>Reviews da Comunidade</GradientText>
+            </h1>
+            <p className="text-muted-foreground text-sm md:text-base">
+              Descubra o que a comunidade está achando dos animes
+            </p>
+          </div>
+        </AnimatedContent>
 
-            {/* Estatísticas */}
+        {/* Estatísticas */}
+        <AnimatedContent direction="up" duration={0.5} delay={0.1}>
+          <div className="mb-6">
             <ReviewStats reviews={reviews} />
+          </div>
+        </AnimatedContent>
 
-            {/* Controles de filtro */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              {/* Busca */}
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por título, autor ou tag..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-background/50 border-border/50"
-                />
-              </div>
-
-              {/* Tabs de ordenação */}
-              <Tabs value={orderBy} onValueChange={(v) => setOrderBy(v as 'recent' | 'popular')}>
-                <TabsList className="h-10">
-                  <TabsTrigger value="recent" className="gap-2 px-4">
-                    <Clock className="h-4 w-4" />
-                    <span className="hidden sm:inline">Recentes</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="popular" className="gap-2 px-4">
-                    <TrendingUp className="h-4 w-4" />
-                    <span className="hidden sm:inline">Populares</span>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+        {/* Filtros e busca */}
+        <AnimatedContent direction="up" duration={0.5} delay={0.2}>
+          <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar reviews..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
             </div>
+            <Tabs value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+              <TabsList>
+                <TabsTrigger value="recent" className="text-xs">
+                  <Clock className="h-3 w-3 mr-1" />
+                  Recentes
+                </TabsTrigger>
+                <TabsTrigger value="likes" className="text-xs">
+                  <ThumbsUp className="h-3 w-3 mr-1" />
+                  Populares
+                </TabsTrigger>
+                <TabsTrigger value="rating" className="text-xs">
+                  <Star className="h-3 w-3 mr-1" />
+                  Melhores
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
         </AnimatedContent>
 
         {/* Lista de reviews */}
-        {isLoading ? (
-          <div className="grid gap-4 md:gap-6">
-            {[1, 2, 3, 4].map(i => (
+        <div className="space-y-4 md:space-y-6">
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
               <ReviewSkeleton key={i} />
-            ))}
-          </div>
-        ) : filteredReviews && filteredReviews.length > 0 ? (
-          <div className="grid gap-4 md:gap-6">
-            {filteredReviews.map((review, index) => (
+            ))
+          ) : sortedReviews.length === 0 ? (
+            <div className="text-center py-12 glass-card rounded-2xl">
+              <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+              <h3 className="font-semibold text-lg mb-2">Nenhuma review encontrada</h3>
+              <p className="text-muted-foreground text-sm">
+                {searchQuery ? 'Tente ajustar sua busca' : 'Seja o primeiro a escrever uma review!'}
+              </p>
+            </div>
+          ) : (
+            sortedReviews.map((review, index) => (
               <CommunityReviewCard 
                 key={review.id} 
                 review={review} 
-                index={index} 
-                onAnimeClick={(malId) => setSelectedMalId(malId)}
+                index={index}
+                onAnimeClick={setSelectedMalId}
               />
-            ))}
-          </div>
-        ) : (
-          <AnimatedContent direction="up" duration={0.5}>
-            <div className="glass-card rounded-2xl p-12 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-6">
-                <MessageSquare className="h-10 w-10 text-primary" />
-              </div>
-              <h3 className="font-display text-xl font-semibold mb-3">
-                {searchQuery ? 'Nenhuma review encontrada' : 'Nenhuma review ainda'}
-              </h3>
-              <p className="text-muted-foreground max-w-md mx-auto">
-                {searchQuery 
-                  ? 'Tente buscar por outros termos ou remova os filtros.'
-                  : 'Seja o primeiro a compartilhar sua opinião sobre um anime!'
-                }
-              </p>
-              {searchQuery && (
-                <Button 
-                  variant="outline" 
-                  className="mt-4"
-                  onClick={() => setSearchQuery('')}
-                >
-                  <Filter className="h-4 w-4 mr-2" />
-                  Limpar busca
-                </Button>
-              )}
-            </div>
-          </AnimatedContent>
-        )}
+            ))
+          )}
+        </div>
       </div>
 
       {/* Modal de detalhes do anime */}
-      <AnimeDetailModal
-        open={!!selectedMalId}
-        onOpenChange={(open) => !open && setSelectedMalId(null)}
-        malId={selectedMalId || 0}
-      />
+      {selectedMalId && (
+        <AnimeDetailModal
+          open={!!selectedMalId}
+          onOpenChange={(open) => !open && setSelectedMalId(null)}
+          malId={selectedMalId}
+        />
+      )}
     </div>
   );
 }

@@ -26,6 +26,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { AppUpdateSettings } from '@/components/pwa/AppUpdateSettings';
 import { ImageCacheSettings } from '@/components/pwa/ImageCacheSettings';
 import { CatalogCacheSettings } from '@/components/pwa/CatalogCacheSettings';
+import { OfflinePrefetchCard } from '@/components/pwa/OfflinePrefetchCard';
 import { CatalogCoverageCard } from '@/components/anime/CatalogCoverageIndicator';
 import { NotificationPreferencesCard } from '@/components/notifications/NotificationPreferencesCard';
 import { PushCategoriesCard } from '@/components/notifications/PushCategoriesCard';
@@ -277,6 +278,7 @@ export default function Settings() {
       className="space-y-4"
     >
       <AppUpdateSettings />
+      <OfflinePrefetchCard />
       <ImageCacheSettings />
       <CatalogCacheSettings />
       <CatalogCoverageCard />

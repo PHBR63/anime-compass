@@ -27,6 +27,7 @@ import { AppUpdateSettings } from '@/components/pwa/AppUpdateSettings';
 import { ImageCacheSettings } from '@/components/pwa/ImageCacheSettings';
 import { CatalogCacheSettings } from '@/components/pwa/CatalogCacheSettings';
 import { OfflinePrefetchCard } from '@/components/pwa/OfflinePrefetchCard';
+import { WifiSyncSettings } from '@/components/pwa/WifiSyncSettings';
 import { CatalogCoverageCard } from '@/components/anime/CatalogCoverageIndicator';
 import { NotificationPreferencesCard } from '@/components/notifications/NotificationPreferencesCard';
 import { PushCategoriesCard } from '@/components/notifications/PushCategoriesCard';
@@ -278,6 +279,7 @@ export default function Settings() {
       className="space-y-4"
     >
       <AppUpdateSettings />
+      <WifiSyncSettings />
       <OfflinePrefetchCard />
       <ImageCacheSettings />
       <CatalogCacheSettings />

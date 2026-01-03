@@ -8,7 +8,9 @@ import {
   FileText,
   AlertTriangle,
   UserPlus,
-  TrendingUp
+  TrendingUp,
+  Library,
+  BookOpen
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,14 +18,15 @@ import { useAdminStats } from "@/hooks/useAdmin";
 
 /**
  * Componente de cards de estatísticas do painel admin
+ * Exibe métricas detalhadas sobre usuários, catálogo, conteúdo e logs
  */
 export function AdminStats() {
   const { data: stats, isLoading } = useAdminStats();
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {Array.from({ length: 10 }).map((_, i) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 sm:gap-4">
+        {Array.from({ length: 12 }).map((_, i) => (
           <Card key={i} className="glass-card">
             <CardHeader className="pb-2">
               <Skeleton className="h-4 w-24" />
@@ -38,6 +41,7 @@ export function AdminStats() {
   }
 
   const statCards = [
+    // Seção: Usuários
     {
       title: "Total Usuários",
       value: stats?.totalUsers || 0,
@@ -60,9 +64,24 @@ export function AdminStats() {
       bgColor: "bg-emerald-500/10",
     },
     {
-      title: "Total Animes",
-      value: stats?.totalAnimes || 0,
-      icon: Film,
+      title: "Ativos (7 dias)",
+      value: stats?.activeUsersWeek || 0,
+      icon: Activity,
+      color: "text-yellow-500",
+      bgColor: "bg-yellow-500/10",
+    },
+    // Seção: Catálogo e Conteúdo
+    {
+      title: "Catálogo Total",
+      value: stats?.totalCatalog || 0,
+      icon: Library,
+      color: "text-indigo-500",
+      bgColor: "bg-indigo-500/10",
+    },
+    {
+      title: "Animes Adicionados",
+      value: stats?.totalAnimeEntries || 0,
+      icon: BookOpen,
       color: "text-purple-500",
       bgColor: "bg-purple-500/10",
     },
@@ -73,6 +92,7 @@ export function AdminStats() {
       color: "text-orange-500",
       bgColor: "bg-orange-500/10",
     },
+    // Seção: Social
     {
       title: "Amizades",
       value: stats?.totalFriendships || 0,
@@ -87,13 +107,7 @@ export function AdminStats() {
       color: "text-cyan-500",
       bgColor: "bg-cyan-500/10",
     },
-    {
-      title: "Ativos (7 dias)",
-      value: stats?.activeUsersWeek || 0,
-      icon: Activity,
-      color: "text-yellow-500",
-      bgColor: "bg-yellow-500/10",
-    },
+    // Seção: Logs
     {
       title: "Logs Auditoria",
       value: stats?.totalAuditLogs || 0,
@@ -108,10 +122,21 @@ export function AdminStats() {
       color: "text-red-500",
       bgColor: "bg-red-500/10",
     },
+    // Indicador de Saúde
+    {
+      title: "Taxa de Erro",
+      value: stats?.totalAuditLogs && stats.totalAuditLogs > 0 
+        ? `${((stats?.totalErrorLogs || 0) / stats.totalAuditLogs * 100).toFixed(1)}%`
+        : "0%",
+      icon: Film,
+      color: (stats?.totalErrorLogs || 0) > 100 ? "text-red-500" : "text-green-500",
+      bgColor: (stats?.totalErrorLogs || 0) > 100 ? "bg-red-500/10" : "bg-green-500/10",
+      isPercentage: true,
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 sm:gap-4">
       {statCards.map((stat) => (
         <Card key={stat.title} className="glass-card hover:border-primary/30 transition-colors">
           <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6 flex flex-row items-center justify-between space-y-0">
@@ -123,7 +148,9 @@ export function AdminStats() {
             </div>
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-            <div className="text-lg sm:text-2xl font-bold">{stat.value.toLocaleString()}</div>
+            <div className="text-lg sm:text-2xl font-bold">
+              {stat.isPercentage ? stat.value : (typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value)}
+            </div>
           </CardContent>
         </Card>
       ))}

@@ -65,7 +65,8 @@ export interface AdminStats {
   totalUsers: number;
   newUsersToday: number;
   newUsersWeek: number;
-  totalAnimes: number;
+  totalCatalog: number;        // Total de animes no catálogo oficial
+  totalAnimeEntries: number;   // Total de animes adicionados pelos usuários
   totalReviews: number;
   totalFriendships: number;
   totalLists: number;
@@ -132,8 +133,13 @@ export function useAdminStats() {
         .select("*", { count: "exact", head: true })
         .gte("created_at", weekAgo.toISOString());
 
-      // Total de animes
-      const { count: totalAnimes } = await supabase
+      // Total de animes no catálogo oficial
+      const { count: totalCatalog } = await supabase
+        .from("anime_catalog")
+        .select("*", { count: "exact", head: true });
+
+      // Total de animes adicionados pelos usuários
+      const { count: totalAnimeEntries } = await supabase
         .from("anime_entries")
         .select("*", { count: "exact", head: true });
 
@@ -153,11 +159,30 @@ export function useAdminStats() {
         .from("custom_lists")
         .select("*", { count: "exact", head: true });
 
-      // Usuários ativos na semana (baseado em updated_at do perfil)
-      const { count: activeUsersWeek } = await supabase
-        .from("profiles")
-        .select("*", { count: "exact", head: true })
+      // Usuários ativos na semana - baseado em atividade REAL
+      // Buscar usuários que adicionaram/atualizaram anime_entries na última semana
+      const { data: activeFromAnimes } = await supabase
+        .from("anime_entries")
+        .select("user_id")
         .gte("updated_at", weekAgo.toISOString());
+
+      // Buscar usuários que criaram reviews na última semana
+      const { data: activeFromReviews } = await supabase
+        .from("reviews")
+        .select("user_id")
+        .gte("created_at", weekAgo.toISOString());
+
+      // Buscar usuários que enviaram mensagens na última semana
+      const { data: activeFromChat } = await supabase
+        .from("chat_messages")
+        .select("sender_id")
+        .gte("created_at", weekAgo.toISOString());
+
+      // Combinar e contar usuários únicos ativos
+      const uniqueActiveUsers = new Set<string>();
+      activeFromAnimes?.forEach(a => a.user_id && uniqueActiveUsers.add(a.user_id));
+      activeFromReviews?.forEach(r => r.user_id && uniqueActiveUsers.add(r.user_id));
+      activeFromChat?.forEach(c => c.sender_id && uniqueActiveUsers.add(c.sender_id));
 
       // Total de logs de auditoria
       const { count: totalAuditLogs } = await supabase
@@ -173,11 +198,12 @@ export function useAdminStats() {
         totalUsers: totalUsers || 0,
         newUsersToday: newUsersToday || 0,
         newUsersWeek: newUsersWeek || 0,
-        totalAnimes: totalAnimes || 0,
+        totalCatalog: totalCatalog || 0,
+        totalAnimeEntries: totalAnimeEntries || 0,
         totalReviews: totalReviews || 0,
         totalFriendships: totalFriendships || 0,
         totalLists: totalLists || 0,
-        activeUsersWeek: activeUsersWeek || 0,
+        activeUsersWeek: uniqueActiveUsers.size,
         totalAuditLogs: totalAuditLogs || 0,
         totalErrorLogs: totalErrorLogs || 0,
       };

@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { 
   RefreshCw, 
   Database, 
@@ -14,12 +15,15 @@ import {
   TrendingUp, 
   Calendar,
   Play,
-  Pause,
   AlertCircle,
   CheckCircle2,
   Loader2,
   BarChart3,
-  Film
+  Film,
+  Radio,
+  Zap,
+  Timer,
+  Activity
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
@@ -50,22 +54,33 @@ interface SyncLog {
 }
 
 /**
+ * Interface para status do cron job
+ */
+interface CronJobStatus {
+  active: boolean;
+  schedule: string;
+  lastRun?: {
+    status: string;
+    startTime: string;
+    endTime: string;
+  };
+}
+
+/**
  * Componente para gerenciar sincronização do catálogo de animes
+ * Inclui monitoramento em tempo real
  */
 export function AnimeCatalogManager() {
   const queryClient = useQueryClient();
   const [syncMode, setSyncMode] = useState<'top' | 'season' | 'update'>('top');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState(10); // segundos
+  const [lastRefresh, setLastRefresh] = useState(new Date());
 
-  // Buscar estatísticas do catálogo
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  // Buscar estatísticas do catálogo em tempo real
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ['admin', 'catalog-stats'],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('anime-api', {
-        body: null,
-        method: 'GET',
-      });
-
-      // Fazer chamada para action=stats
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/anime-api?action=stats`
       );
@@ -73,43 +88,65 @@ export function AnimeCatalogManager() {
       if (!response.ok) throw new Error('Erro ao buscar estatísticas');
       
       const result = await response.json();
+      setLastRefresh(new Date());
       return result.data as CatalogStats;
     },
-    staleTime: 1000 * 60 * 5, // 5 minutos
+    staleTime: 1000 * 5, // 5 segundos
+    refetchInterval: autoRefresh ? refreshInterval * 1000 : false,
   });
 
-  // Buscar último anime sincronizado
-  const { data: lastSyncedAnime } = useQuery({
-    queryKey: ['admin', 'last-synced-anime'],
+  // Buscar contagem direta do banco para precisão em tempo real
+  const { data: realtimeCount, refetch: refetchCount } = useQuery({
+    queryKey: ['admin', 'catalog-realtime-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('anime_catalog')
+        .select('*', { count: 'exact', head: true });
+
+      if (error) throw error;
+      return count || 0;
+    },
+    staleTime: 1000 * 5,
+    refetchInterval: autoRefresh ? refreshInterval * 1000 : false,
+  });
+
+  // Buscar últimos animes sincronizados
+  const { data: recentAnimes, refetch: refetchRecent } = useQuery({
+    queryKey: ['admin', 'recent-synced-animes'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('anime_catalog')
-        .select('title, last_synced_at')
+        .select('title, image_url, score, last_synced_at, mal_id')
         .order('last_synced_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error) return null;
-      return data;
-    },
-    staleTime: 1000 * 60, // 1 minuto
-  });
-
-  // Buscar logs de sincronização recentes
-  const { data: syncLogs } = useQuery({
-    queryKey: ['admin', 'sync-logs'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .eq('table_name', 'anime_catalog')
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(5);
 
       if (error) return [];
-      return data as SyncLog[];
+      return data;
     },
-    staleTime: 1000 * 60, // 1 minuto
+    staleTime: 1000 * 5,
+    refetchInterval: autoRefresh ? refreshInterval * 1000 : false,
+  });
+
+  // Buscar estatísticas de sincronização por hora
+  const { data: syncActivity } = useQuery({
+    queryKey: ['admin', 'sync-activity'],
+    queryFn: async () => {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      
+      const { data, error } = await supabase
+        .from('anime_catalog')
+        .select('last_synced_at')
+        .gte('last_synced_at', oneHourAgo);
+
+      if (error) return { count: 0, lastHour: 0 };
+      
+      return {
+        count: data.length,
+        lastHour: data.length
+      };
+    },
+    staleTime: 1000 * 30,
+    refetchInterval: autoRefresh ? 30000 : false,
   });
 
   // Mutation para executar sincronização manual
@@ -141,13 +178,13 @@ export function AnimeCatalogManager() {
       return response.json();
     },
     onSuccess: (data) => {
-      toast.success(`Sincronização iniciada!`, {
-        description: `Processando ${data.data?.processed || 0} animes...`,
+      toast.success(`Sincronização concluída!`, {
+        description: `Processados: ${data.data?.stats?.fetched || 0} animes`,
       });
       // Invalidar queries para atualizar dados
-      queryClient.invalidateQueries({ queryKey: ['admin', 'catalog-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'last-synced-anime'] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'sync-logs'] });
+      refetchStats();
+      refetchCount();
+      refetchRecent();
     },
     onError: (error: Error) => {
       toast.error('Erro na sincronização', {
@@ -156,6 +193,15 @@ export function AnimeCatalogManager() {
     },
   });
 
+  // Refresh manual
+  const handleManualRefresh = () => {
+    refetchStats();
+    refetchCount();
+    refetchRecent();
+    setLastRefresh(new Date());
+    toast.success('Dados atualizados!');
+  };
+
   // Calcular porcentagem de imagens
   const imagePercentage = stats 
     ? Math.round((stats.with_images / stats.total_anime) * 100) 
@@ -163,6 +209,149 @@ export function AnimeCatalogManager() {
 
   return (
     <div className="space-y-6">
+      {/* Painel de monitoramento em tempo real */}
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Radio className="h-5 w-5 text-primary animate-pulse" />
+              <CardTitle>Monitoramento em Tempo Real</CardTitle>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="auto-refresh"
+                  checked={autoRefresh}
+                  onCheckedChange={setAutoRefresh}
+                />
+                <Label htmlFor="auto-refresh" className="text-sm">
+                  Auto-refresh ({refreshInterval}s)
+                </Label>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleManualRefresh}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Atualizar
+              </Button>
+            </div>
+          </div>
+          <CardDescription>
+            Última atualização: {format(lastRefresh, "HH:mm:ss", { locale: ptBR })}
+            {autoRefresh && (
+              <span className="ml-2 text-primary">
+                • Atualizando automaticamente
+              </span>
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Total em tempo real */}
+            <div className="p-4 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <Database className="h-4 w-4" />
+                <span className="text-xs">Total no Catálogo</span>
+              </div>
+              <p className="text-3xl font-bold text-primary">
+                {realtimeCount?.toLocaleString('pt-BR') || '...'}
+              </p>
+            </div>
+
+            {/* Sincronizados na última hora */}
+            <div className="p-4 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <Activity className="h-4 w-4" />
+                <span className="text-xs">Última Hora</span>
+              </div>
+              <p className="text-3xl font-bold text-green-500">
+                +{syncActivity?.lastHour || 0}
+              </p>
+            </div>
+
+            {/* Com imagem */}
+            <div className="p-4 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <Image className="h-4 w-4" />
+                <span className="text-xs">Com Imagem</span>
+              </div>
+              <p className="text-3xl font-bold">
+                {imagePercentage}%
+              </p>
+            </div>
+
+            {/* Status do cron */}
+            <div className="p-4 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                <Timer className="h-4 w-4" />
+                <span className="text-xs">Cron Job</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="default" className="bg-green-500">
+                  <Zap className="h-3 w-3 mr-1" />
+                  Ativo
+                </Badge>
+                <span className="text-xs text-muted-foreground">5min</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Últimos animes sincronizados */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Últimos Animes Sincronizados
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recentAnimes && recentAnimes.length > 0 ? (
+            <div className="space-y-3">
+              {recentAnimes.map((anime) => (
+                <div 
+                  key={anime.mal_id} 
+                  className="flex items-center gap-3 p-2 rounded-lg bg-muted/30"
+                >
+                  {anime.image_url && (
+                    <img 
+                      src={anime.image_url} 
+                      alt={anime.title}
+                      className="w-10 h-14 object-cover rounded"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{anime.title}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {anime.score && (
+                        <Badge variant="secondary" className="text-xs">
+                          ⭐ {anime.score}
+                        </Badge>
+                      )}
+                      <span>MAL #{anime.mal_id}</span>
+                    </div>
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {anime.last_synced_at && formatDistanceToNow(new Date(anime.last_synced_at), {
+                      addSuffix: true,
+                      locale: ptBR,
+                    })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin mb-2" />
+              <p className="text-sm">Carregando...</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Cards de estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total de animes */}
@@ -228,25 +417,24 @@ export function AnimeCatalogManager() {
           </CardContent>
         </Card>
 
-        {/* Última sincronização */}
+        {/* Score range */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Última Sync</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Range de Notas</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {lastSyncedAnime?.last_synced_at ? (
-                formatDistanceToNow(new Date(lastSyncedAnime.last_synced_at), {
-                  addSuffix: true,
-                  locale: ptBR,
-                })
+              {statsLoading ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : stats?.score_range ? (
+                `${stats.score_range.min?.toFixed(1)} - ${stats.score_range.max?.toFixed(1)}`
               ) : (
-                'Nunca'
+                'N/A'
               )}
             </div>
-            <p className="text-xs text-muted-foreground truncate">
-              {lastSyncedAnime?.title || 'Nenhum anime sincronizado'}
+            <p className="text-xs text-muted-foreground">
+              notas no catálogo
             </p>
           </CardContent>
         </Card>
@@ -260,7 +448,7 @@ export function AnimeCatalogManager() {
             Sincronização Manual
           </CardTitle>
           <CardDescription>
-            Execute sincronização manual do catálogo. A sincronização automática ocorre a cada 2 horas.
+            Execute sincronização manual do catálogo. O cron job automático está ativo (a cada 5 minutos).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -413,57 +601,6 @@ export function AnimeCatalogManager() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Logs de sincronização recentes */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Atividade Recente
-          </CardTitle>
-          <CardDescription>
-            Últimas atualizações no catálogo de animes
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {syncLogs && syncLogs.length > 0 ? (
-            <div className="space-y-3">
-              {syncLogs.map((log) => (
-                <div 
-                  key={log.id} 
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30"
-                >
-                  <div className="flex items-center gap-3">
-                    {log.action === 'INSERT' ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    ) : log.action === 'UPDATE' ? (
-                      <RefreshCw className="h-4 w-4 text-blue-500" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-yellow-500" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium">
-                        {log.action === 'INSERT' ? 'Novo anime' : 'Atualização'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {(log.new_data as any)?.title || 'Anime desconhecido'}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {format(new Date(log.created_at), "dd/MM HH:mm", { locale: ptBR })}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-              <Clock className="h-8 w-8 mb-2 opacity-50" />
-              <p className="text-sm">Nenhuma atividade recente</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

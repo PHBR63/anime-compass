@@ -3,8 +3,19 @@
  * Facilita manutenção e evita duplicação de URLs em múltiplos arquivos
  */
 
-// URL da API do catálogo de animes (Lovable Cloud)
-export const CATALOG_API_URL = 'https://tawcauhcogjnthocdhce.supabase.co/functions/v1/anime-api';
+/**
+ * FreeAPI - Catálogo de Animes AniTrack
+ * API própria com dados cacheados do MAL/Jikan
+ * Benefícios:
+ * - Sem rate limit para o frontend
+ * - Latência baixa (dados locais)
+ * - Suporte a sinopses em PT-BR
+ * - Filtros avançados (gênero, estúdio, ano, etc)
+ */
+export const FREEAPI_URL = 'https://tawcauhcogjnthocdhce.supabase.co/functions/v1/anime-api';
 
-// URL da API Jikan (fallback)
+// Alias para compatibilidade com código existente
+export const CATALOG_API_URL = FREEAPI_URL;
+
+// URL da API Jikan (fallback quando anime não está no catálogo)
 export const JIKAN_API_URL = 'https://api.jikan.moe/v4';

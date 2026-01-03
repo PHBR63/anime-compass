@@ -197,12 +197,24 @@ interface ImportProgress {
 }
 
 /**
+ * Interface para estatísticas do delta sync
+ */
+interface DeltaSyncStats {
+  created: number;
+  updated: number;
+  deleted: number;
+  total: number;
+  inserted: number;
+}
+
+/**
  * Componente principal de status da FreeAPI
  */
 export function FreeApiStatus() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [importLogs, setImportLogs] = useState<string[]>([]);
   const [imageSyncLogs, setImageSyncLogs] = useState<string[]>([]);
+  const [deltaSyncStats, setDeltaSyncStats] = useState<DeltaSyncStats | null>(null);
   const [autoSync, setAutoSync] = useState(() => {
     // Persistir preferência de auto-sync
     return localStorage.getItem("admin-auto-image-sync") === "true";
@@ -397,6 +409,7 @@ export function FreeApiStatus() {
         isPaused: false
       });
       setImportLogs(["🔄 Iniciando sincronização delta..."]);
+      setDeltaSyncStats(null); // Limpa estatísticas anteriores
       
       const since = stats?.last_sync || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase.functions.invoke("import-catalog", {
@@ -408,7 +421,24 @@ export function FreeApiStatus() {
     onSuccess: (data) => {
       setImportProgress(prev => ({ ...prev, isRunning: false }));
       if (data.success) {
-        toast.success(`Sync concluído: ${data.data?.stats?.inserted || 0} atualizações`);
+        const stats = data.data?.stats;
+        // Salva estatísticas detalhadas do delta sync
+        if (stats) {
+          setDeltaSyncStats({
+            created: stats.created || 0,
+            updated: stats.updated || 0,
+            deleted: stats.deleted || 0,
+            total: stats.total || 0,
+            inserted: stats.inserted || 0
+          });
+        }
+        
+        const totalChanges = (stats?.created || 0) + (stats?.updated || 0) + (stats?.deleted || 0);
+        toast.success(
+          totalChanges > 0 
+            ? `Sync concluído: ${stats?.created || 0} novos, ${stats?.updated || 0} atualizados, ${stats?.deleted || 0} removidos`
+            : 'Nenhuma atualização encontrada'
+        );
         setImportLogs(data.data?.logs || []);
         queryClient.invalidateQueries({ queryKey: ["freeapi-stats"] });
         refetch();
@@ -768,6 +798,39 @@ export function FreeApiStatus() {
               Sincronizar Atualizações
             </Button>
           </div>
+          
+          {/* Estatísticas detalhadas do Delta Sync */}
+          {deltaSyncStats && !isImporting && (
+            <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30">
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <span className="font-medium text-foreground">Delta Sync Concluído</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-2 rounded bg-muted/50 text-center">
+                  <p className="text-lg font-bold text-green-500">{deltaSyncStats.created}</p>
+                  <p className="text-xs text-muted-foreground">Novos</p>
+                </div>
+                <div className="p-2 rounded bg-muted/50 text-center">
+                  <p className="text-lg font-bold text-blue-500">{deltaSyncStats.updated}</p>
+                  <p className="text-xs text-muted-foreground">Atualizados</p>
+                </div>
+                <div className="p-2 rounded bg-muted/50 text-center">
+                  <p className="text-lg font-bold text-orange-500">{deltaSyncStats.deleted}</p>
+                  <p className="text-xs text-muted-foreground">Removidos</p>
+                </div>
+                <div className="p-2 rounded bg-muted/50 text-center">
+                  <p className="text-lg font-bold text-foreground">{deltaSyncStats.inserted}</p>
+                  <p className="text-xs text-muted-foreground">Inseridos no BD</p>
+                </div>
+              </div>
+              {deltaSyncStats.total === 0 && (
+                <p className="text-sm text-muted-foreground mt-2 text-center">
+                  ✅ Catálogo já está atualizado - nenhuma mudança necessária
+                </p>
+              )}
+            </div>
+          )}
           
           {/* Logs de importação */}
           {importLogs.length > 0 && (

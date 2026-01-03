@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { JikanAnime } from './useJikanApi';
+import type { CatalogAnime } from '@/types/catalog';
 
 /**
  * Interface para recomendação inteligente com score de compatibilidade
  */
 export interface SmartRecommendation {
-  anime: JikanAnime;
+  anime: CatalogAnime;
   matchScore: number; // 0-100 pontos de compatibilidade
   reasons: {
     genres: string[]; // Gêneros que combinam
@@ -20,7 +20,7 @@ export interface SmartRecommendation {
 /**
  * Interface legada para compatibilidade
  */
-export interface RecommendedAnime extends JikanAnime {
+export interface RecommendedAnime extends CatalogAnime {
   recommendedBecause: string;
 }
 
@@ -89,7 +89,7 @@ function normalizeResponse(data: any): SmartRecommendationsResponse {
   
   return {
     recommendations: (legacyData.recommendations || []).map(anime => ({
-      anime: anime as JikanAnime,
+      anime: anime as CatalogAnime,
       matchScore: Math.round((anime.score || 7) * 10), // Converte score MAL para 0-100
       reasons: {
         genres: [],

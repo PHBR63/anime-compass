@@ -1,31 +1,29 @@
 /**
- * Hook para consumir a API própria de animes (anime-api)
- * Substitui useJikanApi para dados do catálogo local
+ * Hook para consumir a API externa de animes
+ * URL: https://xhyairbedwqezegopjan.supabase.co/functions/v1/anime-api
+ * Catálogo com 9.839 animes pré-carregados, sinopses em PT-BR e imagens locais
  */
 
-import { useQuery, useInfiniteQuery, UseQueryOptions } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import type {
   CatalogAnime,
   AnimeFilters,
   AnimePagination,
   AnimeSortOptions,
   ApiResponse,
-  PaginationMeta,
   CatalogStats,
   GenreItem,
   StudioItem,
 } from '@/types/catalog';
 
-// URL base da Edge Function
-const getApiUrl = () => {
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'tawcauhcogjnthocdhce';
-  return `https://${projectId}.supabase.co/functions/v1/anime-api`;
-};
+// URL da API externa de animes
+const API_URL = 'https://xhyairbedwqezegopjan.supabase.co/functions/v1/anime-api';
 
-// Função genérica para chamar a API
+/**
+ * Função genérica para chamar a API
+ */
 async function fetchAnimeApi<T>(params: Record<string, string | number | undefined> = {}): Promise<ApiResponse<T>> {
-  const url = new URL(getApiUrl());
+  const url = new URL(API_URL);
   
   // Adicionar parâmetros não-undefined
   Object.entries(params).forEach(([key, value]) => {
@@ -43,7 +41,9 @@ async function fetchAnimeApi<T>(params: Record<string, string | number | undefin
   return response.json();
 }
 
-// Converter filtros para parâmetros de URL
+/**
+ * Converter filtros para parâmetros de URL
+ */
 function filtersToParams(filters: AnimeFilters): Record<string, string | undefined> {
   const params: Record<string, string | undefined> = {};
   
@@ -187,6 +187,25 @@ export function useSearchAnimes(query: string, limit = 24) {
 }
 
 /**
+ * Hook para busca simples por texto (primeira página)
+ */
+export function useSimpleSearchAnimes(query: string, limit = 12) {
+  return useQuery({
+    queryKey: ['anime-catalog', 'simple-search', query],
+    queryFn: async () => {
+      const response = await fetchAnimeApi<CatalogAnime[]>({
+        search: query,
+        page: 1,
+        limit,
+      });
+      return response.data || [];
+    },
+    enabled: query.length >= 2,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
  * Hook para animes por gênero (scroll infinito)
  */
 export function useAnimesByGenre(genreId: number | null, limit = 24) {
@@ -214,29 +233,14 @@ export function useAnimesByGenre(genreId: number | null, limit = 24) {
 }
 
 /**
- * Hook para animes da temporada atual (scroll infinito)
+ * Hook para animes da temporada atual (em exibição)
  */
 export function useSeasonAnimes(limit = 24) {
-  // Determinar temporada atual
-  const now = new Date();
-  const month = now.getMonth();
-  let season: string;
-  
-  if (month >= 0 && month <= 2) season = 'winter';
-  else if (month >= 3 && month <= 5) season = 'spring';
-  else if (month >= 6 && month <= 8) season = 'summer';
-  else season = 'fall';
-  
-  const year = now.getFullYear();
-
   return useInfiniteQuery({
-    queryKey: ['anime-catalog', 'season', season, year],
+    queryKey: ['anime-catalog', 'season', 'airing'],
     queryFn: async ({ pageParam = 1 }) => {
       const response = await fetchAnimeApi<CatalogAnime[]>({
-        season,
-        year_min: year,
-        year_max: year,
-        status: 'Currently Airing',
+        status: 'Airing', // Nova API usa 'Airing' ao invés de 'Currently Airing'
         page: pageParam,
         limit,
         sort: 'popularity',
@@ -339,6 +343,22 @@ export function useCatalogStatus() {
       };
     },
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Hook para buscar detalhes de um anime (compatibilidade com código legado)
+ */
+export function useAnimeDetails(malId: number) {
+  return useQuery({
+    queryKey: ['anime-catalog', 'details', malId],
+    queryFn: async () => {
+      if (!malId || malId <= 0) return null;
+      const response = await fetchAnimeApi<CatalogAnime>({ mal_id: malId });
+      return response.data ? { data: response.data } : null;
+    },
+    enabled: malId > 0,
+    staleTime: 10 * 60 * 1000,
   });
 }
 

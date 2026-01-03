@@ -42,7 +42,7 @@ export function RecommendationsSection() {
     addEntry.mutate({
       mal_id: anime.mal_id,
       title: anime.title,
-      image_url: anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url,
+      image_url: anime.local_image_url || anime.image_url,
       total_episodes: anime.episodes,
       status: 'not_started',
     }, {
@@ -214,7 +214,7 @@ export function RecommendationsSection() {
         <AnimeDetailModal
           open={!!selectedAnime}
           onOpenChange={(open) => !open && setSelectedAnime(null)}
-          jikanAnime={selectedAnime.anime}
+          catalogAnime={selectedAnime.anime}
         />
       )}
     </section>

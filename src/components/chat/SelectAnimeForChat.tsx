@@ -12,8 +12,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Star, Film } from 'lucide-react';
 import { useAnimeEntries } from '@/hooks/useAnimeEntries';
-import { useSearchAnimes } from '@/hooks/useJikanApi';
+import { useSimpleSearchAnimes } from '@/hooks/useAnimeApi';
 import { LazyImage } from '@/components/ui/lazy-image';
+import type { CatalogAnime } from '@/types/catalog';
 
 interface SelectAnimeForChatProps {
   open: boolean;
@@ -23,7 +24,9 @@ interface SelectAnimeForChatProps {
   recipientId?: string;
 }
 
-// Modal para selecionar anime para compartilhar no chat
+/**
+ * Modal para selecionar anime para compartilhar no chat
+ */
 export default function SelectAnimeForChat({
   open,
   onOpenChange,
@@ -32,12 +35,12 @@ export default function SelectAnimeForChat({
   recipientId,
 }: SelectAnimeForChatProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [myListFilter, setMyListFilter] = useState(''); // Filtro para "Minha Lista"
+  const [myListFilter, setMyListFilter] = useState('');
   const [selectedAnime, setSelectedAnime] = useState<any>(null);
   const [recommendationMessage, setRecommendationMessage] = useState('');
   
   const { data: entries } = useAnimeEntries();
-  const { data: searchResults, isLoading: isSearching } = useSearchAnimes(searchQuery);
+  const { data: searchResults, isLoading: isSearching } = useSimpleSearchAnimes(searchQuery);
 
   // Animes da lista do usuário
   const myAnimes = entries?.map(entry => ({
@@ -59,7 +62,7 @@ export default function SelectAnimeForChat({
       setSelectedAnime(null);
       setRecommendationMessage('');
       setSearchQuery('');
-      setMyListFilter(''); // Resetar filtro da lista
+      setMyListFilter('');
     }
     onOpenChange(open);
   };
@@ -88,19 +91,19 @@ export default function SelectAnimeForChat({
       className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors w-full text-left"
     >
       <LazyImage
-        src={anime.image_url || anime.images?.jpg?.image_url}
+        src={anime.local_image_url || anime.image_url}
         alt={anime.title}
         className="w-12 h-16 object-cover rounded"
       />
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm line-clamp-1">{anime.title}</p>
         <p className="text-xs text-muted-foreground">
-          {anime.episodes || anime.total_episodes || '?'} episódios
+          {anime.episodes || '?'} episódios
         </p>
-        {(anime.score || anime.rating) && (
+        {anime.score && (
           <div className="flex items-center gap-1 text-xs">
             <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
-            <span>{anime.score || anime.rating}</span>
+            <span>{anime.score}</span>
           </div>
         )}
       </div>
@@ -132,7 +135,7 @@ export default function SelectAnimeForChat({
             {/* Preview do anime selecionado */}
             <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
               <LazyImage
-                src={selectedAnime.image_url || selectedAnime.images?.jpg?.image_url}
+                src={selectedAnime.local_image_url || selectedAnime.image_url}
                 alt={selectedAnime.title}
                 className="w-16 h-20 object-cover rounded"
               />
@@ -183,7 +186,6 @@ export default function SelectAnimeForChat({
 
             {/* Aba: Minha Lista */}
             <TabsContent value="my-list">
-              {/* Campo de busca na lista */}
               {myAnimes.length > 0 && (
                 <div className="relative mb-3">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -231,20 +233,20 @@ export default function SelectAnimeForChat({
                     <div className="text-center py-8 text-muted-foreground">
                       Buscando...
                     </div>
-                  ) : searchQuery.length < 3 ? (
+                  ) : searchQuery.length < 2 ? (
                     <div className="text-center py-8 text-muted-foreground">
-                      Digite pelo menos 3 caracteres
+                      Digite pelo menos 2 caracteres
                     </div>
-                  ) : searchResults?.data?.length === 0 ? (
+                  ) : !searchResults || searchResults.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       Nenhum anime encontrado
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      {searchResults?.data?.map((anime: any) => renderAnimeCard({
+                      {searchResults.map((anime: CatalogAnime) => renderAnimeCard({
                         mal_id: anime.mal_id,
                         title: anime.title,
-                        image_url: anime.images?.jpg?.image_url,
+                        image_url: anime.local_image_url || anime.image_url,
                         episodes: anime.episodes,
                         score: anime.score,
                       }))}

@@ -35,11 +35,12 @@ import {
   List,
   Loader2
 } from "lucide-react";
-import { fetchWithRateLimit } from "@/lib/jikanRateLimiter";
-import { jikanCache, cacheKeys, CACHE_TTL } from "@/lib/jikanCache";
 
 // Quantidade de estúdios por página
 const STUDIOS_PER_PAGE = 10;
+
+// URL da API de animes
+const API_URL = 'https://xhyairbedwqezegopjan.supabase.co/functions/v1/anime-api';
 
 // Interface para dados do estúdio
 interface StudioData {
@@ -62,24 +63,15 @@ interface StudioData {
 }
 
 /**
- * Função para buscar detalhes do anime da API Jikan
+ * Função para buscar detalhes do anime da API do catálogo
  */
 const fetchAnimeDetails = async (malId: number) => {
-  const cacheKey = cacheKeys.animeDetails(malId);
-  const cached = jikanCache.get<{ data: { studios: { name: string }[] } }>(cacheKey);
-  
-  if (cached) {
-    return cached.data;
-  }
-
-  const response = await fetchWithRateLimit(`https://api.jikan.moe/v4/anime/${malId}`);
+  const response = await fetch(`${API_URL}?mal_id=${malId}`);
   if (!response.ok) {
     throw new Error(`Erro ao buscar anime ${malId}`);
   }
   
   const result = await response.json();
-  jikanCache.set(cacheKey, result, CACHE_TTL.ANIME_DETAILS);
-  
   return result.data;
 };
 
@@ -250,9 +242,7 @@ const StudioCard = ({ studio, isExpanded, onToggle }: {
 
 /**
  * Página de Estúdios - Exibe todos os animes do usuário agrupados por estúdio de produção
- * Com carregamento progressivo e paginação infinita para melhor performance
  */
-// Chaves do localStorage para persistência
 const STORAGE_KEYS = {
   sortBy: 'studios-sortBy',
   filterStatus: 'studios-filterStatus',
@@ -278,23 +268,22 @@ const Studios = () => {
   const [loadProgress, setLoadProgress] = useState(0);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  // Salvar sortBy no localStorage quando mudar
+  // Salvar preferências
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.sortBy, sortBy);
   }, [sortBy]);
 
-  // Salvar filterStatus no localStorage quando mudar
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.filterStatus, filterStatus);
   }, [filterStatus]);
 
-  // Gerar chave estável para a query (evita loop infinito)
+  // Gerar chave estável para a query
   const entriesKey = useMemo(() => 
     entries?.map(e => e.mal_id).sort().join(',') || '', 
     [entries]
   );
 
-  // Buscar informações dos estúdios para cada anime com progresso
+  // Buscar informações dos estúdios para cada anime
   const { data: studioData, isLoading: studiosLoading } = useQuery({
     queryKey: ['studios', entriesKey],
     queryFn: async () => {
@@ -304,8 +293,8 @@ const Studios = () => {
       const totalEntries = entries.length;
       let processedCount = 0;
       
-      // Processar em lotes menores para melhor responsividade
-      const batchSize = 2;
+      // Processar em lotes
+      const batchSize = 5;
       for (let i = 0; i < entries.length; i += batchSize) {
         const batch = entries.slice(i, i + batchSize);
         
@@ -314,7 +303,7 @@ const Studios = () => {
             const animeData = await fetchAnimeDetails(entry.mal_id);
             
             if (animeData?.studios && animeData.studios.length > 0) {
-              for (const studio of animeData.studios) {
+              for (const studio of animeData.studios as { mal_id: number; name: string }[]) {
                 const studioName = studio.name;
                 
                 if (!studioMap.has(studioName)) {
@@ -357,11 +346,6 @@ const Studios = () => {
         // Atualizar progresso
         processedCount += batch.length;
         setLoadProgress(Math.round((processedCount / totalEntries) * 100));
-        
-        // Delay menor entre lotes para melhor UX
-        if (i + batchSize < entries.length) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
       }
       
       // Calcular média de ratings
@@ -484,18 +468,17 @@ const Studios = () => {
   }, [studioData]);
 
   const isLoading = entriesLoading || studiosLoading;
-  const hasMore = visibleCount < filteredStudios.length;
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
       {/* Breadcrumb */}
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link to="/list" className="flex items-center gap-1">
-                <Home className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Início</span>
+              <Link to="/" className="flex items-center gap-1">
+                <Home className="h-4 w-4" />
+                Início
               </Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
@@ -503,7 +486,7 @@ const Studios = () => {
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
               <Link to="/list" className="flex items-center gap-1">
-                <List className="h-3.5 w-3.5" />
+                <List className="h-4 w-4" />
                 Minha Lista
               </Link>
             </BreadcrumbLink>
@@ -511,7 +494,7 @@ const Studios = () => {
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbPage className="flex items-center gap-1">
-              <Building2 className="h-3.5 w-3.5" />
+              <Building2 className="h-4 w-4" />
               Estúdios
             </BreadcrumbPage>
           </BreadcrumbItem>
@@ -519,76 +502,48 @@ const Studios = () => {
       </Breadcrumb>
 
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Building2 className="h-7 w-7 text-primary" />
-          Estúdios
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold flex items-center gap-3">
+          <Building2 className="h-8 w-8 text-primary" />
+          Meus Estúdios
         </h1>
-        <p className="text-muted-foreground mt-1">
-          Seus animes organizados por estúdio de produção
+        <p className="text-muted-foreground">
+          Veja seus animes agrupados por estúdio de produção
         </p>
       </div>
 
-      {/* Cards de estatísticas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Building2 className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.totalStudios}</p>
-                <p className="text-xs text-muted-foreground">Estúdios</p>
-              </div>
+      {/* Stats cards */}
+      {studioData && studioData.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card className="p-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <span className="text-2xl font-bold text-primary">{stats.totalStudios}</span>
             </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-yellow-500/10">
-                <Trophy className="h-5 w-5 text-yellow-500" />
-              </div>
-              <div>
-                <p className="text-sm font-bold truncate" title={stats.topStudio?.name}>
-                  {stats.topStudio?.name || '-'}
+            <p className="text-xs text-muted-foreground">Estúdios</p>
+          </Card>
+          <Card className="p-4 text-center">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <TrendingUp className="h-4 w-4 text-blue-500" />
+              <span className="text-2xl font-bold text-blue-500">{stats.avgPerStudio.toFixed(1)}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">Média/Estúdio</p>
+          </Card>
+          {stats.topStudio && (
+            <>
+              <Card className="p-4 text-center col-span-2">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Trophy className="h-4 w-4 text-yellow-500" />
+                  <span className="font-bold text-lg truncate">{stats.topStudio.name}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Top estúdio • {stats.topStudio.totalAnimes} animes
                 </p>
-                <p className="text-xs text-muted-foreground">Mais Assistido</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <BarChart3 className="h-5 w-5 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.avgPerStudio.toFixed(1)}</p>
-                <p className="text-xs text-muted-foreground">Média/Estúdio</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <TrendingUp className="h-5 w-5 text-green-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{entries?.length || 0}</p>
-                <p className="text-xs text-muted-foreground">Total Animes</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </Card>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Filtros */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -601,7 +556,18 @@ const Studios = () => {
             className="pl-9"
           />
         </div>
-        
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SortAsc className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Ordenar por" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="count">Quantidade</SelectItem>
+            <SelectItem value="name">Nome</SelectItem>
+            <SelectItem value="rating">Nota Média</SelectItem>
+            <SelectItem value="completion">Conclusão</SelectItem>
+          </SelectContent>
+        </Select>
         <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
           <SelectTrigger className="w-full sm:w-[180px]">
             <Filter className="h-4 w-4 mr-2" />
@@ -609,141 +575,62 @@ const Studios = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="completed">100% Completos</SelectItem>
+            <SelectItem value="completed">Completos</SelectItem>
             <SelectItem value="watching">Assistindo</SelectItem>
-            <SelectItem value="partial">Parcialmente</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SortAsc className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Ordenar" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="count">Mais Animes</SelectItem>
-            <SelectItem value="name">Nome A-Z</SelectItem>
-            <SelectItem value="rating">Melhor Avaliado</SelectItem>
-            <SelectItem value="completion">Mais Completo</SelectItem>
+            <SelectItem value="partial">Parciais</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Expandir/Recolher todos */}
-      {filteredStudios.length > 0 && (
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setExpandedStudios(new Set(visibleStudios.map(s => s.name)))}
-          >
-            <ChevronDown className="h-4 w-4 mr-1" />
-            Expandir Visíveis
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setExpandedStudios(new Set())}
-          >
-            <ChevronUp className="h-4 w-4 mr-1" />
-            Recolher Todos
-          </Button>
-        </div>
-      )}
-
-      {/* Loading state com progresso */}
+      {/* Loading */}
       {isLoading && (
         <div className="space-y-4">
-          {/* Barra de progresso do carregamento */}
-          {loadProgress > 0 && loadProgress < 100 && (
-            <Card className="bg-primary/5 border-primary/20">
-              <CardContent className="py-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <Loader2 className="h-5 w-5 text-primary animate-spin" />
-                  <span className="text-sm font-medium">
-                    Carregando dados dos estúdios... {loadProgress}%
-                  </span>
-                </div>
-                <Progress value={loadProgress} className="h-2" />
-              </CardContent>
-            </Card>
-          )}
-          
-          {/* Skeletons */}
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-muted" />
-                  <div className="space-y-2">
-                    <div className="h-5 w-40 bg-muted rounded" />
-                    <div className="h-4 w-24 bg-muted rounded" />
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
+          <div className="flex items-center justify-center gap-3 py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <div className="text-center">
+              <p className="font-medium">Carregando estúdios...</p>
+              {loadProgress > 0 && loadProgress < 100 && (
+                <p className="text-sm text-muted-foreground">{loadProgress}%</p>
+              )}
+            </div>
+          </div>
+          <Progress value={loadProgress} className="h-2" />
         </div>
       )}
 
       {/* Lista de estúdios */}
-      {!isLoading && filteredStudios.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">Nenhum estúdio encontrado</h3>
-            <p className="text-muted-foreground">
-              {searchTerm || filterStatus !== "all" 
-                ? "Tente ajustar os filtros de busca"
-                : "Adicione animes à sua lista para ver os estúdios"}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {!isLoading && filteredStudios.length > 0 && (
-        <>
-          {/* Contador de resultados */}
-          <p className="text-sm text-muted-foreground">
-            Mostrando {visibleStudios.length} de {filteredStudios.length} estúdios
-          </p>
-          
-          <div className="space-y-4">
-            {visibleStudios.map((studio) => (
-              <StudioCard
-                key={studio.name}
-                studio={studio}
-                isExpanded={expandedStudios.has(studio.name)}
-                onToggle={() => toggleStudio(studio.name)}
-              />
-            ))}
-          </div>
-
-          {/* Trigger para carregar mais (infinite scroll) */}
-          {hasMore && (
-            <div 
-              ref={loadMoreRef} 
-              className="flex justify-center py-4"
-            >
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Carregando mais...</span>
-              </div>
-            </div>
+      {!isLoading && (
+        <div className="space-y-4">
+          {visibleStudios.length === 0 ? (
+            <Card className="p-8 text-center">
+              <Building2 className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+              <h3 className="font-semibold text-lg mb-2">Nenhum estúdio encontrado</h3>
+              <p className="text-muted-foreground text-sm">
+                {searchTerm 
+                  ? 'Tente ajustar sua busca'
+                  : 'Adicione animes à sua lista para ver os estúdios'}
+              </p>
+            </Card>
+          ) : (
+            <>
+              {visibleStudios.map((studio) => (
+                <StudioCard
+                  key={studio.name}
+                  studio={studio}
+                  isExpanded={expandedStudios.has(studio.name)}
+                  onToggle={() => toggleStudio(studio.name)}
+                />
+              ))}
+              
+              {/* Load more trigger */}
+              {visibleCount < filteredStudios.length && (
+                <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </>
           )}
-
-          {/* Botão manual para carregar mais (fallback) */}
-          {hasMore && (
-            <div className="flex justify-center">
-              <Button
-                variant="outline"
-                onClick={() => setVisibleCount(prev => Math.min(prev + STUDIOS_PER_PAGE, filteredStudios.length))}
-              >
-                Carregar mais ({filteredStudios.length - visibleCount} restantes)
-              </Button>
-            </div>
-          )}
-        </>
+        </div>
       )}
     </div>
   );

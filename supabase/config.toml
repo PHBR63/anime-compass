@@ -21,8 +21,5 @@ verify_jwt = true
 [functions.anime-api]
 verify_jwt = false
 
-[functions.sync-anime-catalog]
-verify_jwt = false
-
 [functions.get-sync-logs]
 verify_jwt = true

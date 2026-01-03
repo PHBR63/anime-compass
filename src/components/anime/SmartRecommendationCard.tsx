@@ -26,7 +26,8 @@ export function SmartRecommendationCard({
   onClick 
 }: SmartRecommendationCardProps) {
   const { anime, matchScore, reasons, confidence } = recommendation;
-  const imageUrl = anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url;
+  // Usa local_image_url ou image_url do catálogo
+  const imageUrl = anime.local_image_url || anime.image_url;
 
   return (
     <div 
@@ -36,7 +37,7 @@ export function SmartRecommendationCard({
       <div className="relative aspect-[3/4] overflow-hidden rounded-xl">
         {/* Imagem do anime */}
         <img
-          src={imageUrl}
+          src={imageUrl || '/placeholder.svg'}
           alt={anime.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           loading="lazy"

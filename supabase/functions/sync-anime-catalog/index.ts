@@ -288,7 +288,7 @@ serve(async (req) => {
           const genreAnimes = await fetchAnimesFromUrl(
             `${JIKAN_BASE_URL}/anime?genres=${genre.id}&order_by=members&sort=desc&sfw=true`,
             1,
-            2, // 2 páginas por gênero (50 animes)
+            5, // 5 páginas por gênero (125 animes)
             stats
           );
           

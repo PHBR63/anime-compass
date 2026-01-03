@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Search, TrendingUp, Sparkles, Filter, Tv, Loader2, Star, ChevronDown } from 'lucide-react';
+import { Search, TrendingUp, Sparkles, Filter, Tv, Loader2, Star, ChevronDown, AlertTriangle, Database } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CatalogAnimeCard } from '@/components/anime/CatalogAnimeCard';
 import { 
   useTopAnimes, 
@@ -10,6 +11,7 @@ import {
   useSearchAnimes, 
   useAnimesByGenre,
   useAnimeGenres,
+  useCatalogStatus,
   POPULAR_GENRES
 } from '@/hooks/useAnimeApi';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -43,6 +45,9 @@ export default function Discover() {
 
   // Buscar gêneros disponíveis do catálogo
   const { data: catalogGenres } = useAnimeGenres();
+  
+  // Verificar status do catálogo (se está vazio ou populado)
+  const { data: catalogStatus, isLoading: loadingStatus } = useCatalogStatus();
 
   // Hooks de dados com paginação infinita (API própria)
   const {
@@ -252,6 +257,10 @@ export default function Discover() {
     return anime.synopsis_pt || anime.synopsis || 'Sem sinopse disponível';
   };
 
+  // Verifica se o catálogo está vazio
+  const isCatalogEmpty = catalogStatus && !catalogStatus.isPopulated;
+  const catalogCount = catalogStatus?.totalAnimes || 0;
+
   return (
     <div className="relative space-y-8 pt-12 md:pt-0 pb-8 min-h-screen">
       {/* Backgrounds orientais */}
@@ -273,6 +282,20 @@ export default function Discover() {
           </p>
         </div>
       </AnimatedContent>
+
+      {/* Alerta de catálogo vazio */}
+      {isCatalogEmpty && !loadingStatus && (
+        <AnimatedContent direction="up" delay={0.1}>
+          <Alert className="max-w-2xl mx-auto border-warning/50 bg-warning/10">
+            <Database className="h-4 w-4 text-warning" />
+            <AlertTitle className="text-warning">Catálogo em Sincronização</AlertTitle>
+            <AlertDescription className="text-muted-foreground">
+              O catálogo de animes está sendo sincronizado. Em breve você poderá explorar milhares de títulos aqui.
+              Enquanto isso, você pode adicionar animes manualmente à sua lista.
+            </AlertDescription>
+          </Alert>
+        </AnimatedContent>
+      )}
 
       {/* Barra de pesquisa */}
       <AnimatedContent direction="up" delay={0.1}>

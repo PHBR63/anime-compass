@@ -90,14 +90,17 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
   // Dados do catálogo local (se disponível)
   const catalogData = catalogAnime;
   
-  // Dados combinados - prioriza catálogo local quando disponível
+  // Dados combinados - PRIORIZA userEntry para preservar dados do usuário
+  // Ordem de prioridade: userEntry > catalogData > anime (Jikan API)
   const displayData = {
-    mal_id: catalogData?.mal_id || anime?.mal_id || userEntry?.mal_id,
-    title: catalogData?.title || anime?.title || userEntry?.title || '',
+    mal_id: userEntry?.mal_id || catalogData?.mal_id || anime?.mal_id,
+    title: userEntry?.title || catalogData?.title || anime?.title || '',
     synopsis: catalogData?.synopsis_pt || catalogData?.synopsis || anime?.synopsis,
-    image_url: catalogData?.local_image_url || catalogData?.image_url || anime?.images?.jpg?.large_image_url || anime?.images?.jpg?.image_url || userEntry?.image_url,
+    // Imagem: prioriza userEntry (dados já salvos do usuário)
+    image_url: userEntry?.image_url || catalogData?.local_image_url || catalogData?.image_url || anime?.images?.jpg?.large_image_url || anime?.images?.jpg?.image_url,
     score: catalogData?.score || anime?.score,
-    episodes: catalogData?.episodes || anime?.episodes || userEntry?.total_episodes,
+    // Episódios: prioriza userEntry.total_episodes (dados já salvos)
+    episodes: userEntry?.total_episodes || catalogData?.episodes || anime?.episodes,
     year: catalogData?.year || anime?.year,
     genres: catalogData?.genres || anime?.genres || [],
     studios: catalogData?.studios || anime?.studios || [],
@@ -258,9 +261,13 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
   }
 
   const totalEpisodes = displayData.episodes || entry?.total_episodes;
-  // Prioriza a imagem do entry que já está disponível para exibição imediata
-  const imageUrl = entry?.image_url || displayData.image_url;
-  const title = displayData.title || entry?.title || '';
+  
+  // PRIORIDADE DE IMAGEM: entry (dados do usuário) > displayData (catálogo/jikan)
+  // Isso garante que animes já salvos na lista do usuário sempre mostram suas imagens
+  const imageUrl = entry?.image_url || displayData.image_url || PLACEHOLDER_IMAGE;
+  
+  // PRIORIDADE DE TÍTULO: entry (dados do usuário) > displayData (catálogo/jikan)
+  const title = entry?.title || displayData.title || '';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

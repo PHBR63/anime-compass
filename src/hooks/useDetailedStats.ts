@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { CATALOG_API_URL } from '@/lib/apiConfig';
 
 // Interface para estatísticas detalhadas do usuário
 interface GenreStat {
@@ -32,18 +33,21 @@ export interface DetailedStats {
   averageEpisodesPerAnime: number;
 }
 
-const JIKAN_BASE_URL = 'https://api.jikan.moe/v4';
-
-// Função para buscar detalhes de um anime com delay para rate limiting
-const fetchAnimeDetails = async (malId: number): Promise<{ genres: string[]; studios: string[] } | null> => {
+/**
+ * Busca detalhes de um anime do catálogo local
+ */
+const fetchAnimeFromCatalog = async (malId: number): Promise<{ genres: string[]; studios: string[] } | null> => {
   try {
-    const response = await fetch(`${JIKAN_BASE_URL}/anime/${malId}`);
+    const response = await fetch(`${CATALOG_API_URL}?mal_id=${malId}`);
     if (!response.ok) return null;
     const data = await response.json();
-    return {
-      genres: data.data?.genres?.map((g: { name: string }) => g.name) || [],
-      studios: data.data?.studios?.map((s: { name: string }) => s.name) || [],
-    };
+    if (data.success && data.data) {
+      return {
+        genres: data.data.genres?.map((g: { name: string }) => g.name) || [],
+        studios: data.data.studios?.map((s: { name: string }) => s.name) || [],
+      };
+    }
+    return null;
   } catch {
     return null;
   }
@@ -91,21 +95,19 @@ export function useDetailedStats() {
             : `${totalMinutes} minutos`,
       };
 
-      // Buscar gêneros e estúdios da API Jikan (limitado aos primeiros 20 para não sobrecarregar)
+      // Buscar gêneros e estúdios do catálogo local
       const genreCounts: Record<string, number> = {};
       const studioCounts: Record<string, number> = {};
 
-      // Buscar detalhes de até 15 animes para estatísticas (com delay)
-      const animesToFetch = entries?.slice(0, 15) || [];
+      // Buscar detalhes de até 20 animes para estatísticas
+      const animesToFetch = entries?.slice(0, 20) || [];
       
-      for (let i = 0; i < animesToFetch.length; i++) {
-        const entry = animesToFetch[i];
-        // Delay de 350ms entre requests para respeitar rate limit da Jikan (3 req/s)
-        if (i > 0) {
-          await new Promise(resolve => setTimeout(resolve, 350));
-        }
-        
-        const details = await fetchAnimeDetails(entry.mal_id);
+      // Buscar em paralelo (catálogo local não tem rate limit)
+      const results = await Promise.all(
+        animesToFetch.map(entry => fetchAnimeFromCatalog(entry.mal_id))
+      );
+      
+      results.forEach(details => {
         if (details) {
           details.genres.forEach(genre => {
             genreCounts[genre] = (genreCounts[genre] || 0) + 1;
@@ -114,7 +116,7 @@ export function useDetailedStats() {
             studioCounts[studio] = (studioCounts[studio] || 0) + 1;
           });
         }
-      }
+      });
 
       // Ordenar e calcular percentuais de gêneros
       const totalGenreEntries = Object.values(genreCounts).reduce((a, b) => a + b, 0) || 1;

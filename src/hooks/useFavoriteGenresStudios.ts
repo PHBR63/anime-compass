@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useAnimeEntries } from './useAnimeEntries';
 import { useQueries } from '@tanstack/react-query';
-import { CATALOG_API_URL, JIKAN_API_URL } from '@/lib/apiConfig';
+import { CATALOG_API_URL } from '@/lib/apiConfig';
 
 /**
  * Interface para gênero/estúdio favorito
@@ -19,10 +19,9 @@ interface FavoriteStats {
 }
 
 /**
- * Busca anime com fallback para Jikan
+ * Busca anime do catálogo local
  */
-async function fetchAnimeWithFallback(malId: number) {
-  // Tentar catálogo primeiro
+async function fetchAnimeFromCatalog(malId: number) {
   try {
     const response = await fetch(`${CATALOG_API_URL}?mal_id=${malId}`);
     if (response.ok) {
@@ -31,35 +30,15 @@ async function fetchAnimeWithFallback(malId: number) {
         return data.data;
       }
     }
-  } catch (e) {
-    // Silenciar erro e tentar fallback
-  }
-
-  // Fallback para Jikan
-  try {
-    await new Promise(resolve => setTimeout(resolve, 350)); // Rate limiting
-    const response = await fetch(`${JIKAN_API_URL}/anime/${malId}`);
-    if (response.ok) {
-      const data = await response.json();
-      if (data.data) {
-        // Converter formato Jikan
-        return {
-          ...data.data,
-          genres: data.data.genres || [],
-          studios: data.data.studios || [],
-        };
-      }
-    }
-  } catch (e) {
+  } catch {
     // Silenciar erro
   }
-
   return null;
 }
 
 /**
  * Hook para calcular gêneros e estúdios favoritos baseado no histórico de animes
- * Usa a API do catálogo com fallback para Jikan
+ * Usa apenas a API do catálogo local (sem fallback externo)
  */
 export function useFavoriteGenresStudios() {
   const { data: entries } = useAnimeEntries();
@@ -76,11 +55,11 @@ export function useFavoriteGenresStudios() {
       .slice(0, 20);
   }, [entries]);
 
-  // Buscar detalhes de cada anime com fallback
+  // Buscar detalhes de cada anime do catálogo
   const animeQueries = useQueries({
     queries: prioritizedEntries.map(entry => ({
-      queryKey: ['anime-with-fallback', 'favorites', entry.mal_id],
-      queryFn: () => fetchAnimeWithFallback(entry.mal_id),
+      queryKey: ['anime-catalog', 'favorites', entry.mal_id],
+      queryFn: () => fetchAnimeFromCatalog(entry.mal_id),
       staleTime: 1000 * 60 * 60, // 1 hora
       enabled: !!entry.mal_id,
     })),

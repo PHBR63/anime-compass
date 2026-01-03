@@ -155,6 +155,13 @@ function getTypeIcon(type: string) {
 export function FreeApiStatus() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [importLogs, setImportLogs] = useState<string[]>([]);
+  const [importProgress, setImportProgress] = useState<{
+    isRunning: boolean;
+    total: number;
+    processed: number;
+    currentBatch: number;
+    startTime: Date | null;
+  }>({ isRunning: false, total: 0, processed: 0, currentBatch: 0, startTime: null });
   const queryClient = useQueryClient();
   
   const { data: stats, isLoading, error, refetch } = useQuery({
@@ -164,9 +171,33 @@ export function FreeApiStatus() {
     refetchInterval: 60 * 1000, // Atualiza a cada minuto
   });
 
+  // Query para monitorar status da importação (polling enquanto em execução)
+  const { data: importStatus } = useQuery({
+    queryKey: ["import-status"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("import-catalog", {
+        method: "GET"
+      });
+      if (error) throw error;
+      return data?.data;
+    },
+    refetchInterval: importProgress.isRunning ? 2000 : false, // Poll a cada 2s durante importação
+    enabled: importProgress.isRunning,
+  });
+
   // Mutation para importação completa
   const fullImportMutation = useMutation({
     mutationFn: async () => {
+      // Marca início da importação
+      setImportProgress({
+        isRunning: true,
+        total: 13400, // Estimativa baseada na API externa
+        processed: 0,
+        currentBatch: 0,
+        startTime: new Date()
+      });
+      setImportLogs(["🚀 Iniciando importação completa..."]);
+      
       const { data, error } = await supabase.functions.invoke("import-catalog", {
         body: { mode: "full" }
       });
@@ -174,8 +205,10 @@ export function FreeApiStatus() {
       return data;
     },
     onSuccess: (data) => {
+      setImportProgress(prev => ({ ...prev, isRunning: false }));
       if (data.success) {
-        toast.success(`Importação concluída: ${data.data?.stats?.inserted || 0} animes importados`);
+        const stats = data.data?.stats;
+        toast.success(`Importação concluída: ${stats?.inserted || 0} animes em ${stats?.batches || 0} batches`);
         setImportLogs(data.data?.logs || []);
         queryClient.invalidateQueries({ queryKey: ["freeapi-stats"] });
         refetch();
@@ -185,6 +218,7 @@ export function FreeApiStatus() {
       }
     },
     onError: (error) => {
+      setImportProgress(prev => ({ ...prev, isRunning: false }));
       toast.error(`Erro: ${error.message}`);
     }
   });
@@ -192,7 +226,15 @@ export function FreeApiStatus() {
   // Mutation para sincronização delta
   const deltaSyncMutation = useMutation({
     mutationFn: async () => {
-      // Usa última sincronização como referência
+      setImportProgress({
+        isRunning: true,
+        total: 0,
+        processed: 0,
+        currentBatch: 0,
+        startTime: new Date()
+      });
+      setImportLogs(["🔄 Iniciando sincronização delta..."]);
+      
       const since = stats?.last_sync || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase.functions.invoke("import-catalog", {
         body: { mode: "delta", since }
@@ -201,6 +243,7 @@ export function FreeApiStatus() {
       return data;
     },
     onSuccess: (data) => {
+      setImportProgress(prev => ({ ...prev, isRunning: false }));
       if (data.success) {
         toast.success(`Sync concluído: ${data.data?.stats?.inserted || 0} atualizações`);
         setImportLogs(data.data?.logs || []);
@@ -212,11 +255,21 @@ export function FreeApiStatus() {
       }
     },
     onError: (error) => {
+      setImportProgress(prev => ({ ...prev, isRunning: false }));
       toast.error(`Erro: ${error.message}`);
     }
   });
 
-  const isImporting = fullImportMutation.isPending || deltaSyncMutation.isPending;
+  const isImporting = fullImportMutation.isPending || deltaSyncMutation.isPending || importProgress.isRunning;
+
+  // Calcula tempo decorrido
+  const getElapsedTime = () => {
+    if (!importProgress.startTime) return "";
+    const elapsed = Math.floor((Date.now() - importProgress.startTime.getTime()) / 1000);
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = elapsed % 60;
+    return `${minutes}m ${seconds}s`;
+  };
 
   // Handler para atualizar manualmente
   const handleRefresh = async () => {
@@ -320,24 +373,59 @@ export function FreeApiStatus() {
       </div>
 
       {/* Ações de Importação */}
-      <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+      <Card className={`border-primary/20 bg-gradient-to-r from-primary/5 to-transparent ${isImporting ? 'ring-2 ring-primary/50 animate-pulse' : ''}`}>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Download className="h-5 w-5 text-primary" />
             Importar Catálogo Externo
+            {isImporting && (
+              <Badge variant="default" className="ml-2 bg-primary animate-pulse">
+                Em andamento
+              </Badge>
+            )}
           </CardTitle>
           <CardDescription>
             Importe animes de uma API externa com 13.400+ títulos
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Progresso em tempo real */}
+          {isImporting && (
+            <div className="p-4 rounded-lg bg-primary/10 border border-primary/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <span className="font-medium text-foreground">Importando...</span>
+                </div>
+                <Badge variant="outline" className="gap-1">
+                  <Clock className="h-3 w-3" />
+                  {getElapsedTime()}
+                </Badge>
+              </div>
+              
+              <div className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Progresso estimado</span>
+                  <span className="font-medium">
+                    {importStatus?.catalog_size?.toLocaleString("pt-BR") || "..."} animes no catálogo
+                  </span>
+                </div>
+                <Progress value={undefined} className="h-2 animate-pulse" />
+              </div>
+              
+              <p className="text-xs text-muted-foreground">
+                A importação está processando os dados em batches. Aguarde a conclusão...
+              </p>
+            </div>
+          )}
+          
           <div className="flex flex-wrap gap-3">
             <Button
               onClick={() => fullImportMutation.mutate()}
               disabled={isImporting}
               className="gap-2"
             >
-              {fullImportMutation.isPending ? (
+              {fullImportMutation.isPending || (isImporting && !deltaSyncMutation.isPending) ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Play className="h-4 w-4" />
@@ -361,11 +449,15 @@ export function FreeApiStatus() {
           
           {/* Logs de importação */}
           {importLogs.length > 0 && (
-            <div className="mt-4 p-3 bg-muted/50 rounded-lg max-h-40 overflow-y-auto">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Logs:</p>
+            <div className="mt-4 p-3 bg-muted/50 rounded-lg max-h-48 overflow-y-auto">
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                Logs {isImporting && <span className="animate-pulse">(atualizando...)</span>}:
+              </p>
               <div className="space-y-1 text-xs font-mono">
-                {importLogs.slice(-10).map((log, i) => (
-                  <p key={i} className="text-muted-foreground">{log}</p>
+                {importLogs.slice(-15).map((log, i) => (
+                  <p key={i} className={`${log.includes('❌') ? 'text-destructive' : log.includes('✅') ? 'text-green-500' : 'text-muted-foreground'}`}>
+                    {log}
+                  </p>
                 ))}
               </div>
             </div>

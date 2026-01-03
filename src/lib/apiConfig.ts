@@ -5,7 +5,7 @@
 
 /**
  * FreeAPI - Catálogo de Animes AniTrack
- * API própria com dados cacheados do MAL/Jikan
+ * API própria com dados completos
  * Benefícios:
  * - Sem rate limit para o frontend
  * - Latência baixa (dados locais)
@@ -16,6 +16,3 @@ export const FREEAPI_URL = 'https://tawcauhcogjnthocdhce.supabase.co/functions/v
 
 // Alias para compatibilidade com código existente
 export const CATALOG_API_URL = FREEAPI_URL;
-
-// URL da API Jikan (fallback quando anime não está no catálogo)
-export const JIKAN_API_URL = 'https://api.jikan.moe/v4';

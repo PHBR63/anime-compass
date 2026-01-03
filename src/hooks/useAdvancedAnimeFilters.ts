@@ -5,9 +5,10 @@
 
 import { useInfiniteQuery } from '@tanstack/react-query';
 import type { CatalogAnime, AnimeFilters, AnimeSortOptions } from '@/types/catalog';
+import { CATALOG_API_URL } from '@/lib/apiConfig';
 
-// URL da API externa de animes
-const API_URL = 'https://xhyairbedwqezegopjan.supabase.co/functions/v1/anime-api';
+// Usar URL centralizada
+const API_URL = CATALOG_API_URL;
 
 // Interface para os filtros avançados da página Descobrir
 export interface DiscoverFilters {

@@ -1,6 +1,5 @@
 /**
- * Hook para consumir a API externa de animes
- * URL: https://xhyairbedwqezegopjan.supabase.co/functions/v1/anime-api
+ * Hook para consumir a API do catálogo de animes
  * Catálogo com 9.839 animes pré-carregados, sinopses em PT-BR e imagens locais
  */
 
@@ -15,9 +14,10 @@ import type {
   GenreItem,
   StudioItem,
 } from '@/types/catalog';
+import { CATALOG_API_URL } from '@/lib/apiConfig';
 
-// URL da API externa de animes
-const API_URL = 'https://xhyairbedwqezegopjan.supabase.co/functions/v1/anime-api';
+// Usar URL centralizada
+const API_URL = CATALOG_API_URL;
 
 /**
  * Função genérica para chamar a API

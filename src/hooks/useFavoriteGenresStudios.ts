@@ -1,10 +1,7 @@
 import { useMemo } from 'react';
 import { useAnimeEntries } from './useAnimeEntries';
 import { useQueries } from '@tanstack/react-query';
-
-// URLs das APIs
-const CATALOG_API_URL = 'https://xhyairbedwqezegopjan.supabase.co/functions/v1/anime-api';
-const JIKAN_API_URL = 'https://api.jikan.moe/v4';
+import { CATALOG_API_URL, JIKAN_API_URL } from '@/lib/apiConfig';
 
 /**
  * Interface para gênero/estúdio favorito

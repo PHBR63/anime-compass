@@ -6,10 +6,7 @@
 import { useQuery } from '@tanstack/react-query';
 import type { CatalogAnime } from '@/types/catalog';
 import { getCachedCatalogAnime, cacheCatalogAnime } from '@/lib/offlineCache';
-
-// URLs das APIs
-const CATALOG_API_URL = 'https://xhyairbedwqezegopjan.supabase.co/functions/v1/anime-api';
-const JIKAN_API_URL = 'https://api.jikan.moe/v4';
+import { CATALOG_API_URL, JIKAN_API_URL } from '@/lib/apiConfig';
 
 // Interface para dados mínimos do Jikan (apenas o necessário)
 interface JikanAnimeData {

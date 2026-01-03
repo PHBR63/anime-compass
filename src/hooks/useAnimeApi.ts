@@ -34,6 +34,12 @@ async function fetchAnimeApi<T>(params: Record<string, string | number | undefin
 
   const response = await fetch(url.toString());
   
+  // Para 404 (anime não encontrado), retornar objeto vazio ao invés de lançar erro
+  // Isso é importante porque usuários podem ter animes na lista que não existem na nova API
+  if (response.status === 404) {
+    return { success: false, data: undefined };
+  }
+  
   if (!response.ok) {
     throw new Error(`API error: ${response.status}`);
   }

@@ -111,19 +111,19 @@ export function AdminStats() {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
       {statCards.map((stat) => (
         <Card key={stat.title} className="glass-card hover:border-primary/30 transition-colors">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">
               {stat.title}
             </CardTitle>
-            <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
+            <div className={`p-1.5 sm:p-2 rounded-lg ${stat.bgColor}`}>
+              <stat.icon className={`h-3 w-3 sm:h-4 sm:w-4 ${stat.color}`} />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stat.value.toLocaleString()}</div>
+          <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+            <div className="text-lg sm:text-2xl font-bold">{stat.value.toLocaleString()}</div>
           </CardContent>
         </Card>
       ))}

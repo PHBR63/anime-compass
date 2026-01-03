@@ -185,22 +185,22 @@ export function CatalogSyncLogs() {
   const totalProcessed = apiStats?.total_processed || 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header com estatísticas rápidas */}
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-        <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-4">
+        <CardHeader className="p-3 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
-              <Terminal className="h-5 w-5 text-primary" />
-              <CardTitle>Logs de Sincronização</CardTitle>
-              {isRefetching && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+              <Terminal className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <CardTitle className="text-base sm:text-lg">Logs de Sincronização</CardTitle>
+              {isRefetching && <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin text-primary" />}
             </div>
-            <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
               {/* Seletor de período */}
               <div className="flex items-center gap-2">
-                <Label className="text-sm">Período:</Label>
+                <Label className="text-xs sm:text-sm whitespace-nowrap">Período:</Label>
                 <Select value={periodHours} onValueChange={setPeriodHours}>
-                  <SelectTrigger className="w-[120px]">
+                  <SelectTrigger className="w-full sm:w-[120px] h-8 text-xs sm:text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -213,69 +213,73 @@ export function CatalogSyncLogs() {
                 </Select>
               </div>
               
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="auto-refresh-logs"
-                  checked={autoRefresh}
-                  onCheckedChange={setAutoRefresh}
-                />
-                <Label htmlFor="auto-refresh-logs" className="text-sm">
-                  Auto-refresh
-                </Label>
+              <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <Switch
+                    id="auto-refresh-logs"
+                    checked={autoRefresh}
+                    onCheckedChange={setAutoRefresh}
+                    className="scale-90 sm:scale-100"
+                  />
+                  <Label htmlFor="auto-refresh-logs" className="text-xs sm:text-sm">
+                    Auto
+                  </Label>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                  className="h-8 px-2 sm:px-3 text-xs sm:text-sm"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Atualizar</span>
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isLoading}
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Atualizar
-              </Button>
             </div>
           </div>
-          <CardDescription>
-            Monitoramento detalhado das sincronizações com a API Jikan
-            {apiStats && ` • Período: ${apiStats.period_hours}h`}
+          <CardDescription className="text-xs sm:text-sm mt-2">
+            Monitoramento detalhado das sincronizações
+            {apiStats && <span className="hidden sm:inline"> • Período: {apiStats.period_hours}h</span>}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
           {/* Stats cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 rounded-lg bg-background/50 border">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Activity className="h-4 w-4" />
-                <span className="text-xs">Total de Runs</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+            <div className="p-2.5 sm:p-4 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground mb-1">
+                <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="text-[10px] sm:text-xs">Total Runs</span>
               </div>
-              <p className="text-2xl font-bold">
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : totalRuns}
+              <p className="text-xl sm:text-2xl font-bold">
+                {isLoading ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" /> : totalRuns}
               </p>
             </div>
-            <div className="p-4 rounded-lg bg-background/50 border">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span className="text-xs">Sucesso</span>
+            <div className="p-2.5 sm:p-4 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground mb-1">
+                <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500" />
+                <span className="text-[10px] sm:text-xs">Sucesso</span>
               </div>
-              <p className="text-2xl font-bold text-green-500">
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : successfulRuns}
+              <p className="text-xl sm:text-2xl font-bold text-green-500">
+                {isLoading ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" /> : successfulRuns}
               </p>
             </div>
-            <div className="p-4 rounded-lg bg-background/50 border">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <XCircle className="h-4 w-4 text-red-500" />
-                <span className="text-xs">Falhas</span>
+            <div className="p-2.5 sm:p-4 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground mb-1">
+                <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-500" />
+                <span className="text-[10px] sm:text-xs">Falhas</span>
               </div>
-              <p className="text-2xl font-bold text-red-500">
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : failedRuns}
+              <p className="text-xl sm:text-2xl font-bold text-red-500">
+                {isLoading ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" /> : failedRuns}
               </p>
             </div>
-            <div className="p-4 rounded-lg bg-background/50 border">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Zap className="h-4 w-4 text-primary" />
-                <span className="text-xs">Processados</span>
+            <div className="p-2.5 sm:p-4 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground mb-1">
+                <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                <span className="text-[10px] sm:text-xs">Processados</span>
               </div>
-              <p className="text-2xl font-bold text-primary">
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : totalProcessed}
+              <p className="text-xl sm:text-2xl font-bold text-primary">
+                {isLoading ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" /> : totalProcessed}
               </p>
             </div>
           </div>
@@ -303,16 +307,17 @@ export function CatalogSyncLogs() {
         </TabsList>
 
         {/* Logs em tempo real */}
-        <TabsContent value="live" className="mt-4">
+        <TabsContent value="live" className="mt-3 sm:mt-4">
           <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <CardTitle className="text-sm font-medium">Console de Logs</CardTitle>
-                <div className="flex gap-2 flex-wrap">
+            <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <CardTitle className="text-xs sm:text-sm font-medium">Console de Logs</CardTitle>
+                <div className="flex gap-1.5 sm:gap-2 flex-wrap">
                   <Button
                     variant={logLevel === 'all' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setLogLevel('all')}
+                    className="h-7 sm:h-8 px-2 sm:px-3 text-[10px] sm:text-xs"
                   >
                     Todos ({syncLogs.length})
                   </Button>
@@ -320,6 +325,7 @@ export function CatalogSyncLogs() {
                     variant={logLevel === 'info' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setLogLevel('info')}
+                    className="h-7 sm:h-8 px-2 sm:px-3 text-[10px] sm:text-xs"
                   >
                     Info
                   </Button>
@@ -327,14 +333,15 @@ export function CatalogSyncLogs() {
                     variant={logLevel === 'error' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setLogLevel('error')}
+                    className="h-7 sm:h-8 px-2 sm:px-3 text-[10px] sm:text-xs"
                   >
                     Error
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[400px] rounded-lg border bg-black/90 p-4 font-mono text-sm">
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+              <ScrollArea className="h-[280px] sm:h-[400px] rounded-lg border bg-black/90 p-2 sm:p-4 font-mono text-xs sm:text-sm">
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                     <Loader2 className="h-8 w-8 mb-2 animate-spin" />
@@ -346,14 +353,14 @@ export function CatalogSyncLogs() {
                     <p>Nenhum log disponível no período selecionado</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-1.5 sm:space-y-2">
                     {filteredLogs.map((log) => (
-                      <div key={log.id} className="flex items-start gap-3 text-gray-300">
-                        <span className="text-gray-500 whitespace-nowrap text-xs">
-                          {format(new Date(log.timestamp), "dd/MM HH:mm:ss")}
+                      <div key={log.id} className="flex items-start gap-1.5 sm:gap-3 text-gray-300">
+                        <span className="text-gray-500 whitespace-nowrap text-[10px] sm:text-xs">
+                          {format(new Date(log.timestamp), "HH:mm:ss")}
                         </span>
-                        {getLevelIcon(log.level)}
-                        <span className={`flex-1 break-all ${
+                        <span className="flex-shrink-0">{getLevelIcon(log.level)}</span>
+                        <span className={`flex-1 break-all text-[11px] sm:text-sm ${
                           log.level === 'error' ? 'text-red-400' :
                           log.level === 'warn' ? 'text-yellow-400' :
                           log.level === 'success' ? 'text-green-400' :

@@ -237,89 +237,92 @@ export function AnimeCatalogManager() {
         <TabsContent value="monitoring" className="mt-6 space-y-6">
       {/* Painel de monitoramento em tempo real */}
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-        <CardHeader>
-          <div className="flex items-center justify-between">
+        <CardHeader className="p-3 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
-              <Radio className="h-5 w-5 text-primary animate-pulse" />
-              <CardTitle>Monitoramento em Tempo Real</CardTitle>
+              <Radio className="h-4 w-4 sm:h-5 sm:w-5 text-primary animate-pulse" />
+              <CardTitle className="text-base sm:text-lg">Monitoramento em Tempo Real</CardTitle>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <Switch
                   id="auto-refresh"
                   checked={autoRefresh}
                   onCheckedChange={setAutoRefresh}
+                  className="scale-90 sm:scale-100"
                 />
-                <Label htmlFor="auto-refresh" className="text-sm">
-                  Auto-refresh ({refreshInterval}s)
+                <Label htmlFor="auto-refresh" className="text-xs sm:text-sm whitespace-nowrap">
+                  <span className="hidden sm:inline">Auto-refresh ({refreshInterval}s)</span>
+                  <span className="sm:hidden">Auto</span>
                 </Label>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleManualRefresh}
+                className="text-xs sm:text-sm h-8 px-2 sm:px-3"
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Atualizar
+                <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Atualizar</span>
               </Button>
             </div>
           </div>
-          <CardDescription>
+          <CardDescription className="text-xs sm:text-sm mt-2">
             Última atualização: {format(lastRefresh, "HH:mm:ss", { locale: ptBR })}
             {autoRefresh && (
-              <span className="ml-2 text-primary">
+              <span className="ml-2 text-primary hidden sm:inline">
                 • Atualizando automaticamente
               </span>
             )}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
             {/* Total em tempo real */}
-            <div className="p-4 rounded-lg bg-background/50 border">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Database className="h-4 w-4" />
-                <span className="text-xs">Total no Catálogo</span>
+            <div className="p-2.5 sm:p-4 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground mb-1">
+                <Database className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="text-[10px] sm:text-xs">Total no Catálogo</span>
               </div>
-              <p className="text-3xl font-bold text-primary">
+              <p className="text-xl sm:text-3xl font-bold text-primary">
                 {realtimeCount?.toLocaleString('pt-BR') || '...'}
               </p>
             </div>
 
             {/* Sincronizados na última hora */}
-            <div className="p-4 rounded-lg bg-background/50 border">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Activity className="h-4 w-4" />
-                <span className="text-xs">Última Hora</span>
+            <div className="p-2.5 sm:p-4 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground mb-1">
+                <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="text-[10px] sm:text-xs">Última Hora</span>
               </div>
-              <p className="text-3xl font-bold text-green-500">
+              <p className="text-xl sm:text-3xl font-bold text-green-500">
                 +{syncActivity?.lastHour || 0}
               </p>
             </div>
 
             {/* Com imagem */}
-            <div className="p-4 rounded-lg bg-background/50 border">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Image className="h-4 w-4" />
-                <span className="text-xs">Com Imagem</span>
+            <div className="p-2.5 sm:p-4 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground mb-1">
+                <Image className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="text-[10px] sm:text-xs">Com Imagem</span>
               </div>
-              <p className="text-3xl font-bold">
+              <p className="text-xl sm:text-3xl font-bold">
                 {imagePercentage}%
               </p>
             </div>
 
             {/* Status do cron */}
-            <div className="p-4 rounded-lg bg-background/50 border">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Timer className="h-4 w-4" />
-                <span className="text-xs">Cron Job</span>
+            <div className="p-2.5 sm:p-4 rounded-lg bg-background/50 border">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground mb-1">
+                <Timer className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="text-[10px] sm:text-xs">Cron Job</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="default" className="bg-green-500">
-                  <Zap className="h-3 w-3 mr-1" />
+              <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                <Badge variant="default" className="bg-green-500 text-[10px] sm:text-xs px-1.5 sm:px-2">
+                  <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                   Ativo
                 </Badge>
-                <span className="text-xs text-muted-foreground">5min</span>
+                <span className="text-[10px] sm:text-xs text-muted-foreground">5min</span>
               </div>
             </div>
           </div>

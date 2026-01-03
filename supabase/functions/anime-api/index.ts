@@ -222,6 +222,14 @@ async function handleList(supabase: any, params: URLSearchParams): Promise<Respo
     query = query.is('image_url', null);
   }
 
+  // Filtro por sinopse PT-BR disponível
+  const hasSynopsisPt = params.get('has_synopsis_pt');
+  if (hasSynopsisPt === 'true') {
+    query = query.not('synopsis_pt', 'is', null);
+  } else if (hasSynopsisPt === 'false') {
+    query = query.is('synopsis_pt', null);
+  }
+
   // Aplicar ordenação e paginação
   query = query
     .order(actualSortField, { ascending: sortOrder, nullsFirst: false })

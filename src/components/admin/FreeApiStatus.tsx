@@ -1,0 +1,438 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { 
+  Database, 
+  Image, 
+  Languages, 
+  RefreshCw, 
+  Clock, 
+  TrendingUp,
+  Film,
+  Tv,
+  Clapperboard,
+  Music,
+  Star,
+  Calendar,
+  CheckCircle,
+  AlertCircle,
+  Loader2
+} from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { FREEAPI_URL } from "@/lib/apiConfig";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+/**
+ * Interface para estatísticas da FreeAPI
+ */
+interface FreeApiStats {
+  total_anime: number;
+  with_images: number;
+  with_synopsis_pt: number;
+  by_type: Record<string, number>;
+  by_status: Record<string, number>;
+  year_range: { min: number; max: number };
+  score_range: { min: number; max: number };
+  last_sync: string | null;
+}
+
+/**
+ * Busca estatísticas da FreeAPI
+ */
+async function fetchFreeApiStats(): Promise<FreeApiStats> {
+  // Busca estatísticas básicas
+  const statsResponse = await fetch(`${FREEAPI_URL}?action=stats`);
+  if (!statsResponse.ok) throw new Error("Falha ao buscar estatísticas");
+  const statsData = await statsResponse.json();
+  
+  // Conta animes com sinopse em PT-BR (usando query separada)
+  const ptResponse = await fetch(`${FREEAPI_URL}?limit=1&has_synopsis_pt=true`);
+  const ptData = await ptResponse.json();
+  
+  return {
+    ...statsData.data,
+    with_synopsis_pt: ptData.pagination?.total || 0
+  };
+}
+
+/**
+ * Componente de card de estatística individual
+ */
+function StatCard({ 
+  title, 
+  value, 
+  icon: Icon, 
+  description,
+  trend
+}: { 
+  title: string; 
+  value: string | number; 
+  icon: React.ElementType;
+  description?: string;
+  trend?: "up" | "down" | "neutral";
+}) {
+  return (
+    <Card className="relative overflow-hidden">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              {title}
+            </p>
+            <p className="text-2xl font-bold text-foreground">
+              {typeof value === "number" ? value.toLocaleString("pt-BR") : value}
+            </p>
+            {description && (
+              <p className="text-xs text-muted-foreground">{description}</p>
+            )}
+          </div>
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Icon className="h-5 w-5 text-primary" />
+          </div>
+        </div>
+        {trend && (
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/50 to-primary" />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Componente de barra de progresso com label
+ */
+function ProgressBar({ 
+  label, 
+  value, 
+  total, 
+  color = "primary" 
+}: { 
+  label: string; 
+  value: number; 
+  total: number;
+  color?: string;
+}) {
+  const percentage = total > 0 ? (value / total) * 100 : 0;
+  
+  return (
+    <div className="space-y-1.5">
+      <div className="flex justify-between text-sm">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-medium">
+          {value.toLocaleString("pt-BR")} / {total.toLocaleString("pt-BR")} ({percentage.toFixed(1)}%)
+        </span>
+      </div>
+      <Progress value={percentage} className="h-2" />
+    </div>
+  );
+}
+
+/**
+ * Ícone para tipo de anime
+ */
+function getTypeIcon(type: string) {
+  switch (type) {
+    case "TV": return Tv;
+    case "Movie": return Film;
+    case "OVA": case "ONA": return Clapperboard;
+    case "Music": return Music;
+    default: return Star;
+  }
+}
+
+/**
+ * Componente principal de status da FreeAPI
+ */
+export function FreeApiStatus() {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const { data: stats, isLoading, error, refetch } = useQuery({
+    queryKey: ["freeapi-stats"],
+    queryFn: fetchFreeApiStats,
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    refetchInterval: 60 * 1000, // Atualiza a cada minuto
+  });
+
+  // Handler para atualizar manualmente
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setIsRefreshing(false);
+  };
+
+  // Renderiza skeleton durante carregamento
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-28" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
+      </div>
+    );
+  }
+
+  // Renderiza erro
+  if (error || !stats) {
+    return (
+      <Card className="border-destructive/50">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-3 text-destructive">
+            <AlertCircle className="h-5 w-5" />
+            <div>
+              <p className="font-medium">Erro ao carregar estatísticas</p>
+              <p className="text-sm text-muted-foreground">
+                {error instanceof Error ? error.message : "Tente novamente mais tarde"}
+              </p>
+            </div>
+          </div>
+          <Button onClick={handleRefresh} variant="outline" className="mt-4">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Tentar Novamente
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Calcula percentuais
+  const imagePercentage = stats.total_anime > 0 
+    ? ((stats.with_images / stats.total_anime) * 100).toFixed(1) 
+    : "0";
+  const synopsisPercentage = stats.total_anime > 0 
+    ? ((stats.with_synopsis_pt / stats.total_anime) * 100).toFixed(1) 
+    : "0";
+
+  // Formata última sincronização
+  const lastSyncText = stats.last_sync 
+    ? formatDistanceToNow(new Date(stats.last_sync), { addSuffix: true, locale: ptBR })
+    : "Nunca";
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/20">
+            <Database className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">FreeAPI Status</h2>
+            <p className="text-sm text-muted-foreground">
+              Monitoramento do catálogo de animes
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="gap-1.5">
+            <Clock className="h-3 w-3" />
+            Atualizado {lastSyncText}
+          </Badge>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            <span className="ml-2 hidden sm:inline">Atualizar</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Cards de estatísticas principais */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total de Animes"
+          value={stats.total_anime}
+          icon={Database}
+          description={`Anos: ${stats.year_range?.min || "N/A"} - ${stats.year_range?.max || "N/A"}`}
+          trend="up"
+        />
+        <StatCard
+          title="Com Imagens"
+          value={`${imagePercentage}%`}
+          icon={Image}
+          description={`${stats.with_images.toLocaleString("pt-BR")} animes`}
+        />
+        <StatCard
+          title="Sinopses PT-BR"
+          value={`${synopsisPercentage}%`}
+          icon={Languages}
+          description={`${stats.with_synopsis_pt.toLocaleString("pt-BR")} traduzidas`}
+        />
+        <StatCard
+          title="Última Sync"
+          value={lastSyncText}
+          icon={Clock}
+          description={stats.last_sync ? new Date(stats.last_sync).toLocaleString("pt-BR") : "Nunca"}
+        />
+      </div>
+
+      {/* Cards detalhados */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Distribuição por Tipo */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Film className="h-5 w-5 text-primary" />
+              Distribuição por Tipo
+            </CardTitle>
+            <CardDescription>
+              Quantidade de animes por formato
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {stats.by_type && Object.entries(stats.by_type)
+              .sort(([, a], [, b]) => b - a)
+              .map(([type, count]) => {
+                const Icon = getTypeIcon(type);
+                const percentage = ((count / stats.total_anime) * 100).toFixed(1);
+                const typeLabels: Record<string, string> = {
+                  TV: "TV",
+                  Movie: "Filme",
+                  OVA: "OVA",
+                  ONA: "ONA",
+                  Special: "Especial",
+                  Music: "Música"
+                };
+                
+                return (
+                  <div key={type} className="flex items-center gap-3">
+                    <div className="p-1.5 rounded bg-muted">
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="font-medium">{typeLabels[type] || type}</span>
+                        <span className="text-muted-foreground">
+                          {count.toLocaleString("pt-BR")} ({percentage}%)
+                        </span>
+                      </div>
+                      <Progress value={parseFloat(percentage)} className="h-1.5" />
+                    </div>
+                  </div>
+                );
+              })}
+          </CardContent>
+        </Card>
+
+        {/* Distribuição por Status */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Distribuição por Status
+            </CardTitle>
+            <CardDescription>
+              Estado atual de exibição dos animes
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {stats.by_status && Object.entries(stats.by_status)
+              .sort(([, a], [, b]) => b - a)
+              .map(([status, count]) => {
+                const percentage = ((count / stats.total_anime) * 100).toFixed(1);
+                const statusLabels: Record<string, string> = {
+                  "Finished Airing": "Finalizado",
+                  "Currently Airing": "Em Exibição",
+                  "Not yet aired": "Não Lançado"
+                };
+                const statusColors: Record<string, string> = {
+                  "Finished Airing": "text-green-500",
+                  "Currently Airing": "text-blue-500",
+                  "Not yet aired": "text-yellow-500"
+                };
+                
+                return (
+                  <div key={status} className="flex items-center gap-3">
+                    <CheckCircle className={`h-4 w-4 ${statusColors[status] || "text-muted-foreground"}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="font-medium">{statusLabels[status] || status}</span>
+                        <span className="text-muted-foreground">
+                          {count.toLocaleString("pt-BR")} ({percentage}%)
+                        </span>
+                      </div>
+                      <Progress value={parseFloat(percentage)} className="h-1.5" />
+                    </div>
+                  </div>
+                );
+              })}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Cobertura de dados */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-primary" />
+            Cobertura de Dados
+          </CardTitle>
+          <CardDescription>
+            Progresso de preenchimento do catálogo
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <ProgressBar 
+            label="Imagens de Capa" 
+            value={stats.with_images} 
+            total={stats.total_anime} 
+          />
+          <ProgressBar 
+            label="Sinopses em Português" 
+            value={stats.with_synopsis_pt} 
+            total={stats.total_anime} 
+          />
+          <div className="pt-4 border-t">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+              <div>
+                <p className="text-2xl font-bold text-foreground">
+                  {stats.year_range?.min || "N/A"}
+                </p>
+                <p className="text-xs text-muted-foreground">Ano mais antigo</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">
+                  {stats.year_range?.max || "N/A"}
+                </p>
+                <p className="text-xs text-muted-foreground">Ano mais recente</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">
+                  {stats.score_range?.min?.toFixed(1) || "N/A"}
+                </p>
+                <p className="text-xs text-muted-foreground">Nota mínima</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">
+                  {stats.score_range?.max?.toFixed(1) || "N/A"}
+                </p>
+                <p className="text-xs text-muted-foreground">Nota máxima</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

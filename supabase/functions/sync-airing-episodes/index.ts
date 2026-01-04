@@ -146,6 +146,45 @@ Deno.serve(async (req) => {
           results.errors++;
         } else {
           results.updated++;
+          
+          // Se episódios foram atualizados, notifica usuários que estão assistindo
+          if (updates.episodes) {
+            const { data: watchingUsers, error: usersError } = await supabase
+              .from('anime_entries')
+              .select('user_id')
+              .eq('mal_id', anime.mal_id)
+              .eq('status', 'watching');
+
+            if (usersError) {
+              console.error(`[sync-airing] Erro ao buscar usuários assistindo ${anime.title}:`, usersError);
+            } else if (watchingUsers && watchingUsers.length > 0) {
+              console.log(`[sync-airing] Notificando ${watchingUsers.length} usuários sobre ${anime.title}`);
+              
+              // Cria notificações para cada usuário
+              const notifications = watchingUsers.map(entry => ({
+                user_id: entry.user_id,
+                type: 'system' as const,
+                title: 'Total de episódios atualizado!',
+                message: `${anime.title} agora tem ${updates.episodes} episódios confirmados.`,
+                data: {
+                  mal_id: anime.mal_id,
+                  anime_title: anime.title,
+                  old_episodes: anime.episodes,
+                  new_episodes: updates.episodes,
+                },
+              }));
+
+              const { error: notifError } = await supabase
+                .from('notifications')
+                .insert(notifications);
+
+              if (notifError) {
+                console.error(`[sync-airing] Erro ao criar notificações:`, notifError);
+              } else {
+                console.log(`[sync-airing] ${notifications.length} notificações criadas`);
+              }
+            }
+          }
         }
       }
 

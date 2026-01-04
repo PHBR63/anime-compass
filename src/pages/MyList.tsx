@@ -108,7 +108,7 @@ export default function MyList() {
     return result;
   }, [entries, activeStatus, searchQuery, filters, sort]);
 
-  // Contadores por status
+  // Contadores por status - cálculo otimizado em uma única iteração
   const statusCounts = useMemo(() => {
     if (!entries) return {
       all: 0,
@@ -119,16 +119,23 @@ export default function MyList() {
       not_started: 0,
     };
 
-    const nonArchived = entries.filter(e => !e.is_archived);
-    
-    return {
-      all: nonArchived.length,
-      watching: nonArchived.filter(e => e.status === 'watching').length,
-      completed: nonArchived.filter(e => e.status === 'completed').length,
-      paused: nonArchived.filter(e => e.status === 'paused').length,
-      dropped: nonArchived.filter(e => e.status === 'dropped').length,
-      not_started: nonArchived.filter(e => e.status === 'not_started').length,
+    // Single-pass: itera uma única vez sobre o array
+    const counts = {
+      all: 0,
+      watching: 0,
+      completed: 0,
+      paused: 0,
+      dropped: 0,
+      not_started: 0,
     };
+
+    for (const entry of entries) {
+      if (entry.is_archived) continue;
+      counts.all++;
+      counts[entry.status]++;
+    }
+    
+    return counts;
   }, [entries]);
 
   // Atalhos de teclado

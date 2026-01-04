@@ -9,11 +9,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { AnimeDetailModal } from './AnimeDetailModal';
+import { LazyAnimeDetailModal } from './LazyAnimeDetailModal';
 import { SyncPendingBadge } from './SyncPendingBadge';
 import { LazyImage } from '@/components/ui/lazy-image';
 import { useUpdateAnimeEntry, useDeleteAnimeEntry } from '@/hooks/useAnimeEntries';
-import { usePendingSync } from '@/hooks/usePendingSync';
+import { useAnimeEntriesContext } from '@/contexts/AnimeEntriesContext';
 import type { Database } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 
@@ -60,7 +60,9 @@ export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
   const [showSpoiler, setShowSpoiler] = useState(false);
   const updateEntry = useUpdateAnimeEntry();
   const deleteEntry = useDeleteAnimeEntry();
-  const { hasPendingForAnime, getPendingOperationType } = usePendingSync();
+  
+  // Usa contexto centralizado para sync pendente (evita re-renders em massa)
+  const { hasPendingForAnime, getPendingOperationType } = useAnimeEntriesContext();
   
   // Verifica se há operação pendente para este anime
   const isPending = hasPendingForAnime(entry.id) || hasPendingForAnime(entry.mal_id);
@@ -263,7 +265,8 @@ export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
         </div>
       </div>
 
-      <AnimeDetailModal
+      {/* Modal lazy loaded */}
+      <LazyAnimeDetailModal
         userEntry={entry}
         malId={entry.mal_id}
         open={modalOpen}

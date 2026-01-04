@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Heart, MoreVertical, Check, PlayCircle, CheckCircle, PauseCircle, Clock, XCircle } from 'lucide-react';
 import { AnimeCardImage } from '@/components/ui/lazy-image';
 import { Progress } from '@/components/ui/progress';
@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { AnimeDetailModal } from './AnimeDetailModal';
+import { LazyAnimeDetailModal } from './LazyAnimeDetailModal';
 import { useUpdateAnimeEntry, useDeleteAnimeEntry } from '@/hooks/useAnimeEntries';
 import type { Database } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
@@ -232,9 +232,9 @@ export function SelectableAnimeCard({
         </div>
       </div>
 
-      {/* Modal de detalhes (apenas fora do modo de seleção) */}
+      {/* Modal de detalhes - lazy loaded (apenas fora do modo de seleção) */}
       {!isSelectionMode && (
-        <AnimeDetailModal
+        <LazyAnimeDetailModal
           userEntry={entry}
           malId={entry.mal_id}
           open={modalOpen}

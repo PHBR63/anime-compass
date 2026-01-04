@@ -122,16 +122,24 @@ export function AdminStats() {
       color: "text-red-500",
       bgColor: "bg-red-500/10",
     },
-    // Indicador de Saúde
+    // Indicador de Saúde - baseado em erros por usuário
     {
-      title: "Taxa de Erro",
-      value: stats?.totalAuditLogs && stats.totalAuditLogs > 0 
-        ? `${((stats?.totalErrorLogs || 0) / stats.totalAuditLogs * 100).toFixed(1)}%`
-        : "0%",
+      title: "Erros/Usuário",
+      value: stats?.totalUsers && stats.totalUsers > 0 
+        ? (stats?.totalErrorLogs || 0) / stats.totalUsers
+        : 0,
       icon: Film,
-      color: (stats?.totalErrorLogs || 0) > 100 ? "text-red-500" : "text-green-500",
-      bgColor: (stats?.totalErrorLogs || 0) > 100 ? "bg-red-500/10" : "bg-green-500/10",
-      isPercentage: true,
+      color: ((stats?.totalErrorLogs || 0) / (stats?.totalUsers || 1)) > 10 
+        ? "text-red-500" 
+        : ((stats?.totalErrorLogs || 0) / (stats?.totalUsers || 1)) > 5 
+          ? "text-yellow-500" 
+          : "text-green-500",
+      bgColor: ((stats?.totalErrorLogs || 0) / (stats?.totalUsers || 1)) > 10 
+        ? "bg-red-500/10" 
+        : ((stats?.totalErrorLogs || 0) / (stats?.totalUsers || 1)) > 5 
+          ? "bg-yellow-500/10" 
+          : "bg-green-500/10",
+      isDecimal: true,
     },
   ];
 
@@ -149,7 +157,9 @@ export function AdminStats() {
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
             <div className="text-lg sm:text-2xl font-bold">
-              {stat.isPercentage ? stat.value : (typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value)}
+              {stat.isDecimal 
+                ? (typeof stat.value === 'number' ? stat.value.toFixed(1) : stat.value)
+                : (typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value)}
             </div>
           </CardContent>
         </Card>

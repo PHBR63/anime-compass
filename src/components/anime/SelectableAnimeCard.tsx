@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Heart, MoreVertical, Check, PlayCircle, CheckCircle, PauseCircle, Clock, XCircle } from 'lucide-react';
 import { AnimeCardImage } from '@/components/ui/lazy-image';
 import { Progress } from '@/components/ui/progress';
@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LazyAnimeDetailModal } from './LazyAnimeDetailModal';
+import { AnimeDetailModal } from './AnimeDetailModal';
 import { useUpdateAnimeEntry, useDeleteAnimeEntry } from '@/hooks/useAnimeEntries';
 import type { Database } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
@@ -54,9 +54,8 @@ interface SelectableAnimeCardProps {
 
 /**
  * Card de anime com suporte a seleção para edição em massa
- * Memoizado para evitar re-renders desnecessários
  */
-function SelectableAnimeCardComponent({ 
+export function SelectableAnimeCard({ 
   entry, 
   isSelectionMode, 
   isSelected, 
@@ -70,49 +69,21 @@ function SelectableAnimeCardComponent({
     ? (entry.episodes_watched || 0) / entry.total_episodes * 100 
     : 0;
 
-  // Handler memoizado para clique no card
-  const handleCardClick = useCallback((e: React.MouseEvent) => {
+  // Handler para clique no card
+  const handleCardClick = (e: React.MouseEvent) => {
     if (isSelectionMode) {
       e.preventDefault();
       onSelectToggle(entry.id);
     } else {
       setModalOpen(true);
     }
-  }, [isSelectionMode, onSelectToggle, entry.id]);
+  };
 
-  // Handler memoizado para o checkbox
-  const handleCheckboxChange = useCallback((e: React.MouseEvent) => {
+  // Handler para o checkbox
+  const handleCheckboxChange = (e: React.MouseEvent) => {
     e.stopPropagation();
     onSelectToggle(entry.id);
-  }, [onSelectToggle, entry.id]);
-
-  // Handler memoizado para toggle favorito
-  const handleToggleFavorite = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    updateEntry.mutate({
-      id: entry.id,
-      is_favorite: !entry.is_favorite,
-    });
-  }, [updateEntry, entry.id, entry.is_favorite]);
-
-  // Handler memoizado para mudança de status
-  const handleStatusChange = useCallback((status: AnimeStatus) => {
-    if (status === 'completed') {
-      updateEntry.mutate({ 
-        id: entry.id, 
-        status,
-        episodes_watched: entry.total_episodes || entry.episodes_watched || 0,
-        completed_at: new Date().toISOString().split('T')[0]
-      });
-    } else {
-      updateEntry.mutate({ id: entry.id, status });
-    }
-  }, [updateEntry, entry.id, entry.total_episodes, entry.episodes_watched]);
-
-  // Handler memoizado para deletar
-  const handleDelete = useCallback(() => {
-    deleteEntry.mutate(entry.id);
-  }, [deleteEntry, entry.id]);
+  };
 
   return (
     <>
@@ -184,7 +155,13 @@ function SelectableAnimeCardComponent({
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background"
-                onClick={handleToggleFavorite}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updateEntry.mutate({
+                    id: entry.id,
+                    is_favorite: !entry.is_favorite,
+                  });
+                }}
               >
                 <Heart 
                   className={cn(
@@ -208,7 +185,19 @@ function SelectableAnimeCardComponent({
                   {(['watching', 'completed', 'paused', 'dropped', 'not_started'] as AnimeStatus[]).map((status) => (
                     <DropdownMenuItem
                       key={status}
-                      onClick={() => handleStatusChange(status)}
+                      onClick={() => {
+                        // Se marcando como completo, atualiza episódios para o total
+                        if (status === 'completed') {
+                          updateEntry.mutate({ 
+                            id: entry.id, 
+                            status,
+                            episodes_watched: entry.total_episodes || entry.episodes_watched || 0,
+                            completed_at: new Date().toISOString().split('T')[0]
+                          });
+                        } else {
+                          updateEntry.mutate({ id: entry.id, status });
+                        }
+                      }}
                     >
                       {statusLabels[status]}
                     </DropdownMenuItem>
@@ -216,7 +205,7 @@ function SelectableAnimeCardComponent({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive"
-                    onClick={handleDelete}
+                    onClick={() => deleteEntry.mutate(entry.id)}
                   >
                     Remover
                   </DropdownMenuItem>
@@ -243,9 +232,9 @@ function SelectableAnimeCardComponent({
         </div>
       </div>
 
-      {/* Modal de detalhes - lazy loaded (apenas fora do modo de seleção) */}
+      {/* Modal de detalhes (apenas fora do modo de seleção) */}
       {!isSelectionMode && (
-        <LazyAnimeDetailModal
+        <AnimeDetailModal
           userEntry={entry}
           malId={entry.mal_id}
           open={modalOpen}
@@ -255,16 +244,3 @@ function SelectableAnimeCardComponent({
     </>
   );
 }
-
-// Exporta componente memoizado para evitar re-renders desnecessários
-export const SelectableAnimeCard = React.memo(SelectableAnimeCardComponent, (prevProps, nextProps) => {
-  return (
-    prevProps.entry.id === nextProps.entry.id &&
-    prevProps.entry.status === nextProps.entry.status &&
-    prevProps.entry.episodes_watched === nextProps.entry.episodes_watched &&
-    prevProps.entry.is_favorite === nextProps.entry.is_favorite &&
-    prevProps.entry.rating === nextProps.entry.rating &&
-    prevProps.isSelectionMode === nextProps.isSelectionMode &&
-    prevProps.isSelected === nextProps.isSelected
-  );
-});

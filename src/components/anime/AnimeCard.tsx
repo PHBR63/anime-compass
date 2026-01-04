@@ -3,8 +3,8 @@ import { Heart, Star, MoreVertical, PlayCircle, CheckCircle, PauseCircle, Clock,
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useUpdateAnimeEntry, useDeleteAnimeEntry } from '@/hooks/useAnimeEntries';
-import { useAnimeEntriesContext } from '@/contexts/AnimeEntriesContext';
-import { LazyAnimeDetailModal } from './LazyAnimeDetailModal';
+import { usePendingSync } from '@/hooks/usePendingSync';
+import { AnimeDetailModal } from './AnimeDetailModal';
 import { SyncPendingBadge } from './SyncPendingBadge';
 import { AnimeCardImage } from '@/components/ui/lazy-image';
 import { SpotlightCard } from '@/components/animations';
@@ -51,16 +51,14 @@ const statusColors: Record<AnimeStatus, { bg: string; text: string; border: stri
 };
 
 /**
- * Card de anime da lista do usuário com modal de detalhes (lazy loaded)
- * Usa contexto centralizado para sync pendente (evita re-renders)
+ * Card de anime da lista do usuário com modal de detalhes
+ * Memoizado com lazy loading de imagens
  */
 function AnimeCardComponent({ entry }: AnimeCardProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const updateEntry = useUpdateAnimeEntry();
   const deleteEntry = useDeleteAnimeEntry();
-  
-  // Usa contexto centralizado para verificar sync pendente (evita re-renders em massa)
-  const { hasPendingForAnime, getPendingOperationType } = useAnimeEntriesContext();
+  const { hasPendingForAnime, getPendingOperationType } = usePendingSync();
   
   // Verifica se há operação pendente para este anime
   const isPending = hasPendingForAnime(entry.id) || hasPendingForAnime(entry.mal_id);
@@ -223,8 +221,8 @@ function AnimeCardComponent({ entry }: AnimeCardProps) {
         </div>
       </SpotlightCard>
 
-      {/* Modal de detalhes - lazy loaded */}
-      <LazyAnimeDetailModal
+      {/* Modal de detalhes */}
+      <AnimeDetailModal
         open={modalOpen}
         onOpenChange={setModalOpen}
         userEntry={entry}

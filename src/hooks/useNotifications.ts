@@ -10,7 +10,7 @@ import { useNotificationPreferences } from './useNotificationPreferences';
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'friend_request' | 'friend_accepted' | 'review_like' | 'achievement' | 'system' | 'moderation';
+  type: 'friend_request' | 'friend_accepted' | 'review_like' | 'achievement' | 'system';
   title: string;
   message: string | null;
   data: {
@@ -20,14 +20,6 @@ export interface Notification {
     friend_id?: string;
     friend_name?: string;
     status?: string;
-    // Campos para notificações de sincronização de animes
-    mal_id?: number;
-    old_episodes?: number | null;
-    new_episodes?: number;
-    old_status?: string;
-    new_status?: string;
-    total_episodes?: number | null;
-    notification_subtype?: 'episodes_updated' | 'anime_finished';
   } | null;
   is_read: boolean;
   created_at: string;

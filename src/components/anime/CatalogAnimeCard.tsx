@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Plus, Star, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAnimeEntriesContext } from '@/contexts/AnimeEntriesContext';
-import { LazyAnimeDetailModal } from './LazyAnimeDetailModal';
+import { AnimeDetailModal } from './AnimeDetailModal';
 import { AnimeCardImage } from '@/components/ui/lazy-image';
 import { toast } from 'sonner';
 import type { CatalogAnime } from '@/types/catalog';
@@ -129,8 +129,8 @@ function CatalogAnimeCardComponent({ anime, rank }: CatalogAnimeCardProps) {
         </div>
       </div>
 
-      {/* Modal de detalhes - lazy loaded */}
-      <LazyAnimeDetailModal
+      {/* Modal de detalhes - passa como catalogAnime */}
+      <AnimeDetailModal
         open={modalOpen}
         onOpenChange={setModalOpen}
         catalogAnime={anime}

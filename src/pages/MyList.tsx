@@ -1,9 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Search, Grid, List as ListIcon, Plus, Edit, X, ListChecks } from 'lucide-react';
-import { useDebounce } from '@/hooks/useDebounce';
 import { SelectableAnimeGrid } from '@/components/anime/SelectableAnimeGrid';
-import { VirtualizedAnimeGrid } from '@/components/anime/VirtualizedAnimeGrid';
-import { VirtualizedAnimeList } from '@/components/anime/VirtualizedAnimeList';
 import { AnimeListItem } from '@/components/anime/AnimeListItem';
 import { BulkActionsBar } from '@/components/anime/BulkActionsBar';
 import { StatusFilter } from '@/components/anime/StatusFilter';
@@ -43,7 +40,6 @@ const defaultSort: SortOptions = {
 export default function MyList() {
   const [activeStatus, setActiveStatus] = useState<AnimeStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const debouncedSearch = useDebounce(searchQuery, 300); // Debounce de 300ms
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -63,9 +59,9 @@ export default function MyList() {
       result = result.filter(e => e.status === activeStatus);
     }
     
-    // Filtro por busca (usa valor debounced)
-    if (debouncedSearch) {
-      const query = debouncedSearch.toLowerCase();
+    // Filtro por busca
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
       result = result.filter(e => 
         e.title.toLowerCase().includes(query)
       );
@@ -112,7 +108,7 @@ export default function MyList() {
     return result;
   }, [entries, activeStatus, searchQuery, filters, sort]);
 
-  // Contadores por status - cálculo otimizado em uma única iteração
+  // Contadores por status
   const statusCounts = useMemo(() => {
     if (!entries) return {
       all: 0,
@@ -123,23 +119,16 @@ export default function MyList() {
       not_started: 0,
     };
 
-    // Single-pass: itera uma única vez sobre o array
-    const counts = {
-      all: 0,
-      watching: 0,
-      completed: 0,
-      paused: 0,
-      dropped: 0,
-      not_started: 0,
-    };
-
-    for (const entry of entries) {
-      if (entry.is_archived) continue;
-      counts.all++;
-      counts[entry.status]++;
-    }
+    const nonArchived = entries.filter(e => !e.is_archived);
     
-    return counts;
+    return {
+      all: nonArchived.length,
+      watching: nonArchived.filter(e => e.status === 'watching').length,
+      completed: nonArchived.filter(e => e.status === 'completed').length,
+      paused: nonArchived.filter(e => e.status === 'paused').length,
+      dropped: nonArchived.filter(e => e.status === 'dropped').length,
+      not_started: nonArchived.filter(e => e.status === 'not_started').length,
+    };
   }, [entries]);
 
   // Atalhos de teclado
@@ -334,28 +323,18 @@ export default function MyList() {
         )
       ) : filteredEntries.length > 0 ? (
         viewMode === 'grid' ? (
-          // Usa grid virtualizado para listas grandes (>50 itens)
-          filteredEntries.length > 50 && !isSelectionMode ? (
-            <VirtualizedAnimeGrid entries={filteredEntries} />
-          ) : (
-            <SelectableAnimeGrid 
-              entries={filteredEntries}
-              isSelectionMode={isSelectionMode}
-              selectedIds={selectedIds}
-              onSelectionChange={setSelectedIds}
-            />
-          )
+          <SelectableAnimeGrid 
+            entries={filteredEntries}
+            isSelectionMode={isSelectionMode}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+          />
         ) : (
-          // Usa lista virtualizada para listas grandes (>30 itens)
-          filteredEntries.length > 30 ? (
-            <VirtualizedAnimeList entries={filteredEntries} />
-          ) : (
-            <div className="space-y-3">
-              {filteredEntries.map(entry => (
-                <AnimeListItem key={entry.id} entry={entry} />
-              ))}
-            </div>
-          )
+          <div className="space-y-3">
+            {filteredEntries.map(entry => (
+              <AnimeListItem key={entry.id} entry={entry} />
+            ))}
+          </div>
         )
       ) : (
         <div className="glass-card p-8 text-center">

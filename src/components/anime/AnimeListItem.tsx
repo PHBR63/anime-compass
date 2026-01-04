@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Heart, MoreVertical, Star, Calendar, Tv, PlayCircle, CheckCircle, PauseCircle, Clock, XCircle, AlertTriangle, Eye } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LazyAnimeDetailModal } from './LazyAnimeDetailModal';
+import { AnimeDetailModal } from './AnimeDetailModal';
 import { SyncPendingBadge } from './SyncPendingBadge';
 import { LazyImage } from '@/components/ui/lazy-image';
 import { useUpdateAnimeEntry, useDeleteAnimeEntry } from '@/hooks/useAnimeEntries';
-import { useAnimeEntriesContext } from '@/contexts/AnimeEntriesContext';
+import { usePendingSync } from '@/hooks/usePendingSync';
 import type { Database } from '@/integrations/supabase/types';
 import { cn } from '@/lib/utils';
 
@@ -54,16 +54,13 @@ interface AnimeListItemProps {
 
 /**
  * Item de anime em formato de lista (horizontal)
- * Memoizado para evitar re-renders desnecessários
  */
-function AnimeListItemComponent({ entry, onClick }: AnimeListItemProps) {
+export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [showSpoiler, setShowSpoiler] = useState(false);
   const updateEntry = useUpdateAnimeEntry();
   const deleteEntry = useDeleteAnimeEntry();
-  
-  // Usa contexto centralizado para sync pendente (evita re-renders em massa)
-  const { hasPendingForAnime, getPendingOperationType } = useAnimeEntriesContext();
+  const { hasPendingForAnime, getPendingOperationType } = usePendingSync();
   
   // Verifica se há operação pendente para este anime
   const isPending = hasPendingForAnime(entry.id) || hasPendingForAnime(entry.mal_id);
@@ -73,48 +70,13 @@ function AnimeListItemComponent({ entry, onClick }: AnimeListItemProps) {
     ? (entry.episodes_watched || 0) / entry.total_episodes * 100 
     : 0;
 
-  // Handler memoizado para clique no card
-  const handleClick = useCallback(() => {
+  const handleClick = () => {
     if (onClick) {
       onClick();
     } else {
       setModalOpen(true);
     }
-  }, [onClick]);
-
-  // Handler memoizado para toggle favorito
-  const handleToggleFavorite = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    updateEntry.mutate({
-      id: entry.id,
-      is_favorite: !entry.is_favorite,
-    });
-  }, [updateEntry, entry.id, entry.is_favorite]);
-
-  // Handler memoizado para mudança de status
-  const handleStatusChange = useCallback((status: AnimeStatus) => {
-    if (status === 'completed') {
-      updateEntry.mutate({ 
-        id: entry.id, 
-        status,
-        episodes_watched: entry.total_episodes || entry.episodes_watched || 0,
-        completed_at: new Date().toISOString().split('T')[0]
-      });
-    } else {
-      updateEntry.mutate({ id: entry.id, status });
-    }
-  }, [updateEntry, entry.id, entry.total_episodes, entry.episodes_watched]);
-
-  // Handler memoizado para deletar
-  const handleDelete = useCallback(() => {
-    deleteEntry.mutate(entry.id);
-  }, [deleteEntry, entry.id]);
-
-  // Handler memoizado para revelar spoiler
-  const handleRevealSpoiler = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowSpoiler(true);
-  }, []);
+  };
 
   return (
     <>
@@ -215,7 +177,10 @@ function AnimeListItemComponent({ entry, onClick }: AnimeListItemProps) {
                       {entry.notes}
                     </span>
                     <button
-                      onClick={handleRevealSpoiler}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowSpoiler(true);
+                      }}
                       className="text-xs text-sakura hover:underline shrink-0 flex items-center gap-1"
                     >
                       <Eye className="h-3 w-3" />
@@ -243,7 +208,13 @@ function AnimeListItemComponent({ entry, onClick }: AnimeListItemProps) {
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={handleToggleFavorite}
+            onClick={(e) => {
+              e.stopPropagation();
+              updateEntry.mutate({
+                id: entry.id,
+                is_favorite: !entry.is_favorite,
+              });
+            }}
           >
             <Heart 
               className={cn(
@@ -263,7 +234,19 @@ function AnimeListItemComponent({ entry, onClick }: AnimeListItemProps) {
               {(['watching', 'completed', 'paused', 'dropped', 'not_started'] as AnimeStatus[]).map((status) => (
                 <DropdownMenuItem
                   key={status}
-                  onClick={() => handleStatusChange(status)}
+                  onClick={() => {
+                    // Se marcando como completo, atualiza episódios para o total
+                    if (status === 'completed') {
+                      updateEntry.mutate({ 
+                        id: entry.id, 
+                        status,
+                        episodes_watched: entry.total_episodes || entry.episodes_watched || 0,
+                        completed_at: new Date().toISOString().split('T')[0]
+                      });
+                    } else {
+                      updateEntry.mutate({ id: entry.id, status });
+                    }
+                  }}
                 >
                   {statusLabels[status]}
                 </DropdownMenuItem>
@@ -271,7 +254,7 @@ function AnimeListItemComponent({ entry, onClick }: AnimeListItemProps) {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive"
-                onClick={handleDelete}
+                onClick={() => deleteEntry.mutate(entry.id)}
               >
                 Remover
               </DropdownMenuItem>
@@ -280,8 +263,7 @@ function AnimeListItemComponent({ entry, onClick }: AnimeListItemProps) {
         </div>
       </div>
 
-      {/* Modal lazy loaded */}
-      <LazyAnimeDetailModal
+      <AnimeDetailModal
         userEntry={entry}
         malId={entry.mal_id}
         open={modalOpen}
@@ -290,20 +272,3 @@ function AnimeListItemComponent({ entry, onClick }: AnimeListItemProps) {
     </>
   );
 }
-
-// Exporta componente memoizado para evitar re-renders desnecessários
-export const AnimeListItem = React.memo(AnimeListItemComponent, (prevProps, nextProps) => {
-  const prev = prevProps.entry;
-  const next = nextProps.entry;
-  
-  return (
-    prev.id === next.id &&
-    prev.status === next.status &&
-    prev.episodes_watched === next.episodes_watched &&
-    prev.is_favorite === next.is_favorite &&
-    prev.rating === next.rating &&
-    prev.notes === next.notes &&
-    prev.image_url === next.image_url &&
-    prev.title === next.title
-  );
-});

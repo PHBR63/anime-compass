@@ -258,49 +258,20 @@ export function useUserStats() {
 
       if (error) throw error;
 
-      // Cálculo otimizado single-pass: itera uma única vez sobre o array
-      // em vez de múltiplos .filter() e .reduce()
-      let totalEpisodes = 0;
-      let watching = 0;
-      let completed = 0;
-      let paused = 0;
-      let dropped = 0;
-      let notStarted = 0;
-      let ratingSum = 0;
-      let ratingCount = 0;
-
-      for (const entry of entries || []) {
-        // Contagem de episódios
-        totalEpisodes += entry.episodes_watched || 0;
-        
-        // Contagem por status
-        switch (entry.status) {
-          case 'watching': watching++; break;
-          case 'completed': completed++; break;
-          case 'paused': paused++; break;
-          case 'dropped': dropped++; break;
-          case 'not_started': notStarted++; break;
-        }
-        
-        // Soma de ratings
-        if (entry.rating) {
-          ratingSum += Number(entry.rating);
-          ratingCount++;
-        }
-      }
-
-      const totalAnimes = entries?.length || 0;
-      
       const stats = {
-        totalAnimes,
-        watching,
-        completed,
-        paused,
-        dropped,
-        notStarted,
-        totalEpisodes,
-        averageRating: ratingCount > 0 ? (ratingSum / ratingCount).toFixed(1) : '0.0',
-        completionRate: totalAnimes > 0 ? ((completed / totalAnimes) * 100).toFixed(0) : '0',
+        totalAnimes: entries?.length || 0,
+        watching: entries?.filter(e => e.status === 'watching').length || 0,
+        completed: entries?.filter(e => e.status === 'completed').length || 0,
+        paused: entries?.filter(e => e.status === 'paused').length || 0,
+        dropped: entries?.filter(e => e.status === 'dropped').length || 0,
+        notStarted: entries?.filter(e => e.status === 'not_started').length || 0,
+        totalEpisodes: entries?.reduce((sum, e) => sum + (e.episodes_watched || 0), 0) || 0,
+        averageRating: entries?.filter(e => e.rating).length 
+          ? (entries.filter(e => e.rating).reduce((sum, e) => sum + (Number(e.rating) || 0), 0) / entries.filter(e => e.rating).length).toFixed(1)
+          : '0.0',
+        completionRate: entries?.length 
+          ? ((entries.filter(e => e.status === 'completed').length / entries.length) * 100).toFixed(0)
+          : '0',
       };
 
       // Salva no cache em background

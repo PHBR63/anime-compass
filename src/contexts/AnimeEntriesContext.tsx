@@ -1,16 +1,16 @@
 /**
- * Contexto otimizado para compartilhar dados de anime entries entre componentes
- * Usa Map para buscas O(1) ao invés de O(n)
- * Inclui estado de sync pendente centralizado para evitar re-renders em massa
+ * Contexto para compartilhar dados de anime entries entre componentes
+ * Evita chamadas redundantes ao hook useAnimeEntries em múltiplos cards
+ * Inclui suporte offline-first para operações e realtime sync
  */
 
-import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
-import { addToQueue, getPendingOperations, type PendingOperation } from '@/lib/offlineQueue';
+import { addToQueue } from '@/lib/offlineQueue';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -18,24 +18,15 @@ type AnimeEntry = Database['public']['Tables']['anime_entries']['Row'];
 type AnimeEntryInsert = Database['public']['Tables']['anime_entries']['Insert'];
 type AnimeEntryUpdate = Database['public']['Tables']['anime_entries']['Update'];
 
-// Interface do contexto com Map otimizado
+// Tipo do contexto
 interface AnimeEntriesContextType {
   entries: AnimeEntry[] | undefined;
-  entriesMap: Map<number, AnimeEntry>; // Map para busca O(1) por mal_id
-  entriesById: Map<string, AnimeEntry>; // Map para busca O(1) por id
   isLoading: boolean;
   isInList: (malId: number) => boolean;
   getEntry: (malId: number) => AnimeEntry | undefined;
-  getEntryById: (id: string) => AnimeEntry | undefined;
   addEntry: ReturnType<typeof useAddMutation>;
   updateEntry: ReturnType<typeof useUpdateMutation>;
   deleteEntry: ReturnType<typeof useDeleteMutation>;
-  // Estado de sync pendente centralizado
-  pendingOperations: PendingOperation[];
-  hasPendingForAnime: (animeId: string | number) => boolean;
-  getPendingOperationType: (animeId: string | number) => string | null;
-  hasPendingOperations: boolean;
-  pendingCount: number;
 }
 
 const AnimeEntriesContext = createContext<AnimeEntriesContextType | undefined>(undefined);
@@ -167,10 +158,9 @@ function useDeleteMutation() {
   });
 }
 
-// Provider do contexto com otimizações
+// Provider do contexto
 export function AnimeEntriesProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [pendingOperations, setPendingOperations] = useState<PendingOperation[]>([]);
   
   // Ativa sincronização em tempo real
   useRealtimeSync();
@@ -195,131 +185,29 @@ export function AnimeEntriesProvider({ children }: { children: ReactNode }) {
     staleTime: 1000 * 60 * 5, // 5 minutos
   });
 
-  // Carrega operações pendentes (centralizado para evitar re-renders em cada card)
-  const loadPending = useCallback(async () => {
-    if (!user) {
-      setPendingOperations([]);
-      return;
-    }
-    
-    try {
-      const operations = await getPendingOperations(user.id);
-      setPendingOperations(operations);
-    } catch (error) {
-      console.error('Erro ao carregar operações pendentes:', error);
-    }
-  }, [user]);
-
-  // Atualiza quando a fila muda
-  useEffect(() => {
-    loadPending();
-    
-    const handleQueueUpdate = () => {
-      loadPending();
-    };
-    
-    window.addEventListener('offline-queue-updated', handleQueueUpdate);
-    return () => {
-      window.removeEventListener('offline-queue-updated', handleQueueUpdate);
-    };
-  }, [loadPending]);
-
-  // Cria Maps para busca O(1) - memoizado
-  const entriesMap = React.useMemo(() => {
-    const map = new Map<number, AnimeEntry>();
-    entries?.forEach(entry => {
-      map.set(entry.mal_id, entry);
-    });
-    return map;
-  }, [entries]);
-
-  const entriesById = React.useMemo(() => {
-    const map = new Map<string, AnimeEntry>();
-    entries?.forEach(entry => {
-      map.set(entry.id, entry);
-    });
-    return map;
-  }, [entries]);
-
   const addEntry = useAddMutation();
   const updateEntry = useUpdateMutation();
   const deleteEntry = useDeleteMutation();
 
-  // Função O(1) para verificar se anime está na lista
+  // Função memoizada para verificar se anime está na lista
   const isInList = React.useCallback((malId: number): boolean => {
-    return entriesMap.has(malId);
-  }, [entriesMap]);
+    return entries?.some(entry => entry.mal_id === malId) ?? false;
+  }, [entries]);
 
-  // Função O(1) para buscar entry por mal_id
+  // Função memoizada para buscar entry específica
   const getEntry = React.useCallback((malId: number): AnimeEntry | undefined => {
-    return entriesMap.get(malId);
-  }, [entriesMap]);
-
-  // Função O(1) para buscar entry por id
-  const getEntryById = React.useCallback((id: string): AnimeEntry | undefined => {
-    return entriesById.get(id);
-  }, [entriesById]);
-
-  // Verifica se um anime específico tem operação pendente
-  const hasPendingForAnime = useCallback((animeId: string | number): boolean => {
-    return pendingOperations.some(op => {
-      const data = op.data;
-      return (
-        data.mal_id === animeId || 
-        data.id === animeId ||
-        String(data.mal_id) === String(animeId) ||
-        String(data.id) === String(animeId)
-      );
-    });
-  }, [pendingOperations]);
-
-  // Obtém o tipo de operação pendente para um anime
-  const getPendingOperationType = useCallback((animeId: string | number): string | null => {
-    const operation = pendingOperations.find(op => {
-      const data = op.data;
-      return (
-        data.mal_id === animeId || 
-        data.id === animeId ||
-        String(data.mal_id) === String(animeId) ||
-        String(data.id) === String(animeId)
-      );
-    });
-    
-    return operation?.type || null;
-  }, [pendingOperations]);
+    return entries?.find(entry => entry.mal_id === malId);
+  }, [entries]);
 
   const value = React.useMemo(() => ({
     entries,
-    entriesMap,
-    entriesById,
     isLoading,
     isInList,
     getEntry,
-    getEntryById,
     addEntry,
     updateEntry,
     deleteEntry,
-    // Estado de sync centralizado
-    pendingOperations,
-    hasPendingForAnime,
-    getPendingOperationType,
-    hasPendingOperations: pendingOperations.length > 0,
-    pendingCount: pendingOperations.length,
-  }), [
-    entries, 
-    entriesMap, 
-    entriesById, 
-    isLoading, 
-    isInList, 
-    getEntry, 
-    getEntryById, 
-    addEntry, 
-    updateEntry, 
-    deleteEntry,
-    pendingOperations,
-    hasPendingForAnime,
-    getPendingOperationType,
-  ]);
+  }), [entries, isLoading, isInList, getEntry, addEntry, updateEntry, deleteEntry]);
 
   return (
     <AnimeEntriesContext.Provider value={value}>

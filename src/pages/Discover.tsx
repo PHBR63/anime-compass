@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useDebounce } from '@/hooks/useDebounce';
 import { Search, TrendingUp, Sparkles, Filter, Tv, Loader2, Star, ChevronDown, AlertTriangle, Database } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CatalogAnimeCard } from '@/components/anime/CatalogAnimeCard';
-import { VirtualizedCatalogGrid } from '@/components/anime/VirtualizedCatalogGrid';
 import { 
   useTopAnimes, 
   useSeasonAnimes, 
@@ -32,7 +30,7 @@ import type { CatalogAnime } from '@/types/catalog';
 export default function Discover() {
   // Estados de pesquisa e filtros
   const [searchQuery, setSearchQuery] = useState('');
-  const debouncedQuery = useDebounce(searchQuery, 300); // Hook de debounce com 300ms
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'season' | 'top'>('season');
   const [selectedAnime, setSelectedAnime] = useState<CatalogAnime | null>(null);
   
@@ -45,6 +43,14 @@ export default function Discover() {
   
   // Ref para observar scroll infinito
   const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Debounce da pesquisa
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Sincroniza busca de texto com filtros avançados
   useEffect(() => {
@@ -190,6 +196,7 @@ export default function Discover() {
     // Limpa busca por texto ao selecionar gênero
     if (advancedFilters.genre !== genreId) {
       setSearchQuery('');
+      setDebouncedQuery('');
     }
   }, [advancedFilters.genre]);
 
@@ -198,6 +205,7 @@ export default function Discover() {
     const savedHideInList = localStorage.getItem('discover-hide-in-list') === 'true';
     setAdvancedFilters({ hideInList: savedHideInList });
     setSearchQuery('');
+    setDebouncedQuery('');
   }, []);
 
   // Persiste a preferência de hideInList no localStorage
@@ -412,16 +420,11 @@ export default function Discover() {
             <LoadingSkeleton count={12} />
           ) : advancedAnimes.length > 0 ? (
             <>
-              {/* Usa grid virtualizado para listas grandes (>50 itens) */}
-              {advancedAnimes.length > 50 ? (
-                <VirtualizedCatalogGrid animes={advancedAnimes} />
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {advancedAnimes.map((anime) => (
-                    <CatalogAnimeCard key={anime.mal_id} anime={anime} />
-                  ))}
-                </div>
-              )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {advancedAnimes.map((anime) => (
+                  <CatalogAnimeCard key={anime.mal_id} anime={anime} />
+                ))}
+              </div>
               <LoadMoreButton />
             </>
           ) : (
@@ -478,16 +481,11 @@ export default function Discover() {
                 <LoadingSkeleton count={12} />
               ) : (
                 <>
-                  {/* Usa grid virtualizado para listas grandes (>50 itens) */}
-                  {seasonAnimes.length > 50 ? (
-                    <VirtualizedCatalogGrid animes={seasonAnimes} />
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                      {seasonAnimes.map((anime) => (
-                        <CatalogAnimeCard key={anime.mal_id} anime={anime} />
-                      ))}
-                    </div>
-                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {seasonAnimes.map((anime) => (
+                      <CatalogAnimeCard key={anime.mal_id} anime={anime} />
+                    ))}
+                  </div>
                   <LoadMoreButton />
                 </>
               )}
@@ -508,20 +506,15 @@ export default function Discover() {
                 <LoadingSkeleton count={12} />
               ) : (
                 <>
-                  {/* Usa grid virtualizado para listas grandes (>50 itens) */}
-                  {topAnimes.length > 50 ? (
-                    <VirtualizedCatalogGrid animes={topAnimes} />
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                      {topAnimes.map((anime, index) => (
-                        <CatalogAnimeCard 
-                          key={anime.mal_id} 
-                          anime={anime} 
-                          rank={index + 1}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {topAnimes.map((anime, index) => (
+                      <CatalogAnimeCard 
+                        key={anime.mal_id} 
+                        anime={anime} 
+                        rank={index + 1}
+                      />
+                    ))}
+                  </div>
                   <LoadMoreButton />
                 </>
               )}

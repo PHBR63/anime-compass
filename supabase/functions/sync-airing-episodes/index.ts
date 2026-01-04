@@ -147,75 +147,33 @@ Deno.serve(async (req) => {
         } else {
           results.updated++;
           
-          // Busca usuários que têm esse anime na lista (assistindo ou não iniciado)
-          const { data: usersWithAnime, error: usersError } = await supabase
-            .from('anime_entries')
-            .select('user_id, status')
-            .eq('mal_id', anime.mal_id)
-            .in('status', ['watching', 'not_started']);
+          // Se episódios foram atualizados, notifica usuários que estão assistindo
+          if (updates.episodes) {
+            const { data: watchingUsers, error: usersError } = await supabase
+              .from('anime_entries')
+              .select('user_id')
+              .eq('mal_id', anime.mal_id)
+              .eq('status', 'watching');
 
-          if (usersError) {
-            console.error(`[sync-airing] Erro ao buscar usuários com ${anime.title}:`, usersError);
-          } else if (usersWithAnime && usersWithAnime.length > 0) {
-            const notifications: Array<{
-              user_id: string;
-              type: 'system';
-              title: string;
-              message: string;
-              data: Record<string, unknown>;
-            }> = [];
-
-            // Se episódios foram atualizados, notifica usuários que estão assistindo
-            if (updates.episodes) {
-              const watchingUsers = usersWithAnime.filter(u => u.status === 'watching');
-              console.log(`[sync-airing] Notificando ${watchingUsers.length} usuários sobre episódios de ${anime.title}`);
+            if (usersError) {
+              console.error(`[sync-airing] Erro ao buscar usuários assistindo ${anime.title}:`, usersError);
+            } else if (watchingUsers && watchingUsers.length > 0) {
+              console.log(`[sync-airing] Notificando ${watchingUsers.length} usuários sobre ${anime.title}`);
               
-              watchingUsers.forEach(entry => {
-                notifications.push({
-                  user_id: entry.user_id,
-                  type: 'system' as const,
-                  title: 'Total de episódios atualizado!',
-                  message: `${anime.title} agora tem ${updates.episodes} episódios confirmados.`,
-                  data: {
-                    mal_id: anime.mal_id,
-                    anime_title: anime.title,
-                    old_episodes: anime.episodes,
-                    new_episodes: updates.episodes,
-                    notification_subtype: 'episodes_updated',
-                  },
-                });
-              });
-            }
+              // Cria notificações para cada usuário
+              const notifications = watchingUsers.map(entry => ({
+                user_id: entry.user_id,
+                type: 'system' as const,
+                title: 'Total de episódios atualizado!',
+                message: `${anime.title} agora tem ${updates.episodes} episódios confirmados.`,
+                data: {
+                  mal_id: anime.mal_id,
+                  anime_title: anime.title,
+                  old_episodes: anime.episodes,
+                  new_episodes: updates.episodes,
+                },
+              }));
 
-            // Se o status mudou para "Finished Airing", notifica todos os usuários com o anime
-            if (updates.status === 'Finished Airing') {
-              console.log(`[sync-airing] Notificando ${usersWithAnime.length} usuários que ${anime.title} finalizou`);
-              
-              usersWithAnime.forEach(entry => {
-                // Evita notificação duplicada se já notificou sobre episódios
-                const alreadyNotified = notifications.some(n => n.user_id === entry.user_id);
-                
-                notifications.push({
-                  user_id: entry.user_id,
-                  type: 'system' as const,
-                  title: alreadyNotified ? '🎬 Anime finalizado!' : '🎬 Anime finalizado!',
-                  message: alreadyNotified 
-                    ? `${anime.title} terminou de ser exibido com ${updates.episodes || anime.episodes || '?'} episódios!`
-                    : `${anime.title} terminou de ser exibido! Agora você pode maratonar.`,
-                  data: {
-                    mal_id: anime.mal_id,
-                    anime_title: anime.title,
-                    old_status: anime.status,
-                    new_status: updates.status,
-                    total_episodes: updates.episodes || anime.episodes,
-                    notification_subtype: 'anime_finished',
-                  },
-                });
-              });
-            }
-
-            // Insere todas as notificações de uma vez
-            if (notifications.length > 0) {
               const { error: notifError } = await supabase
                 .from('notifications')
                 .insert(notifications);
@@ -223,7 +181,7 @@ Deno.serve(async (req) => {
               if (notifError) {
                 console.error(`[sync-airing] Erro ao criar notificações:`, notifError);
               } else {
-                console.log(`[sync-airing] ${notifications.length} notificações criadas para ${anime.title}`);
+                console.log(`[sync-airing] ${notifications.length} notificações criadas`);
               }
             }
           }

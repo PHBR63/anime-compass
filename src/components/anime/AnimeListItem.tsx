@@ -99,12 +99,10 @@ export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
             <div>
               <h3 className="font-semibold text-sm line-clamp-1">{entry.title}</h3>
               <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                {entry.total_episodes && (
-                  <span className="flex items-center gap-1">
-                    <Tv className="h-3 w-3" />
-                    {entry.total_episodes} eps
-                  </span>
-                )}
+                <span className="flex items-center gap-1">
+                  <Tv className="h-3 w-3" />
+                  {entry.total_episodes ? `${entry.total_episodes} eps` : '? eps'}
+                </span>
                 {entry.started_at && (
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />

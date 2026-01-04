@@ -1,5 +1,5 @@
 import { useState, useRef, forwardRef, useEffect } from 'react';
-import { X, Plus, Minus, Calendar, Clock, Tv, Star, Heart, Loader2, Check, Bookmark, Languages, AlertTriangle } from 'lucide-react';
+import { X, Plus, Minus, Calendar, Clock, Tv, Star, Heart, Loader2, Check, Bookmark, Languages, AlertTriangle, PlayCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -164,10 +164,14 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
   };
 
   // Função para atualizar episódios com histórico
+  // Permite incrementar sem limite quando totalEpisodes é desconhecido
   const handleEpisodesChange = (delta: number) => {
-    const totalEps = displayData.episodes || entry?.total_episodes || 999;
+    const totalEps = displayData.episodes || entry?.total_episodes;
     const oldValue = localEpisodes;
-    const newValue = Math.max(0, Math.min(totalEps, localEpisodes + delta));
+    // Se não há total definido, permite incrementar sem limite máximo
+    const newValue = totalEps 
+      ? Math.max(0, Math.min(totalEps, localEpisodes + delta))
+      : Math.max(0, localEpisodes + delta);
     setLocalEpisodes(newValue);
     if (entry && oldValue !== newValue) {
       addProgressHistory.mutate({
@@ -177,7 +181,8 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
       });
       handleUpdate({ 
         episodes_watched: newValue,
-        ...(newValue === totalEps && { status: 'completed' as AnimeStatus, completed_at: new Date().toISOString().split('T')[0] })
+        // Só marca como completo automaticamente se tem total e atingiu
+        ...(totalEps && newValue === totalEps && { status: 'completed' as AnimeStatus, completed_at: new Date().toISOString().split('T')[0] })
       });
     }
   };
@@ -312,12 +317,24 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
                         {displayData.year}
                       </span>
                     )}
-                    {totalEpisodes && (
-                      <span className="flex items-center gap-1">
-                        <Tv className="h-3 w-3 md:h-4 md:w-4" />
-                        {totalEpisodes} eps
-                      </span>
-                    )}
+                    <span className="flex items-center gap-1">
+                      {totalEpisodes ? (
+                        <>
+                          <Tv className="h-3 w-3 md:h-4 md:w-4" />
+                          {totalEpisodes} eps
+                        </>
+                      ) : catalogData?.status === 'Currently Airing' ? (
+                        <>
+                          <PlayCircle className="h-3 w-3 md:h-4 md:w-4 text-primary animate-pulse" />
+                          Em andamento
+                        </>
+                      ) : (
+                        <>
+                          <Tv className="h-3 w-3 md:h-4 md:w-4" />
+                          ? eps
+                        </>
+                      )}
+                    </span>
                     {displayData.score && (
                       <span className="flex items-center gap-1">
                         <Star className="h-3 w-3 md:h-4 md:w-4 text-warning fill-warning" />
@@ -376,43 +393,52 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
                   </div>
 
                   {/* Progresso com Slider interativo */}
-                  {totalEpisodes && (
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground mb-3 block">
-                        Progresso
-                      </label>
-                      <div className="space-y-4">
-                        {/* Controles numéricos */}
-                        <div className="flex items-center gap-4">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-9 w-9 rounded-full"
-                            onClick={() => handleEpisodesChange(-1)}
-                            disabled={localEpisodes <= 0}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <div className="flex-1 text-center">
-                            <span className="text-2xl font-bold text-primary">
-                              {localEpisodes}
-                            </span>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground mb-3 block">
+                      Progresso
+                      {!totalEpisodes && catalogData?.status === 'Currently Airing' && (
+                        <span className="text-xs text-primary ml-2">(em andamento)</span>
+                      )}
+                    </label>
+                    <div className="space-y-4">
+                      {/* Controles numéricos */}
+                      <div className="flex items-center gap-4">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-full"
+                          onClick={() => handleEpisodesChange(-1)}
+                          disabled={localEpisodes <= 0}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <div className="flex-1 text-center">
+                          <span className="text-2xl font-bold text-primary">
+                            {localEpisodes}
+                          </span>
+                          {totalEpisodes ? (
                             <span className="text-lg text-muted-foreground">
                               {' / '}{totalEpisodes}
                             </span>
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-9 w-9 rounded-full"
-                            onClick={() => handleEpisodesChange(1)}
-                            disabled={localEpisodes >= totalEpisodes}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
+                          ) : (
+                            <span className="text-lg text-muted-foreground">
+                              {' eps assistidos'}
+                            </span>
+                          )}
                         </div>
-                        
-                        {/* Slider */}
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-9 w-9 rounded-full"
+                          onClick={() => handleEpisodesChange(1)}
+                          disabled={totalEpisodes ? localEpisodes >= totalEpisodes : false}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      {/* Slider - só mostra quando há total definido */}
+                      {totalEpisodes && (
                         <Slider
                           value={[localEpisodes]}
                           min={0}
@@ -427,9 +453,9 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
                           onValueCommit={([value]) => handleSliderCommit(value)}
                           className="w-full"
                         />
-                      </div>
+                      )}
                     </div>
-                  )}
+                  </div>
 
                   {/* Avaliação */}
                   <div>

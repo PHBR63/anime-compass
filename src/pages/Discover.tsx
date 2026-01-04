@@ -34,8 +34,11 @@ export default function Discover() {
   const [activeTab, setActiveTab] = useState<'season' | 'top'>('season');
   const [selectedAnime, setSelectedAnime] = useState<CatalogAnime | null>(null);
   
-  // Estados de filtros avançados
-  const [advancedFilters, setAdvancedFilters] = useState<DiscoverFilters>({});
+  // Estados de filtros avançados - com persistência do hideInList
+  const [advancedFilters, setAdvancedFilters] = useState<DiscoverFilters>(() => {
+    const savedHideInList = localStorage.getItem('discover-hide-in-list');
+    return { hideInList: savedHideInList === 'true' };
+  });
   const [advancedSort, setAdvancedSort] = useState<DiscoverSort>({ field: 'score', order: 'desc' });
   
   // Ref para observar scroll infinito
@@ -198,9 +201,19 @@ export default function Discover() {
   }, [advancedFilters.genre]);
 
   const clearFilters = useCallback(() => {
-    setAdvancedFilters({});
+    // Mantém a preferência de hideInList ao limpar filtros
+    const savedHideInList = localStorage.getItem('discover-hide-in-list') === 'true';
+    setAdvancedFilters({ hideInList: savedHideInList });
     setSearchQuery('');
     setDebouncedQuery('');
+  }, []);
+
+  // Persiste a preferência de hideInList no localStorage
+  const handleFiltersChange = useCallback((newFilters: DiscoverFilters) => {
+    if (newFilters.hideInList !== undefined) {
+      localStorage.setItem('discover-hide-in-list', String(newFilters.hideInList));
+    }
+    setAdvancedFilters(newFilters);
   }, []);
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -345,7 +358,7 @@ export default function Discover() {
             <DiscoverFiltersSheet
               filters={advancedFilters}
               sort={advancedSort}
-              onFiltersChange={setAdvancedFilters}
+              onFiltersChange={handleFiltersChange}
               onSortChange={setAdvancedSort}
               onClear={clearFilters}
             />
@@ -354,7 +367,7 @@ export default function Discover() {
           {/* Badges de filtros ativos */}
           <ActiveFiltersBadges 
             filters={advancedFilters} 
-            onFiltersChange={setAdvancedFilters} 
+            onFiltersChange={handleFiltersChange}
           />
         </div>
       </AnimatedContent>

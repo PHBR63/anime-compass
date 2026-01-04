@@ -109,7 +109,10 @@ export function useAdvancedAnimeSearch(
     getNextPageParam: (lastPage) => lastPage.nextPage,
     initialPageParam: 1,
     enabled: hasActiveFilters,
-    staleTime: 5 * 60 * 1000,
+    // Cache de 15 minutos para busca avançada - catálogo é estático
+    staleTime: 15 * 60 * 1000,
+    // Mantém dados em cache por 1 hora
+    gcTime: 60 * 60 * 1000,
   });
 }
 

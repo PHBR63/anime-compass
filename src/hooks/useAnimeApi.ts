@@ -99,7 +99,10 @@ export function useAnimeList(
         pagination: response.pagination,
       };
     },
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    // Cache de 15 minutos - dados do catálogo mudam pouco
+    staleTime: 15 * 60 * 1000,
+    // Mantém dados em cache por 1 hora
+    gcTime: 60 * 60 * 1000,
   });
 }
 
@@ -131,7 +134,9 @@ export function useInfiniteAnimeList(
     },
     getNextPageParam: (lastPage) => lastPage.nextPage,
     initialPageParam: 1,
-    staleTime: 5 * 60 * 1000,
+    // Cache de 15 minutos para scroll infinito
+    staleTime: 15 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
   });
 }
 
@@ -188,7 +193,9 @@ export function useSearchAnimes(query: string, limit = 24) {
     getNextPageParam: (lastPage) => lastPage.nextPage,
     initialPageParam: 1,
     enabled: query.length >= 2,
-    staleTime: 5 * 60 * 1000,
+    // Cache de 10 minutos para resultados de busca
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
@@ -207,7 +214,9 @@ export function useSimpleSearchAnimes(query: string, limit = 12) {
       return response.data || [];
     },
     enabled: query.length >= 2,
-    staleTime: 5 * 60 * 1000,
+    // Cache de 10 minutos para busca simples
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 

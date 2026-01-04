@@ -139,10 +139,15 @@ async function handleList(supabase: any, params: URLSearchParams): Promise<Respo
   const validSortFields = ['score', 'popularity', 'year', 'title', 'rank', 'members', 'created_at', 'updated_at'];
   const actualSortField = validSortFields.includes(sortField) ? sortField : 'score';
 
+  // Tipos bloqueados que nunca devem aparecer nos resultados
+  const BLOCKED_TYPES = ['Music', 'CM', 'PV'];
+
   // Construir query
   let query = supabase
     .from('anime_catalog')
-    .select('*', { count: 'exact' });
+    .select('*', { count: 'exact' })
+    // Excluir tipos bloqueados (comerciais, músicas, previews)
+    .not('type', 'in', `(${BLOCKED_TYPES.join(',')})`)
 
   // Filtro de busca por texto
   const search = params.get('search');

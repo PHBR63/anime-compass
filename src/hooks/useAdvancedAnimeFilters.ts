@@ -20,6 +20,7 @@ export interface DiscoverFilters {
   type?: string;
   status?: string;
   scoreMin?: number;
+  hideInList?: boolean; // Ocultar animes já na lista do usuário
 }
 
 // Opções de ordenação para descobrir

@@ -12,7 +12,8 @@ import {
   Building2, 
   Star,
   ArrowUpDown,
-  ChevronDown
+  ChevronDown,
+  EyeOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +40,7 @@ import {
 } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import { useAnimeGenres, useAnimeStudios } from '@/hooks/useAnimeApi';
 import { 
   type DiscoverFilters, 
@@ -93,6 +95,7 @@ export function DiscoverFiltersSheet({
     filters.type,
     filters.status,
     filters.scoreMin,
+    filters.hideInList,
   ].filter(Boolean).length;
 
   // Encontra nomes dos filtros selecionados
@@ -125,6 +128,23 @@ export function DiscoverFiltersSheet({
 
         <ScrollArea className="flex-1 px-4">
           <div className="py-4 space-y-4">
+            {/* Toggle para ocultar animes já na lista */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border border-border/50">
+              <Label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                <EyeOff className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <span>Ocultar animes da minha lista</span>
+                  <p className="text-xs text-muted-foreground font-normal">
+                    Esconde animes que você já adicionou
+                  </p>
+                </div>
+              </Label>
+              <Switch
+                checked={filters.hideInList || false}
+                onCheckedChange={(checked) => onFiltersChange({ ...filters, hideInList: checked })}
+              />
+            </div>
+
             {/* Ordenação */}
             <div className="space-y-2">
               <Label className="flex items-center gap-2 text-sm font-medium">
@@ -409,7 +429,7 @@ export function ActiveFiltersBadges({
   const selectedStatusName = ANIME_STATUSES.find(s => s.value === filters.status)?.label;
 
   const hasFilters = filters.genre || filters.studio || filters.yearMin || 
-    filters.yearMax || filters.type || filters.status || filters.scoreMin;
+    filters.yearMax || filters.type || filters.status || filters.scoreMin || filters.hideInList;
 
   if (!hasFilters) return null;
 
@@ -471,6 +491,16 @@ export function ActiveFiltersBadges({
           <X 
             className="h-3 w-3 cursor-pointer hover:text-destructive" 
             onClick={() => onFiltersChange({ ...filters, scoreMin: undefined })}
+          />
+        </Badge>
+      )}
+      {filters.hideInList && (
+        <Badge variant="secondary" className="gap-1 text-xs bg-primary/20">
+          <EyeOff className="h-3 w-3" />
+          Ocultos da lista
+          <X 
+            className="h-3 w-3 cursor-pointer hover:text-destructive" 
+            onClick={() => onFiltersChange({ ...filters, hideInList: undefined })}
           />
         </Badge>
       )}

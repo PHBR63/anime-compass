@@ -40,8 +40,7 @@ export function VirtualizedAnimeList({
   return (
     <div
       ref={parentRef}
-      className={cn("h-[calc(100vh-300px)] overflow-auto", className)}
-      style={{ contain: 'strict' }}
+      className={cn("min-h-[400px] max-h-[calc(100vh-300px)] overflow-auto bg-transparent", className)}
     >
       <div
         style={{

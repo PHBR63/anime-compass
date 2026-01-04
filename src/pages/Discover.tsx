@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Search, TrendingUp, Sparkles, Filter, Tv, Loader2, Star, ChevronDown, AlertTriangle, Database } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -31,7 +32,7 @@ import type { CatalogAnime } from '@/types/catalog';
 export default function Discover() {
   // Estados de pesquisa e filtros
   const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const debouncedQuery = useDebounce(searchQuery, 300); // Hook de debounce com 300ms
   const [activeTab, setActiveTab] = useState<'season' | 'top'>('season');
   const [selectedAnime, setSelectedAnime] = useState<CatalogAnime | null>(null);
   
@@ -44,14 +45,6 @@ export default function Discover() {
   
   // Ref para observar scroll infinito
   const loadMoreRef = useRef<HTMLDivElement>(null);
-
-  // Debounce da pesquisa
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
 
   // Sincroniza busca de texto com filtros avançados
   useEffect(() => {
@@ -197,7 +190,6 @@ export default function Discover() {
     // Limpa busca por texto ao selecionar gênero
     if (advancedFilters.genre !== genreId) {
       setSearchQuery('');
-      setDebouncedQuery('');
     }
   }, [advancedFilters.genre]);
 
@@ -206,7 +198,6 @@ export default function Discover() {
     const savedHideInList = localStorage.getItem('discover-hide-in-list') === 'true';
     setAdvancedFilters({ hideInList: savedHideInList });
     setSearchQuery('');
-    setDebouncedQuery('');
   }, []);
 
   // Persiste a preferência de hideInList no localStorage

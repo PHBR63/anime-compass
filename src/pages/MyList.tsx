@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Search, Grid, List as ListIcon, Plus, Edit, X, ListChecks } from 'lucide-react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { SelectableAnimeGrid } from '@/components/anime/SelectableAnimeGrid';
 import { VirtualizedAnimeGrid } from '@/components/anime/VirtualizedAnimeGrid';
 import { VirtualizedAnimeList } from '@/components/anime/VirtualizedAnimeList';
@@ -42,6 +43,7 @@ const defaultSort: SortOptions = {
 export default function MyList() {
   const [activeStatus, setActiveStatus] = useState<AnimeStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300); // Debounce de 300ms
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -61,9 +63,9 @@ export default function MyList() {
       result = result.filter(e => e.status === activeStatus);
     }
     
-    // Filtro por busca
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+    // Filtro por busca (usa valor debounced)
+    if (debouncedSearch) {
+      const query = debouncedSearch.toLowerCase();
       result = result.filter(e => 
         e.title.toLowerCase().includes(query)
       );

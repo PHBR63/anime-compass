@@ -1,4 +1,4 @@
-import { Shield, LayoutDashboard, Users, FileText, AlertTriangle, FlaskConical, Zap } from "lucide-react";
+import { Shield, LayoutDashboard, Users, FileText, AlertTriangle, FlaskConical, Zap, BarChart3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminStats } from "@/components/admin/AdminStats";
 import { UsersManagement } from "@/components/admin/UsersManagement";
@@ -6,6 +6,7 @@ import { AuditLogs } from "@/components/admin/AuditLogs";
 import { ErrorLogs } from "@/components/admin/ErrorLogs";
 import { SystemTests } from "@/components/admin/SystemTests";
 import { FreeApiStatus } from "@/components/admin/FreeApiStatus";
+import { CatalogStats } from "@/components/admin/CatalogStats";
 import { motion } from "framer-motion";
 
 /**
@@ -38,7 +39,7 @@ export default function Admin() {
 
       {/* Tabs de conteúdo */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 gap-1 sm:grid-cols-6 lg:w-auto lg:inline-flex h-auto p-1">
+        <TabsList className="grid w-full grid-cols-4 gap-1 sm:grid-cols-7 lg:w-auto lg:inline-flex h-auto p-1">
           <TabsTrigger value="overview" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
             <LayoutDashboard className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Visão Geral</span>
@@ -46,6 +47,10 @@ export default function Admin() {
           <TabsTrigger value="catalog" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
             <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Catálogo</span>
+          </TabsTrigger>
+          <TabsTrigger value="catalog-stats" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
+            <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Estatísticas</span>
           </TabsTrigger>
           <TabsTrigger value="users" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
             <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -74,6 +79,10 @@ export default function Admin() {
 
         <TabsContent value="catalog" className="mt-6">
           <FreeApiStatus />
+        </TabsContent>
+
+        <TabsContent value="catalog-stats" className="mt-6">
+          <CatalogStats />
         </TabsContent>
 
         <TabsContent value="users" className="mt-6">

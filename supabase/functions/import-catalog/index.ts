@@ -68,6 +68,16 @@ interface ExternalPagination {
   has_prev: boolean;
 }
 
+// Tipos de anime bloqueados (comerciais, músicas, previews)
+const BLOCKED_TYPES = ['Music', 'CM', 'PV'];
+
+/**
+ * Verifica se o anime deve ser bloqueado com base no tipo
+ */
+function isBlockedType(anime: ExternalAnime): boolean {
+  return BLOCKED_TYPES.includes(anime.type || '');
+}
+
 /**
  * Mapeia anime da API externa para o formato do catálogo local
  */
@@ -107,11 +117,24 @@ async function processBatch(
   supabase: any,
   animes: ExternalAnime[],
   logs: string[]
-): Promise<{ inserted: number; errors: number }> {
-  const stats = { inserted: 0, errors: 0 };
+): Promise<{ inserted: number; errors: number; filtered: number }> {
+  const stats = { inserted: 0, errors: 0, filtered: 0 };
+  
+  // Filtra tipos bloqueados (Music, CM, PV) antes de processar
+  const filteredAnimes = animes.filter(anime => {
+    if (isBlockedType(anime)) {
+      stats.filtered++;
+      return false;
+    }
+    return true;
+  });
+  
+  if (stats.filtered > 0) {
+    logs.push(`🚫 Filtrados ${stats.filtered} animes de tipos bloqueados (Music/CM/PV)`);
+  }
   
   // Mapeia animes para formato local
-  const mappedAnimes = animes.map(mapExternalToLocal);
+  const mappedAnimes = filteredAnimes.map(mapExternalToLocal);
   
   // Divide em sub-batches menores para evitar timeout
   for (let i = 0; i < mappedAnimes.length; i += BATCH_SIZE) {

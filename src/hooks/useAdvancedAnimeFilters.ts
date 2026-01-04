@@ -113,14 +113,13 @@ export function useAdvancedAnimeSearch(
   });
 }
 
-// Tipos de anime disponíveis
+// Tipos de anime disponíveis (excluindo Music, CM e PV)
 export const ANIME_TYPES = [
   { value: 'TV', label: 'TV' },
   { value: 'Movie', label: 'Filme' },
   { value: 'OVA', label: 'OVA' },
   { value: 'ONA', label: 'ONA' },
   { value: 'Special', label: 'Especial' },
-  { value: 'Music', label: 'Música' },
 ];
 
 // Status de exibição

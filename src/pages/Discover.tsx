@@ -20,6 +20,7 @@ import { AnimeDetailModal } from '@/components/anime/AnimeDetailModal';
 import { SakuraPetals, WavePattern } from '@/components/backgrounds';
 import { AnimatedContent, NeonText } from '@/components/animations';
 import { ToriiDivider } from '@/components/decorative';
+import { useAnimeEntriesContext } from '@/contexts/AnimeEntriesContext';
 import type { CatalogAnime } from '@/types/catalog';
 
 /**
@@ -66,7 +67,10 @@ export default function Discover() {
   // Verificar status do catálogo (se está vazio ou populado)
   const { data: catalogStatus, isLoading: loadingStatus } = useCatalogStatus();
 
-  // Verifica se há filtros ativos
+  // Hook para verificar se anime está na lista do usuário
+  const { isInList } = useAnimeEntriesContext();
+
+  // Verifica se há filtros ativos (excluindo hideInList da contagem para exibição)
   const hasActiveFilters = useMemo(() => Boolean(
     advancedFilters.search ||
     advancedFilters.genre ||
@@ -116,20 +120,26 @@ export default function Discover() {
     });
   }, []);
 
-  // Flatten dos dados paginados e remoção de duplicatas - MEMOIZADO
+  // Função para filtrar animes que já estão na lista do usuário
+  const filterInList = useCallback((animes: CatalogAnime[]): CatalogAnime[] => {
+    if (!advancedFilters.hideInList) return animes;
+    return animes.filter((anime) => !isInList(anime.mal_id));
+  }, [advancedFilters.hideInList, isInList]);
+
+  // Flatten dos dados paginados, remoção de duplicatas e filtro de lista - MEMOIZADO
   const advancedAnimes = useMemo(() => 
-    removeDuplicates(advancedSearchData?.pages.flatMap(page => page.data) || []),
-    [advancedSearchData, removeDuplicates]
+    filterInList(removeDuplicates(advancedSearchData?.pages.flatMap(page => page.data) || [])),
+    [advancedSearchData, removeDuplicates, filterInList]
   );
 
   const topAnimes = useMemo(() => 
-    removeDuplicates(topAnimesData?.pages.flatMap(page => page.data) || []),
-    [topAnimesData, removeDuplicates]
+    filterInList(removeDuplicates(topAnimesData?.pages.flatMap(page => page.data) || [])),
+    [topAnimesData, removeDuplicates, filterInList]
   );
   
   const seasonAnimes = useMemo(() => 
-    removeDuplicates(seasonAnimesData?.pages.flatMap(page => page.data) || []),
-    [seasonAnimesData, removeDuplicates]
+    filterInList(removeDuplicates(seasonAnimesData?.pages.flatMap(page => page.data) || [])),
+    [seasonAnimesData, removeDuplicates, filterInList]
   );
 
   // Determina qual função de carregar mais usar - MEMOIZADO

@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Search, Grid, List as ListIcon, Plus, Edit, X, ListChecks } from 'lucide-react';
 import { SelectableAnimeGrid } from '@/components/anime/SelectableAnimeGrid';
+import { VirtualizedAnimeGrid } from '@/components/anime/VirtualizedAnimeGrid';
+import { VirtualizedAnimeList } from '@/components/anime/VirtualizedAnimeList';
 import { AnimeListItem } from '@/components/anime/AnimeListItem';
 import { BulkActionsBar } from '@/components/anime/BulkActionsBar';
 import { StatusFilter } from '@/components/anime/StatusFilter';
@@ -330,18 +332,28 @@ export default function MyList() {
         )
       ) : filteredEntries.length > 0 ? (
         viewMode === 'grid' ? (
-          <SelectableAnimeGrid 
-            entries={filteredEntries}
-            isSelectionMode={isSelectionMode}
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-          />
+          // Usa grid virtualizado para listas grandes (>50 itens)
+          filteredEntries.length > 50 && !isSelectionMode ? (
+            <VirtualizedAnimeGrid entries={filteredEntries} />
+          ) : (
+            <SelectableAnimeGrid 
+              entries={filteredEntries}
+              isSelectionMode={isSelectionMode}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+            />
+          )
         ) : (
-          <div className="space-y-3">
-            {filteredEntries.map(entry => (
-              <AnimeListItem key={entry.id} entry={entry} />
-            ))}
-          </div>
+          // Usa lista virtualizada para listas grandes (>30 itens)
+          filteredEntries.length > 30 ? (
+            <VirtualizedAnimeList entries={filteredEntries} />
+          ) : (
+            <div className="space-y-3">
+              {filteredEntries.map(entry => (
+                <AnimeListItem key={entry.id} entry={entry} />
+              ))}
+            </div>
+          )
         )
       ) : (
         <div className="glass-card p-8 text-center">

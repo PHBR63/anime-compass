@@ -119,7 +119,11 @@ function CatalogAnimeCardComponent({ anime, rank }: CatalogAnimeCardProps) {
               {anime.title}
             </h3>
             <p className="text-xs text-muted-foreground mt-1">
-              {anime.episodes ? `${anime.episodes} eps` : '? eps'} • {anime.year || 'N/A'}
+              {anime.episodes 
+                ? `${anime.episodes} eps` 
+                : anime.status === 'Currently Airing' 
+                  ? 'Em andamento' 
+                  : '? eps'} • {anime.year || 'N/A'}
             </p>
           </div>
         </div>

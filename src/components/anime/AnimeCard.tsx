@@ -202,20 +202,20 @@ function AnimeCardComponent({ entry }: AnimeCardProps) {
             </h3>
             
             {/* Progress bar */}
-            {entry.total_episodes && (
-              <div className="space-y-0.5 md:space-y-1">
-                <div className="flex justify-between text-[10px] md:text-xs text-muted-foreground">
-                  <span>Ep {entry.episodes_watched || 0}</span>
-                  <span>/ {entry.total_episodes}</span>
-                </div>
+            <div className="space-y-0.5 md:space-y-1">
+              <div className="flex justify-between text-[10px] md:text-xs text-muted-foreground">
+                <span>Ep {entry.episodes_watched || 0}</span>
+                <span>{entry.total_episodes ? `/ ${entry.total_episodes}` : '/ ?'}</span>
+              </div>
+              {entry.total_episodes && (
                 <div className="h-0.5 md:h-1 bg-secondary rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-gradient-to-r from-sakura to-torii rounded-full transition-all duration-300"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
         </div>

@@ -1,3 +1,4 @@
+import React, { useCallback } from 'react';
 import { SelectableAnimeCard } from './SelectableAnimeCard';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -12,6 +13,7 @@ interface SelectableAnimeGridProps {
 
 /**
  * Grid de animes com suporte a seleção múltipla para edição em massa
+ * Otimizado com useCallback para evitar re-renders desnecessários
  */
 export function SelectableAnimeGrid({
   entries,
@@ -19,14 +21,14 @@ export function SelectableAnimeGrid({
   selectedIds,
   onSelectionChange,
 }: SelectableAnimeGridProps) {
-  // Handler para alternar seleção de um item
-  const handleToggleSelect = (id: string) => {
-    if (selectedIds.includes(id)) {
-      onSelectionChange(selectedIds.filter((selectedId) => selectedId !== id));
-    } else {
-      onSelectionChange([...selectedIds, id]);
-    }
-  };
+  // Handler memoizado para alternar seleção de um item
+  const handleToggleSelect = useCallback((id: string) => {
+    onSelectionChange(
+      selectedIds.includes(id)
+        ? selectedIds.filter((selectedId) => selectedId !== id)
+        : [...selectedIds, id]
+    );
+  }, [selectedIds, onSelectionChange]);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CatalogAnimeCard } from '@/components/anime/CatalogAnimeCard';
+import { VirtualizedCatalogGrid } from '@/components/anime/VirtualizedCatalogGrid';
 import { 
   useTopAnimes, 
   useSeasonAnimes, 
@@ -420,11 +421,16 @@ export default function Discover() {
             <LoadingSkeleton count={12} />
           ) : advancedAnimes.length > 0 ? (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {advancedAnimes.map((anime) => (
-                  <CatalogAnimeCard key={anime.mal_id} anime={anime} />
-                ))}
-              </div>
+              {/* Usa grid virtualizado para listas grandes (>50 itens) */}
+              {advancedAnimes.length > 50 ? (
+                <VirtualizedCatalogGrid animes={advancedAnimes} />
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {advancedAnimes.map((anime) => (
+                    <CatalogAnimeCard key={anime.mal_id} anime={anime} />
+                  ))}
+                </div>
+              )}
               <LoadMoreButton />
             </>
           ) : (
@@ -481,11 +487,16 @@ export default function Discover() {
                 <LoadingSkeleton count={12} />
               ) : (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {seasonAnimes.map((anime) => (
-                      <CatalogAnimeCard key={anime.mal_id} anime={anime} />
-                    ))}
-                  </div>
+                  {/* Usa grid virtualizado para listas grandes (>50 itens) */}
+                  {seasonAnimes.length > 50 ? (
+                    <VirtualizedCatalogGrid animes={seasonAnimes} />
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      {seasonAnimes.map((anime) => (
+                        <CatalogAnimeCard key={anime.mal_id} anime={anime} />
+                      ))}
+                    </div>
+                  )}
                   <LoadMoreButton />
                 </>
               )}
@@ -506,15 +517,20 @@ export default function Discover() {
                 <LoadingSkeleton count={12} />
               ) : (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {topAnimes.map((anime, index) => (
-                      <CatalogAnimeCard 
-                        key={anime.mal_id} 
-                        anime={anime} 
-                        rank={index + 1}
-                      />
-                    ))}
-                  </div>
+                  {/* Usa grid virtualizado para listas grandes (>50 itens) */}
+                  {topAnimes.length > 50 ? (
+                    <VirtualizedCatalogGrid animes={topAnimes} />
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      {topAnimes.map((anime, index) => (
+                        <CatalogAnimeCard 
+                          key={anime.mal_id} 
+                          anime={anime} 
+                          rank={index + 1}
+                        />
+                      ))}
+                    </div>
+                  )}
                   <LoadMoreButton />
                 </>
               )}

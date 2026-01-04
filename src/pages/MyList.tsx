@@ -1,8 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Search, Grid, List as ListIcon, Plus, Edit, X, ListChecks } from 'lucide-react';
 import { SelectableAnimeGrid } from '@/components/anime/SelectableAnimeGrid';
+import { SelectableAnimeList } from '@/components/anime/SelectableAnimeList';
 import { AnimeListItem } from '@/components/anime/AnimeListItem';
 import { BulkActionsBar } from '@/components/anime/BulkActionsBar';
+import { BulkEditBanner } from '@/components/anime/BulkEditBanner';
 import { StatusFilter } from '@/components/anime/StatusFilter';
 import { AdvancedFilters, FilterOptions, SortOptions, SortOption } from '@/components/anime/AdvancedFilters';
 import { ListsSection } from '@/components/lists/ListsSection';
@@ -232,13 +234,25 @@ export default function MyList() {
         </div>
       </AnimatedContent>
 
-      {/* Seção de Listas Personalizadas */}
-      <AnimatedContent direction="up" delay={0.1}>
-        <ListsSection />
-      </AnimatedContent>
+      {/* Banner explicativo do modo de seleção */}
+      {isSelectionMode && (
+        <BulkEditBanner
+          selectedCount={selectedIds.length}
+          totalCount={filteredEntries.length}
+          onSelectAll={handleSelectAll}
+          onClearSelection={handleClearSelection}
+        />
+      )}
 
-      {/* Separador decorativo Torii */}
-      <ToriiDivider variant="sakura" />
+      {/* Seção de Listas Personalizadas - oculta no modo de seleção */}
+      {!isSelectionMode && (
+        <AnimatedContent direction="up" delay={0.1}>
+          <ListsSection />
+        </AnimatedContent>
+      )}
+
+      {/* Separador decorativo Torii - oculto no modo de seleção */}
+      {!isSelectionMode && <ToriiDivider variant="sakura" />}
 
       {/* Filters bar */}
       <AnimatedContent direction="up" delay={0.2}>
@@ -330,11 +344,20 @@ export default function MyList() {
             onSelectionChange={setSelectedIds}
           />
         ) : (
-          <div className="space-y-3">
-            {filteredEntries.map(entry => (
-              <AnimeListItem key={entry.id} entry={entry} />
-            ))}
-          </div>
+          isSelectionMode ? (
+            <SelectableAnimeList
+              entries={filteredEntries}
+              isSelectionMode={isSelectionMode}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+            />
+          ) : (
+            <div className="space-y-3">
+              {filteredEntries.map(entry => (
+                <AnimeListItem key={entry.id} entry={entry} />
+              ))}
+            </div>
+          )
         )
       ) : (
         <div className="glass-card p-8 text-center">

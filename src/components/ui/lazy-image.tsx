@@ -1,6 +1,44 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { cacheImage, isImageCached, getCachedImage } from '@/lib/imageCache';
+import { cacheImage, getCachedImage } from '@/lib/imageCache';
+import { queueImagePrefetch } from '@/hooks/useViewportPrefetch';
+
+// Observer compartilhado para prefetch de imagens próximas do viewport
+let prefetchObserver: IntersectionObserver | null = null;
+const observedPrefetchElements = new WeakSet<Element>();
+
+/**
+ * Obtém o observer de prefetch compartilhado (singleton)
+ * Observa elementos 300px antes de entrar no viewport e agenda prefetch
+ */
+function getPrefetchObserver(): IntersectionObserver {
+  if (!prefetchObserver) {
+    prefetchObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const element = entry.target as HTMLElement;
+            const prefetchSrc = element.dataset.prefetchSrc;
+            
+            if (prefetchSrc) {
+              // Agenda prefetch via requestIdleCallback
+              queueImagePrefetch(prefetchSrc);
+            }
+            
+            // Para de observar após agendar prefetch
+            prefetchObserver?.unobserve(entry.target);
+          }
+        });
+      },
+      {
+        // Observa elementos 300px antes de entrar no viewport
+        rootMargin: '300px',
+        threshold: 0,
+      }
+    );
+  }
+  return prefetchObserver;
+}
 
 /**
  * Componente de skeleton animado para imagens
@@ -270,6 +308,7 @@ export const AnimeCardImage = React.memo(function AnimeCardImage({
   // URL efetiva: prioriza local, depois src
   const effectiveSrc = localSrc || src;
 
+  // Intersection Observer para detectar quando imagem entra no viewport
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -288,10 +327,20 @@ export const AnimeCardImage = React.memo(function AnimeCardImage({
 
     if (containerRef.current) {
       observer.observe(containerRef.current);
+      
+      // Registra para prefetch de imagens próximas (300px antes)
+      if (effectiveSrc && !observedPrefetchElements.has(containerRef.current)) {
+        containerRef.current.dataset.prefetchSrc = effectiveSrc;
+        getPrefetchObserver().observe(containerRef.current);
+        observedPrefetchElements.add(containerRef.current);
+      }
     }
 
-    return () => observer.disconnect();
-  }, []);
+    return () => {
+      observer.disconnect();
+      // Nota: não removemos do prefetchObserver para evitar overhead
+    };
+  }, [effectiveSrc]);
 
   // Quando entra no viewport, tenta carregar do cache primeiro ou usa local
   useEffect(() => {

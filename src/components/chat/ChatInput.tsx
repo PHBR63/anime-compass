@@ -23,6 +23,9 @@ interface ChatInputProps {
 // Lista de emojis comuns
 const COMMON_EMOJIS = ['😊', '😂', '❤️', '🔥', '👍', '😍', '🎉', '😭', '🤔', '👀', '💪', '🙏'];
 
+// Limite máximo de caracteres
+const MAX_MESSAGE_LENGTH = 2000;
+
 // Componente de input do chat
 function ChatInput({
   onSendMessage,
@@ -195,23 +198,32 @@ function ChatInput({
           )}
         </div>
 
-        {/* Campo de mensagem */}
-        <div className="flex items-center gap-2">
-          <Input
-            ref={inputRef}
-            placeholder="Digite uma mensagem..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="flex-1"
+        {/* Campo de mensagem com limite de caracteres */}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Input
+              ref={inputRef}
+              placeholder="Digite uma mensagem..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
+              onKeyDown={handleKeyDown}
+              className="flex-1"
+              maxLength={MAX_MESSAGE_LENGTH}
           />
-          <Button 
-            onClick={handleSend} 
-            disabled={!message.trim()}
-            size="icon"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+            <Button 
+              onClick={handleSend} 
+              disabled={!message.trim()}
+              size="icon"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+          {/* Contador de caracteres */}
+          {message.length > MAX_MESSAGE_LENGTH * 0.8 && (
+            <p className={`text-xs text-right ${message.length >= MAX_MESSAGE_LENGTH ? 'text-destructive' : 'text-muted-foreground'}`}>
+              {message.length}/{MAX_MESSAGE_LENGTH}
+            </p>
+          )}
         </div>
       </div>
 

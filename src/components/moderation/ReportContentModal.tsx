@@ -117,10 +117,14 @@ export function ReportContentModal({
                 id="description"
                 placeholder="Descreva o problema em mais detalhes..."
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => setDescription(e.target.value.slice(0, 500))}
                 className="mt-1"
                 rows={3}
+                maxLength={500}
               />
+              <p className="text-xs text-muted-foreground text-right mt-1">
+                {description.length}/500
+              </p>
             </div>
           </div>
         </ScrollArea>

@@ -49,6 +49,15 @@ interface StatsResponse {
   last_sync: string | null;
 }
 
+/**
+ * Sanitiza termo de busca removendo caracteres especiais do Postgrest
+ * que podem quebrar a sintaxe de queries .or()
+ */
+function sanitizeSearchTerm(term: string): string {
+  // Remove caracteres especiais do Postgrest: , ( ) . "
+  return term.replace(/[,()."]/g, '').trim();
+}
+
 // Funções auxiliares
 function jsonResponse<T>(data: ApiResponse<T>, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -149,11 +158,14 @@ async function handleList(supabase: any, params: URLSearchParams): Promise<Respo
     // Excluir tipos bloqueados (comerciais, músicas, previews)
     .not('type', 'in', `(${BLOCKED_TYPES.join(',')})`)
 
-  // Filtro de busca por texto
+  // Filtro de busca por texto (sanitizado para evitar injeção)
   const search = params.get('search');
   if (search) {
-    const searchTerm = `%${search}%`;
-    query = query.or(`title.ilike.${searchTerm},title_english.ilike.${searchTerm},title_japanese.ilike.${searchTerm}`);
+    const sanitized = sanitizeSearchTerm(search);
+    if (sanitized) {
+      const searchTerm = `%${sanitized}%`;
+      query = query.or(`title.ilike.${searchTerm},title_english.ilike.${searchTerm},title_japanese.ilike.${searchTerm}`);
+    }
   }
 
   // Filtro de status (separado por vírgula)

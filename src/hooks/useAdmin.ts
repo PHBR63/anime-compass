@@ -214,6 +214,13 @@ export function useAdminStats() {
 }
 
 /**
+ * Sanitiza termo de busca removendo caracteres especiais do Postgrest
+ */
+function sanitizeSearchTerm(term: string): string {
+  return term.replace(/[,()."]/g, '').trim();
+}
+
+/**
  * Hook para listar todos os usuários (admin)
  */
 export function useAdminUsers(searchTerm?: string, roleFilter?: string) {
@@ -228,10 +235,14 @@ export function useAdminUsers(searchTerm?: string, roleFilter?: string) {
         .select("*")
         .order("created_at", { ascending: false });
 
+      // Sanitizar e aplicar filtro de busca
       if (searchTerm) {
-        query = query.or(
-          `username.ilike.%${searchTerm}%,display_name.ilike.%${searchTerm}%`
-        );
+        const sanitized = sanitizeSearchTerm(searchTerm);
+        if (sanitized) {
+          query = query.or(
+            `username.ilike.%${sanitized}%,display_name.ilike.%${sanitized}%`
+          );
+        }
       }
 
       const { data: profiles, error } = await query;

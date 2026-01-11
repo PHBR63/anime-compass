@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AlertTriangle, Send, X } from 'lucide-react';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,6 +10,20 @@ import { StarRating } from './StarRating';
 import { useCreateReview, useUpdateReview, useUserReview } from '@/hooks/useReviews';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+
+// Schema de validação para review
+const reviewSchema = z.object({
+  title: z.string()
+    .min(5, 'Título deve ter pelo menos 5 caracteres')
+    .max(100, 'Título deve ter no máximo 100 caracteres')
+    .trim(),
+  content: z.string()
+    .min(20, 'Review deve ter pelo menos 20 caracteres')
+    .max(2000, 'Review deve ter no máximo 2000 caracteres')
+    .trim(),
+  rating: z.number().min(0).max(10).optional().nullable(),
+  hasSpoilers: z.boolean(),
+});
 
 interface ReviewFormProps {
   malId: number;
@@ -48,10 +63,36 @@ export function ReviewForm({ malId, animeTitle, onClose }: ReviewFormProps) {
     );
   }
 
+  // Estado para erros de validação
+  const [errors, setErrors] = useState<{ title?: string; content?: string }>({});
+
+  // Validar formulário com Zod
+  const validateForm = (): boolean => {
+    const result = reviewSchema.safeParse({
+      title: title.trim(),
+      content: content.trim(),
+      rating: rating || null,
+      hasSpoilers,
+    });
+
+    if (!result.success) {
+      const fieldErrors: { title?: string; content?: string } = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0] === 'title') fieldErrors.title = err.message;
+        if (err.path[0] === 'content') fieldErrors.content = err.message;
+      });
+      setErrors(fieldErrors);
+      return false;
+    }
+
+    setErrors({});
+    return true;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!title.trim() || !content.trim()) return;
+    if (!validateForm()) return;
 
     if (existingReview) {
       updateReview.mutate({
@@ -80,6 +121,7 @@ export function ReviewForm({ malId, animeTitle, onClose }: ReviewFormProps) {
           setRating(0);
           setHasSpoilers(false);
           setIsExpanded(false);
+          setErrors({});
           onClose?.();
         }
       });
@@ -129,12 +171,21 @@ export function ReviewForm({ malId, animeTitle, onClose }: ReviewFormProps) {
         <Input
           id="review-title"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            if (errors.title) setErrors(prev => ({ ...prev, title: undefined }));
+          }}
           placeholder={`Minha opinião sobre ${animeTitle}`}
-          className="mt-1 bg-secondary/50"
+          className={cn("mt-1 bg-secondary/50", errors.title && "border-destructive")}
           maxLength={100}
           required
         />
+        {errors.title && (
+          <p className="text-xs text-destructive mt-1">{errors.title}</p>
+        )}
+        <p className="text-xs text-muted-foreground text-right mt-1">
+          {title.length}/100
+        </p>
       </div>
 
       {/* Avaliação */}
@@ -148,17 +199,23 @@ export function ReviewForm({ malId, animeTitle, onClose }: ReviewFormProps) {
       {/* Conteúdo */}
       <div>
         <Label htmlFor="review-content" className="text-xs text-muted-foreground">
-          Sua Review
+          Sua Review (mínimo 20 caracteres)
         </Label>
         <Textarea
           id="review-content"
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            setContent(e.target.value);
+            if (errors.content) setErrors(prev => ({ ...prev, content: undefined }));
+          }}
           placeholder="Compartilhe sua opinião sobre este anime... O que você gostou? O que poderia ser melhor?"
-          className="mt-1 bg-secondary/50 min-h-[120px]"
+          className={cn("mt-1 bg-secondary/50 min-h-[120px]", errors.content && "border-destructive")}
           maxLength={2000}
           required
         />
+        {errors.content && (
+          <p className="text-xs text-destructive mt-1">{errors.content}</p>
+        )}
         <p className="text-xs text-muted-foreground mt-1 text-right">
           {content.length}/2000
         </p>

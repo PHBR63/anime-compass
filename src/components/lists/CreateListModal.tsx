@@ -100,8 +100,12 @@ export function CreateListModal({ open, onOpenChange }: CreateListModalProps) {
                     id="name"
                     placeholder="Ex: Melhores de 2024"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) => setName(e.target.value.slice(0, 50))}
+                    maxLength={50}
                   />
+                  <p className="text-xs text-muted-foreground text-right">
+                    {name.length}/50
+                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -110,9 +114,13 @@ export function CreateListModal({ open, onOpenChange }: CreateListModalProps) {
                     id="description"
                     placeholder="Uma breve descrição da lista..."
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    onChange={(e) => setDescription(e.target.value.slice(0, 300))}
                     rows={3}
+                    maxLength={300}
                   />
+                  <p className="text-xs text-muted-foreground text-right">
+                    {description.length}/300
+                  </p>
                 </div>
 
                 <div className="flex items-center justify-between py-2">

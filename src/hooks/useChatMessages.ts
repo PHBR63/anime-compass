@@ -174,6 +174,9 @@ export function useLoadMoreMessages(conversationId: string | null) {
   });
 }
 
+// Limite máximo de caracteres para mensagens de chat
+const MAX_MESSAGE_LENGTH = 2000;
+
 // Hook para enviar mensagem com optimistic update para resposta instantânea
 export function useSendMessage() {
   const queryClient = useQueryClient();
@@ -195,12 +198,17 @@ export function useSendMessage() {
     }) => {
       if (!user) throw new Error('Não autenticado');
 
+      // Validar tamanho da mensagem antes de enviar
+      if (content && content.length > MAX_MESSAGE_LENGTH) {
+        throw new Error(`Mensagem muito longa (máximo ${MAX_MESSAGE_LENGTH} caracteres)`);
+      }
+
       const { data, error } = await supabase
         .from('chat_messages')
         .insert({
           conversation_id: conversationId,
           sender_id: user.id,
-          content,
+          content: content?.slice(0, MAX_MESSAGE_LENGTH), // Garantir truncamento
           message_type: messageType,
           metadata,
           reply_to: replyTo,

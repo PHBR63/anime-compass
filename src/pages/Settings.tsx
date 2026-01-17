@@ -13,8 +13,7 @@ import {
   Loader2,
   FileJson,
   FileSpreadsheet,
-  Table,
-  Languages
+  Table
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -36,7 +35,6 @@ import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/hooks/useAuth';
 import { useAnimationPreferences } from '@/hooks/useAnimationPreferences';
 import { useExportUserData } from '@/hooks/useExportUserData';
-import { useTranslationPreferences } from '@/hooks/useTranslationPreferences';
 import { cn } from '@/lib/utils';
 
 type SettingsSection = 'main' | 'notifications' | 'appearance' | 'system';
@@ -52,7 +50,6 @@ export default function Settings() {
   const { user } = useAuth();
   const { preferences, togglePreference } = useAnimationPreferences();
   const { isExporting, exportAsJson, exportAsCsv, exportAsExcel } = useExportUserData();
-  const { isAutoTranslateEnabled, toggleAutoTranslate } = useTranslationPreferences();
 
   /**
    * Renderiza o menu principal de configurações
@@ -237,34 +234,6 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-medium flex items-center gap-2">
-            <Languages className="h-4 w-4 text-primary" />
-            Tradução
-          </CardTitle>
-          <CardDescription className="text-sm">
-            Configurações de idioma e tradução
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-medium">Tradução automática</Label>
-              <p className="text-xs text-muted-foreground">
-                Traduzir sinopses em inglês automaticamente
-              </p>
-            </div>
-            <Switch 
-              checked={isAutoTranslateEnabled}
-              onCheckedChange={toggleAutoTranslate}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Quando ativado, sinopses em inglês serão traduzidas para português automaticamente usando IA.
-          </p>
-        </CardContent>
-      </Card>
     </motion.div>
   );
 

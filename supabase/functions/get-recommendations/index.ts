@@ -2,11 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /**
- * Edge Function: get-recommendations (INTELIGENTE)
+ * Edge Function: get-recommendations
  * Sistema de recomendações personalizadas com:
  * - Análise profunda do perfil do usuário (até 10 animes)
  * - Algoritmo de scoring considerando gêneros, estúdios e notas
- * - Integração com Lovable AI para explicações personalizadas
+ * - Explicações baseadas em regras (sem IA externa)
  */
 
 const corsHeaders = {
@@ -15,7 +15,6 @@ const corsHeaders = {
 };
 
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
-const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 // Delay entre requisições para respeitar rate limit da Jikan (3 req/s)
 const DELAY_BETWEEN_REQUESTS = 400;
@@ -279,70 +278,14 @@ function calculateMatchScore(anime: any, profile: UserProfile): { score: number;
 }
 
 /**
- * Gera explicação personalizada usando Lovable AI
+ * Gera explicação personalizada (baseada em regras)
  */
-async function generateAIExplanation(
+function generateExplanation(
   recommendation: any,
-  profile: UserProfile,
   matchedGenres: string[],
   matchedStudio: string | null
-): Promise<string> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  
-  if (!LOVABLE_API_KEY) {
-    console.warn("[AI] LOVABLE_API_KEY não configurada, usando explicação genérica");
-    return generateFallbackExplanation(matchedGenres, matchedStudio);
-  }
-
-  try {
-    const favoritesContext = profile.favoriteAnimes
-      .map(a => `${a.title} (nota ${a.rating})`)
-      .join(', ');
-
-    const prompt = `Você é um especialista em animes. Gere uma explicação curta (máximo 2 frases) e persuasiva de por que o usuário deveria assistir "${recommendation.title}".
-
-Contexto do usuário:
-- Animes favoritos: ${favoritesContext}
-- Gêneros favoritos: ${profile.topGenres.map(g => g.name).join(', ')}
-${matchedStudio ? `- Estúdio favorito encontrado: ${matchedStudio}` : ''}
-
-Anime recomendado: ${recommendation.title}
-- Gêneros: ${(recommendation.genres || []).map((g: any) => g.name).join(', ')}
-- Estúdios: ${(recommendation.studios || []).map((s: any) => s.name).join(', ')}
-- Sinopse: ${recommendation.synopsis?.substring(0, 200) || 'N/A'}
-
-Gere uma explicação personalizada e empolgante em português brasileiro. Não use markdown.`;
-
-    const response = await fetch(LOVABLE_AI_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: "Você é um especialista em animes que faz recomendações personalizadas. Seja conciso e empolgante." },
-          { role: "user", content: prompt }
-        ],
-        max_tokens: 150,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[AI] Erro na API: ${response.status} - ${errorText}`);
-      return generateFallbackExplanation(matchedGenres, matchedStudio);
-    }
-
-    const data = await response.json();
-    const explanation = data.choices?.[0]?.message?.content?.trim();
-    
-    return explanation || generateFallbackExplanation(matchedGenres, matchedStudio);
-  } catch (error) {
-    console.error("[AI] Erro ao gerar explicação:", error);
-    return generateFallbackExplanation(matchedGenres, matchedStudio);
-  }
+): string {
+  return generateFallbackExplanation(matchedGenres, matchedStudio);
 }
 
 /**
@@ -518,41 +461,22 @@ serve(async (req) => {
       .sort((a, b) => b.score - a.score)
       .slice(0, 12);
 
-    // ETAPA 4: Gerar explicações com IA para os top 6
+    // ETAPA 4: Gerar explicações para as recomendações
     console.log("[Recommendations] Gerando explicações personalizadas...");
     
-    const smartRecommendations: SmartRecommendation[] = [];
-    
-    for (let i = 0; i < topRecommendations.length; i++) {
-      const rec = topRecommendations[i];
-      
-      // Gera explicação IA apenas para os top 6
-      let aiExplanation = generateFallbackExplanation(rec.matchedGenres, rec.matchedStudio);
-      if (i < 6) {
-        aiExplanation = await generateAIExplanation(
-          rec.anime,
-          userProfile,
-          rec.matchedGenres,
-          rec.matchedStudio
-        );
-        // Pequeno delay para não sobrecarregar a API
-        await delay(100);
-      }
-
-      smartRecommendations.push({
-        anime: rec.anime,
-        matchScore: rec.score,
-        reasons: {
-          genres: rec.matchedGenres,
-          studio: rec.matchedStudio,
-          similarity: rec.matchedGenres.length > 0 
-            ? `Combina com seu gosto por ${rec.matchedGenres[0]}`
-            : null,
-          aiExplanation
-        },
-        confidence: getConfidence(rec.score)
-      });
-    }
+    const smartRecommendations: SmartRecommendation[] = topRecommendations.map(rec => ({
+      anime: rec.anime,
+      matchScore: rec.score,
+      reasons: {
+        genres: rec.matchedGenres,
+        studio: rec.matchedStudio,
+        similarity: rec.matchedGenres.length > 0 
+          ? `Combina com seu gosto por ${rec.matchedGenres[0]}`
+          : null,
+        aiExplanation: generateExplanation(rec.anime, rec.matchedGenres, rec.matchedStudio)
+      },
+      confidence: getConfidence(rec.score)
+    }));
 
     console.log(`[Recommendations] Retornando ${smartRecommendations.length} recomendações inteligentes`);
 

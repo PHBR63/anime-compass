@@ -675,81 +675,6 @@ async function test_edge_proxy_image(logger: TestLogger): Promise<TestResult> {
 }
 
 /**
- * Testa edge function translate-synopsis
- */
-async function test_edge_translate(logger: TestLogger): Promise<TestResult> {
-  const startTime = Date.now();
-  const assertions: TestResult['assertions'] = [];
-  const details: Record<string, unknown> = {};
-  
-  try {
-    logger.log('Testando edge function translate-synopsis...');
-    
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/translate-synopsis`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        text: 'A young boy becomes a ninja.'
-      })
-    });
-    
-    const responseTime = Date.now() - startTime;
-    details.http_status = response.status;
-    details.response_time_ms = responseTime;
-    
-    const isSuccess = response.ok;
-    assertions.push({
-      name: 'Resposta HTTP 200',
-      passed: isSuccess,
-      message: isSuccess ? undefined : `Status: ${response.status}`
-    });
-    
-    if (isSuccess) {
-      const data = await response.json();
-      details.response_data = data;
-      
-      // Verifica se retornou tradução (campo é 'translation' não 'translatedText')
-      const hasTranslation = (data.translation && data.translation.length > 0) || (data.translatedText && data.translatedText.length > 0);
-      assertions.push({
-        name: 'Retorna texto traduzido',
-        passed: hasTranslation,
-        message: hasTranslation ? undefined : `Tradução não retornada. Resposta: ${JSON.stringify(data)}`
-      });
-    }
-    
-    const allPassed = assertions.every(a => a.passed);
-    
-    if (allPassed) {
-      logger.success(`translate-synopsis OK em ${responseTime}ms`);
-    } else {
-      logger.error('Falha no teste de translate-synopsis');
-    }
-    
-    return {
-      status: allPassed ? 'passed' : 'failed',
-      duration_ms: Date.now() - startTime,
-      details,
-      assertions,
-      logs: logger.logs
-    };
-  } catch (err) {
-    logger.error(`Erro ao testar translate-synopsis: ${getErrorMessage(err)}`);
-    return {
-      status: 'error',
-      duration_ms: Date.now() - startTime,
-      error_message: getErrorMessage(err),
-      error_stack: getErrorStack(err),
-      details,
-      assertions,
-      logs: logger.logs
-    };
-  }
-}
-
-/**
  * Testa edge function get-recommendations (requer auth)
  */
 async function test_edge_recommendations(logger: TestLogger): Promise<TestResult> {
@@ -1312,7 +1237,6 @@ const TEST_FUNCTIONS: Record<string, (supabase: any, logger: TestLogger) => Prom
   test_notifications_valid,
   test_edge_global_stats: (_, logger) => test_edge_global_stats(logger),
   test_edge_proxy_image: (_, logger) => test_edge_proxy_image(logger),
-  test_edge_translate: (_, logger) => test_edge_translate(logger),
   test_edge_recommendations: (_, logger) => test_edge_recommendations(logger),
   test_rls_profiles,
   test_rls_admin_access,

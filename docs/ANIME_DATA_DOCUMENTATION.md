@@ -56,8 +56,8 @@ O AniCheck utiliza um **catálogo local próprio** com 13.000+ animes, eliminand
 | `anime-api` | API principal do catálogo | Não |
 | `import-catalog` | Importação de dados externos | JWT (Admin) |
 | `proxy-image` | Proxy de imagens para CORS | Não |
-| `translate-synopsis` | Tradução de sinopses para PT-BR | Não |
-| `get-recommendations` | Recomendações personalizadas com IA | JWT |
+| `sync-images` | Sincronização de imagens para CDN local | JWT (Admin) |
+| `get-recommendations` | Recomendações personalizadas | JWT |
 | `get-global-stats` | Estatísticas globais do sistema | Não |
 
 ---
@@ -297,36 +297,31 @@ headers: {
 
 ---
 
-## 🌍 Tradução de Sinopse
+## 🌍 Sinopses em Português (PT-BR)
 
-O catálogo já inclui sinopses pré-traduzidas no campo `synopsis_pt`. Para casos onde a tradução não existe:
+O catálogo já inclui sinopses pré-traduzidas no campo `synopsis_pt`. As traduções são importadas diretamente da API externa durante o processo de sincronização, sem necessidade de tradução em tempo real.
 
-### Edge Function: translate-synopsis
+### Cobertura Atual
+
+- As sinopses em PT-BR são fornecidas pela API externa consolidada
+- Atualizadas automaticamente durante a importação completa ou delta sync
+- Cobertura atual: ~70% do catálogo
+
+### Priorização no Frontend
 
 ```typescript
-// supabase/functions/translate-synopsis/index.ts
-// POST /functions/v1/translate-synopsis
-// Body: { text: "synopsis in English" }
-// Response: { translated: "sinopse em português" }
+// src/types/catalog.ts
+// Helper que prioriza sinopse em português
+export function getAnimeSynopsis(anime: CatalogAnime): string | null {
+  return anime.synopsis_pt || anime.synopsis;
+}
 ```
 
-### Uso no Frontend
+### Filtro por Disponibilidade
 
 ```typescript
-// src/hooks/useTranslation.ts
-export function useTranslation(text: string | null) {
-  return useQuery({
-    queryKey: ['translation', text],
-    queryFn: async () => {
-      const response = await supabase.functions.invoke('translate-synopsis', {
-        body: { text }
-      });
-      return response.data?.translated;
-    },
-    enabled: !!text,
-    staleTime: Infinity, // Traduções são imutáveis
-  });
-}
+// Buscar apenas animes com sinopse em PT-BR
+const { data } = await fetch(`${API_URL}?has_synopsis_pt=true`);
 ```
 
 ---

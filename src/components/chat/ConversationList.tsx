@@ -10,19 +10,7 @@ import { ConversationWithDetails, useDeleteConversation } from '@/hooks/useConve
 import { useGlobalPresence } from '@/hooks/useChatPresence';
 import { useConversationsTyping } from '@/hooks/useConversationsTyping';
 import { usePinConversation } from '@/hooks/usePinConversation';
-import { format } from 'date-fns';
-
-// Formata timestamp de forma compacta (ex: "15min", "2h", "3d")
-const formatCompactTime = (date: Date): string => {
-  const now = new Date();
-  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000);
-  
-  if (diffInMinutes < 1) return 'agora';
-  if (diffInMinutes < 60) return `${diffInMinutes}min`;
-  if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
-  if (diffInMinutes < 10080) return `${Math.floor(diffInMinutes / 1440)}d`;
-  return format(date, 'dd/MM');
-};
+import { formatCompactTime } from '@/lib/dateUtils';
 import CreateGroupModal from './CreateGroupModal';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';

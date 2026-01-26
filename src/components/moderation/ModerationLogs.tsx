@@ -15,8 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useModerationLogs, ModerationAction } from "@/hooks/useModeration";
-import { formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatRelativeTime } from '@/lib/dateUtils';
 
 /**
  * Mapeia ações para ícones e cores
@@ -139,10 +138,7 @@ export function ModerationLogs() {
                         {display.label}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(log.created_at), { 
-                          addSuffix: true, 
-                          locale: ptBR 
-                        })}
+                        {formatRelativeTime(log.created_at)}
                       </span>
                     </div>
 

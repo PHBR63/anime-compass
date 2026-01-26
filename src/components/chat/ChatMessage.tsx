@@ -26,8 +26,7 @@ import { ChatMessageWithSender } from '@/hooks/useChatMessages';
 import { useMessageReactions, useToggleReaction, REACTION_TYPES, ReactionType } from '@/hooks/useChatReactions';
 import { ReadByDetail } from '@/hooks/useReadReceipts';
 import { useAuth } from '@/hooks/useAuth';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatTime, formatShortDateTime } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
 
 interface ChatMessageProps {
@@ -61,7 +60,7 @@ export default function ChatMessage({
   const navigate = useNavigate();
 
   // Formatar hora da mensagem
-  const time = format(new Date(message.created_at), 'HH:mm', { locale: ptBR });
+  const time = formatTime(message.created_at);
 
   // Toggle reação
   const handleReaction = (type: ReactionType) => {
@@ -411,7 +410,7 @@ export default function ChatMessage({
                         <p className="font-medium mb-1">Visto por:</p>
                         {readByDetails.map((detail, i) => (
                           <p key={i} className="text-muted-foreground">
-                            {detail.name} • {format(new Date(detail.readAt), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                            {detail.name} • {formatShortDateTime(detail.readAt)}
                           </p>
                         ))}
                       </div>

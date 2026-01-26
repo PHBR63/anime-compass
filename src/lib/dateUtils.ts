@@ -245,3 +245,138 @@ export function daysBetween(date1: Date | string, date2: Date | string): number 
     return 0;
   }
 }
+
+// Formatador para dia e mês abreviado
+const dayMonthShortFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: 'short',
+});
+
+// Formatador para dia, mês e ano curto
+const shortDateFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: '2-digit',
+});
+
+// Formatador para data e hora curta
+const shortDateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  year: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+// Formatador para data extensa completa
+const fullDateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+// Formatador para apenas hora:minuto:segundo
+const timeWithSecondsFormatter = new Intl.DateTimeFormat('pt-BR', {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+});
+
+/**
+ * Formata apenas hora:minuto:segundo (HH:MM:SS)
+ */
+export function formatTimeWithSeconds(date: Date | string | null | undefined): string {
+  if (!date) return '';
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return '';
+    return timeWithSecondsFormatter.format(d);
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Formata data no formato DD/MM/YY
+ */
+export function formatShortDate(date: Date | string | null | undefined): string {
+  if (!date) return '';
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return '';
+    return shortDateFormatter.format(d);
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Formata data e hora no formato DD/MM/YY HH:MM
+ */
+export function formatShortDateTime(date: Date | string | null | undefined): string {
+  if (!date) return '';
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return '';
+    return shortDateTimeFormatter.format(d);
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Formata data por extenso completo (ex: "segunda-feira, 15 de janeiro de 2024 às 14:30")
+ */
+export function formatFullDateTime(date: Date | string | null | undefined): string {
+  if (!date) return '';
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return '';
+    return fullDateTimeFormatter.format(d);
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Formata dia e mês abreviado (ex: "15 jan.")
+ */
+export function formatDayMonth(date: Date | string | null | undefined): string {
+  if (!date) return '';
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return '';
+    return dayMonthShortFormatter.format(d);
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Formata tempo compacto para chat (ex: "15min", "2h", "3d")
+ */
+export function formatCompactTime(date: Date | string | null | undefined): string {
+  if (!date) return '';
+  
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return '';
+    
+    const now = Date.now();
+    const diff = now - d.getTime();
+    const diffMinutes = Math.floor(diff / MINUTE);
+    
+    if (diffMinutes < 1) return 'agora';
+    if (diffMinutes < 60) return `${diffMinutes}min`;
+    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)}h`;
+    if (diffMinutes < 10080) return `${Math.floor(diffMinutes / 1440)}d`;
+    
+    // Mais de uma semana, mostra DD/MM
+    return formatDayMonth(d);
+  } catch {
+    return '';
+  }
+}

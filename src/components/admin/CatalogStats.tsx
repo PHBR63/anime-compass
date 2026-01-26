@@ -16,8 +16,7 @@ import {
 import { Database, Film, Play, Calendar, Star, Image, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatDateTime } from '@/lib/dateUtils';
 
 /**
  * Interface para estatísticas do catálogo
@@ -204,7 +203,7 @@ export function CatalogStats() {
           <h2 className="text-lg font-semibold">Estatísticas do Catálogo</h2>
           {stats?.last_sync && (
             <p className="text-sm text-muted-foreground">
-              Última sincronização: {format(new Date(stats.last_sync), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              Última sincronização: {formatDateTime(stats.last_sync)}
             </p>
           )}
         </div>

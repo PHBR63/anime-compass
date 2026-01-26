@@ -16,8 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useWifiAnimeSync } from '@/hooks/useWifiAnimeSync';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatRelativeTime } from '@/lib/dateUtils';
 
 /**
  * Card de configurações para sincronização automática em WiFi
@@ -34,7 +33,7 @@ export function WifiSyncSettings() {
 
   // Formatar última sincronização
   const lastSyncText = stats.lastSync 
-    ? formatDistanceToNow(stats.lastSync, { addSuffix: true, locale: ptBR })
+    ? formatRelativeTime(stats.lastSync)
     : 'Nunca';
 
   return (

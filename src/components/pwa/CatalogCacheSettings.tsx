@@ -11,8 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getCatalogCacheStats, cleanExpiredCatalogCache } from '@/lib/offlineCache';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatRelativeTime } from '@/lib/dateUtils';
 
 interface CacheStats {
   totalEntries: number;
@@ -97,7 +96,7 @@ export function CatalogCacheSettings() {
    */
   const getOldestEntryText = () => {
     if (!stats?.oldestEntry) return 'Nenhum dado';
-    return formatDistanceToNow(stats.oldestEntry, { addSuffix: true, locale: ptBR });
+    return formatRelativeTime(new Date(stats.oldestEntry));
   };
 
   return (

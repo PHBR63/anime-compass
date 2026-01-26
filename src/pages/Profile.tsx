@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatMonthYear } from '@/lib/dateUtils';
 import { 
   Settings, 
   Share2, 
@@ -57,7 +56,7 @@ export default function Profile() {
 
   // Formata a data de criação do perfil
   const memberSince = profile?.created_at 
-    ? format(new Date(profile.created_at), "MMM yyyy", { locale: ptBR })
+    ? formatMonthYear(profile.created_at)
     : '';
 
   // Calcula a taxa de conclusão

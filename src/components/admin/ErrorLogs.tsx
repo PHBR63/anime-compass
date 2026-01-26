@@ -23,8 +23,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useErrorLogs, ErrorLog } from "@/hooks/useAdmin";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatShortDateTime, formatFullDateTime } from '@/lib/dateUtils';
 
 /**
  * Componente para exibição de logs de erros
@@ -82,9 +81,7 @@ export function ErrorLogs() {
                   <TableCell className="whitespace-nowrap">
                     <div className="flex items-center gap-2 text-sm">
                       <Clock className="h-3 w-3 text-muted-foreground" />
-                      {format(new Date(log.created_at), "dd/MM/yy HH:mm", {
-                        locale: ptBR,
-                      })}
+                      {formatShortDateTime(log.created_at)}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -130,9 +127,7 @@ export function ErrorLogs() {
                             Detalhes do Erro
                           </DialogTitle>
                           <DialogDescription>
-                            {format(new Date(log.created_at), "PPpp", {
-                              locale: ptBR,
-                            })}
+                            {formatFullDateTime(log.created_at)}
                           </DialogDescription>
                         </DialogHeader>
                         

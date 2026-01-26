@@ -11,8 +11,7 @@ import {
 } from '@/hooks/useAnimeRecommendations';
 import { AnimeDetailModal } from '@/components/anime/AnimeDetailModal';
 import { Gift, Check, Eye, Clock, MessageSquare } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatRelativeTime } from '@/lib/dateUtils';
 
 /**
  * Componente para exibir recomendações recebidas
@@ -207,7 +206,7 @@ export function ReceivedRecommendations() {
                   Indicado por {rec.from_user?.display_name || rec.from_user?.username}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {formatDistanceToNow(new Date(rec.created_at), { addSuffix: true, locale: ptBR })}
+                  {formatRelativeTime(rec.created_at)}
                 </p>
               </div>
               <Button 

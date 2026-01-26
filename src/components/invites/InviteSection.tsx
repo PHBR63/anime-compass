@@ -18,8 +18,7 @@ import {
   Trophy
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatRelativeTime } from '@/lib/dateUtils';
 
 /**
  * Componente para exibir estatísticas de convites
@@ -217,10 +216,7 @@ function InviteItem({ invite }: { invite: UserInvite }) {
         <div>
           <div className="font-mono text-sm">{invite.invite_code}</div>
           <div className="text-xs text-muted-foreground">
-            {formatDistanceToNow(new Date(invite.created_at), { 
-              addSuffix: true, 
-              locale: ptBR 
-            })}
+            {formatRelativeTime(invite.created_at)}
           </div>
         </div>
       </div>

@@ -23,8 +23,7 @@ import {
   ArrowRight,
   PlayCircle
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatShortDate, formatShortDateTime, formatTime, formatTimeWithSeconds, formatRelativeTime } from '@/lib/dateUtils';
 import { toast } from "sonner";
 
 /**
@@ -357,7 +356,7 @@ export function CatalogSyncLogs() {
                     {filteredLogs.map((log) => (
                       <div key={log.id} className="flex items-start gap-1.5 sm:gap-3 text-gray-300">
                         <span className="text-gray-500 whitespace-nowrap text-[10px] sm:text-xs">
-                          {format(new Date(log.timestamp), "HH:mm:ss")}
+                          {formatTimeWithSeconds(log.timestamp)}
                         </span>
                         <span className="flex-shrink-0">{getLevelIcon(log.level)}</span>
                         <span className={`flex-1 break-all text-[11px] sm:text-sm ${
@@ -418,7 +417,7 @@ export function CatalogSyncLogs() {
                               <Loader2 className="h-4 w-4 text-primary animate-spin" />
                             )}
                             <span className="font-medium text-sm">
-                              {format(new Date(run.started_at), "dd/MM HH:mm:ss", { locale: ptBR })}
+                              {formatShortDateTime(run.started_at)}
                             </span>
                             <Badge variant="outline" className="text-xs">
                               {run.trigger.toUpperCase()}
@@ -433,10 +432,7 @@ export function CatalogSyncLogs() {
                             )}
                           </div>
                           <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(run.started_at), { 
-                              addSuffix: true, 
-                              locale: ptBR 
-                            })}
+                            {formatRelativeTime(run.started_at)}
                           </span>
                         </div>
                         
@@ -519,7 +515,7 @@ export function CatalogSyncLogs() {
                         <div className="flex items-center justify-between mb-1">
                           <Badge variant="outline">{log.action}</Badge>
                           <span className="text-xs text-muted-foreground">
-                            {format(new Date(log.created_at), "dd/MM HH:mm:ss", { locale: ptBR })}
+                            {formatShortDateTime(log.created_at)}
                           </span>
                         </div>
                         {log.record_id && (

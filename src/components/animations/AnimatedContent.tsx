@@ -1,9 +1,10 @@
-import { useRef, useEffect, ReactNode } from 'react';
-import { gsap } from 'gsap';
+import { ReactNode, memo } from 'react';
+import { motion, Variants, useInView } from 'framer-motion';
+import { useRef } from 'react';
 
 /**
  * Componente AnimatedContent - Anima conteúdo ao entrar na viewport
- * Wrapper que aplica animações de entrada em qualquer children
+ * Migrado de GSAP para Framer Motion (~80KB economia)
  */
 
 type Direction = 'up' | 'down' | 'left' | 'right' | 'none';
@@ -20,7 +21,18 @@ interface AnimatedContentProps {
   scale?: number;
 }
 
-export const AnimatedContent = ({
+// Converte ease GSAP para Framer Motion (cubic-bezier)
+const getEase = (gsapEase: string): [number, number, number, number] => {
+  const easeMap: Record<string, [number, number, number, number]> = {
+    'power3.out': [0.22, 1, 0.36, 1],
+    'power2.out': [0.25, 0.46, 0.45, 0.94],
+    'power4.out': [0.16, 1, 0.3, 1],
+    'expo.out': [0.19, 1, 0.22, 1],
+  };
+  return easeMap[gsapEase] || [0.22, 1, 0.36, 1];
+};
+
+export const AnimatedContent = memo(function AnimatedContent({
   children,
   className = '',
   direction = 'up',
@@ -30,65 +42,56 @@ export const AnimatedContent = ({
   distance = 30,
   once = true,
   scale = 1,
-}: AnimatedContentProps) => {
-  const elementRef = useRef<HTMLDivElement>(null);
-  const hasAnimated = useRef(false);
+}: AnimatedContentProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { 
+    once, 
+    margin: '0px 0px -30px 0px',
+    amount: 0.1,
+  });
 
-  useEffect(() => {
-    const element = elementRef.current;
-    if (!element) return;
+  // Calcula posição inicial baseada na direção
+  const getInitialPosition = () => {
+    switch (direction) {
+      case 'up': return { y: distance, x: 0 };
+      case 'down': return { y: -distance, x: 0 };
+      case 'left': return { x: distance, y: 0 };
+      case 'right': return { x: -distance, y: 0 };
+      case 'none': return { x: 0, y: 0 };
+      default: return { y: distance, x: 0 };
+    }
+  };
 
-    // Calcula posição inicial baseada na direção
-    const getInitialPosition = () => {
-      switch (direction) {
-        case 'up': return { y: distance, x: 0 };
-        case 'down': return { y: -distance, x: 0 };
-        case 'left': return { x: distance, y: 0 };
-        case 'right': return { x: -distance, y: 0 };
-        case 'none': return { x: 0, y: 0 };
-        default: return { y: distance, x: 0 };
-      }
-    };
+  const initialPos = getInitialPosition();
 
-    const initialPos = getInitialPosition();
-
-    // Configuração inicial
-    gsap.set(element, {
+  const variants: Variants = {
+    hidden: {
       opacity: 0,
       ...initialPos,
       scale: scale < 1 ? scale : 1,
-    });
-
-    // Intersection Observer
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && (!once || !hasAnimated.current)) {
-            hasAnimated.current = true;
-
-            gsap.to(element, {
-              opacity: 1,
-              x: 0,
-              y: 0,
-              scale: 1,
-              duration,
-              ease,
-              delay,
-            });
-          }
-        });
+    },
+    visible: {
+      opacity: 1,
+      x: 0,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration,
+        ease: getEase(ease),
+        delay,
       },
-      { threshold: 0.1, rootMargin: '0px 0px -30px 0px' }
-    );
-
-    observer.observe(element);
-
-    return () => observer.disconnect();
-  }, [direction, delay, duration, ease, distance, once, scale]);
+    },
+  };
 
   return (
-    <div ref={elementRef} className={className}>
+    <motion.div 
+      ref={ref} 
+      className={className}
+      variants={variants}
+      initial="hidden"
+      animate={isInView ? 'visible' : 'hidden'}
+    >
       {children}
-    </div>
+    </motion.div>
   );
-};
+});

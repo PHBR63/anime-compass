@@ -35,8 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { FREEAPI_URL } from "@/lib/apiConfig";
-import { formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatRelativeTime } from '@/lib/dateUtils';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -598,7 +597,7 @@ export function FreeApiStatus() {
 
   // Formata última sincronização
   const lastSyncText = stats.last_sync 
-    ? formatDistanceToNow(new Date(stats.last_sync), { addSuffix: true, locale: ptBR })
+    ? formatRelativeTime(stats.last_sync)
     : "Nunca";
 
   return (

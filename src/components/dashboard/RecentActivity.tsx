@@ -1,6 +1,5 @@
 import { useAnimeEntries } from '@/hooks/useAnimeEntries';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatRelativeTime } from '@/lib/dateUtils';
 import { Star, Clock, CheckCircle, PauseCircle, PlayCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AnimatedList } from '@/components/animations';
@@ -114,10 +113,7 @@ export function RecentActivity() {
                 </div>
                 
                 <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block">
-                  {formatDistanceToNow(new Date(entry.updated_at), { 
-                    addSuffix: true,
-                    locale: ptBR 
-                  })}
+                  {formatRelativeTime(entry.updated_at)}
                 </span>
               </div>
             );

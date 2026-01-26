@@ -38,8 +38,7 @@ import {
   Report, 
   ReportStatus 
 } from "@/hooks/useModeration";
-import { formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatRelativeTime } from '@/lib/dateUtils';
 
 /**
  * Mapeia razões de denúncia para texto em português
@@ -144,7 +143,7 @@ function ReportCard({ report, onAction }: { report: Report; onAction: (action: '
 
           {/* Data */}
           <p className="text-xs text-muted-foreground">
-            {formatDistanceToNow(new Date(report.created_at), { addSuffix: true, locale: ptBR })}
+            {formatRelativeTime(report.created_at)}
           </p>
         </div>
 

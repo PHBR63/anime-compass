@@ -31,8 +31,7 @@ import {
 } from "@/components/ui/table";
 import { useAdminUsers, useSetUserRole, useRemoveUserRole, AdminUserProfile } from "@/hooks/useAdmin";
 import { useAuth } from "@/hooks/useAuth";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatDate } from '@/lib/dateUtils';
 
 /**
  * Componente de gerenciamento de usuários para o painel admin
@@ -195,9 +194,7 @@ export function UsersManagement() {
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(userProfile.created_at), "dd/MM/yyyy", {
-                      locale: ptBR,
-                    })}
+                    {formatDate(userProfile.created_at)}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>

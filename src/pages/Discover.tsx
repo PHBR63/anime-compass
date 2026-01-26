@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Search, TrendingUp, Sparkles, Filter, Tv, Loader2, Star, ChevronDown, AlertTriangle, Database } from 'lucide-react';
+import { Search, TrendingUp, Filter, Tv, Loader2, ChevronDown, Database } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CatalogAnimeCard } from '@/components/anime/CatalogAnimeCard';
+import { AdaptiveAnimeGrid } from '@/components/anime/VirtualizedAnimeGrid';
 import { 
   useTopAnimes, 
   useSeasonAnimes, 
@@ -19,7 +19,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AnimeDetailModal } from '@/components/anime/AnimeDetailModal';
 import { SakuraPetals, WavePattern } from '@/components/backgrounds';
 import { AnimatedContent, NeonText } from '@/components/animations';
-import { ToriiDivider } from '@/components/decorative';
 import { useAnimeEntriesContext } from '@/contexts/AnimeEntriesContext';
 import type { CatalogAnime } from '@/types/catalog';
 
@@ -420,12 +419,14 @@ export default function Discover() {
             <LoadingSkeleton count={12} />
           ) : advancedAnimes.length > 0 ? (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {advancedAnimes.map((anime) => (
-                  <CatalogAnimeCard key={anime.mal_id} anime={anime} />
-                ))}
-              </div>
-              <LoadMoreButton />
+              <AdaptiveAnimeGrid
+                animes={advancedAnimes}
+                onEndReached={() => loadMoreConfig.fetch()}
+                isLoadingMore={loadMoreConfig.isFetching}
+              />
+              {loadMoreConfig.hasNext && !loadMoreConfig.isFetching && advancedAnimes.length < 50 && (
+                <LoadMoreButton />
+              )}
             </>
           ) : (
             <div className="text-center py-12">
@@ -481,12 +482,14 @@ export default function Discover() {
                 <LoadingSkeleton count={12} />
               ) : (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {seasonAnimes.map((anime) => (
-                      <CatalogAnimeCard key={anime.mal_id} anime={anime} />
-                    ))}
-                  </div>
-                  <LoadMoreButton />
+                  <AdaptiveAnimeGrid
+                    animes={seasonAnimes}
+                    onEndReached={() => loadMoreConfig.fetch()}
+                    isLoadingMore={loadMoreConfig.isFetching}
+                  />
+                  {loadMoreConfig.hasNext && !loadMoreConfig.isFetching && seasonAnimes.length < 50 && (
+                    <LoadMoreButton />
+                  )}
                 </>
               )}
             </section>
@@ -506,16 +509,15 @@ export default function Discover() {
                 <LoadingSkeleton count={12} />
               ) : (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {topAnimes.map((anime, index) => (
-                      <CatalogAnimeCard 
-                        key={anime.mal_id} 
-                        anime={anime} 
-                        rank={index + 1}
-                      />
-                    ))}
-                  </div>
-                  <LoadMoreButton />
+                  <AdaptiveAnimeGrid
+                    animes={topAnimes}
+                    showRanking
+                    onEndReached={() => loadMoreConfig.fetch()}
+                    isLoadingMore={loadMoreConfig.isFetching}
+                  />
+                  {loadMoreConfig.hasNext && !loadMoreConfig.isFetching && topAnimes.length < 50 && (
+                    <LoadMoreButton />
+                  )}
                 </>
               )}
             </section>

@@ -1,7 +1,10 @@
-import { useEffect, useRef, useCallback } from 'react';
-import * as THREE from 'three';
+import { useRef, useEffect, useCallback, memo } from 'react';
 
-// Propriedades do componente FloatingLines
+/**
+ * Componente de background com linhas flutuantes animadas usando Canvas 2D
+ * Substitui implementação Three.js por Canvas puro (~500KB economia)
+ */
+
 interface FloatingLinesProps {
   linesGradient?: string[];
   enabledWaves?: Array<'top' | 'middle' | 'bottom'>;
@@ -18,11 +21,16 @@ interface FloatingLinesProps {
   className?: string;
 }
 
-/**
- * Componente de background com linhas flutuantes animadas usando Three.js
- * Cria um efeito visual de ondas com interação do mouse
- */
-export function FloatingLines({
+interface Line {
+  baseY: number;
+  index: number;
+  waveType: 'top' | 'middle' | 'bottom';
+  phase: number;
+  color: string;
+  opacity: number;
+}
+
+export const FloatingLines = memo(function FloatingLines({
   linesGradient = ['#8b5cf6', '#06b6d4', '#10b981'],
   enabledWaves = ['top', 'middle', 'bottom'],
   lineCount = 6,
@@ -37,93 +45,60 @@ export function FloatingLines({
   mixBlendMode = 'screen',
   className = '',
 }: FloatingLinesProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mouseRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0 });
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mouseRef = useRef({ x: 0.5, y: 0.5, targetX: 0.5, targetY: 0.5 });
   const animationRef = useRef<number>();
+  const linesRef = useRef<Line[]>([]);
 
-  // Função para criar as linhas de uma onda
-  const createWaveLines = useCallback((
-    scene: THREE.Scene,
-    waveType: 'top' | 'middle' | 'bottom',
-    count: number,
-    distance: number,
-    colors: string[]
-  ) => {
-    const lines: THREE.Line[] = [];
-    const baseY = waveType === 'top' ? 2 : waveType === 'middle' ? 0 : -2;
-    const baseRotation = waveType === 'top' ? 0.3 : waveType === 'bottom' ? -0.3 : 0;
+  // Inicializa as linhas
+  const initLines = useCallback(() => {
+    const lines: Line[] = [];
+    const lineCountArray = Array.isArray(lineCount) ? lineCount : [lineCount, lineCount, lineCount];
 
-    for (let i = 0; i < count; i++) {
-      const points: THREE.Vector3[] = [];
-      const segments = 100;
-      
-      for (let j = 0; j <= segments; j++) {
-        const x = (j / segments) * 20 - 10;
-        const y = baseY + (i * distance * 0.1);
-        points.push(new THREE.Vector3(x, y, 0));
+    enabledWaves.forEach((waveType, waveIdx) => {
+      const count = lineCountArray[waveIdx] || lineCountArray[0];
+      const baseY = waveType === 'top' ? 0.2 : waveType === 'middle' ? 0.5 : 0.8;
+
+      for (let i = 0; i < count; i++) {
+        lines.push({
+          baseY,
+          index: i,
+          waveType,
+          phase: Math.random() * Math.PI * 2,
+          color: linesGradient[i % linesGradient.length],
+          opacity: 0.6 - i * 0.05,
+        });
       }
+    });
 
-      const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      const colorIndex = i % colors.length;
-      const material = new THREE.LineBasicMaterial({
-        color: new THREE.Color(colors[colorIndex]),
-        transparent: true,
-        opacity: 0.6 - (i * 0.05),
-      });
-
-      const line = new THREE.Line(geometry, material);
-      line.rotation.z = baseRotation;
-      line.userData = { 
-        baseY, 
-        index: i, 
-        waveType,
-        phase: Math.random() * Math.PI * 2 
-      };
-      
-      scene.add(line);
-      lines.push(line);
-    }
-
-    return lines;
-  }, []);
+    linesRef.current = lines;
+  }, [enabledWaves, lineCount, linesGradient]);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    // Configuração da cena Three.js
-    const container = containerRef.current;
-    const width = container.clientWidth;
-    const height = container.clientHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.z = 5;
+    // Configura tamanho do canvas
+    const resizeCanvas = () => {
+      const dpr = Math.min(window.devicePixelRatio, 2);
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+    };
 
-    const renderer = new THREE.WebGLRenderer({ 
-      alpha: true, 
-      antialias: true 
-    });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.appendChild(renderer.domElement);
+    resizeCanvas();
+    initLines();
 
-    // Criar linhas para cada onda habilitada
-    const allLines: THREE.Line[] = [];
-    const lineCountArray = Array.isArray(lineCount) ? lineCount : [lineCount, lineCount, lineCount];
-    const lineDistanceArray = Array.isArray(lineDistance) ? lineDistance : [lineDistance, lineDistance, lineDistance];
-
-    enabledWaves.forEach((wave, idx) => {
-      const count = lineCountArray[idx] || lineCountArray[0];
-      const dist = lineDistanceArray[idx] || lineDistanceArray[0];
-      const lines = createWaveLines(scene, wave, count, dist, linesGradient);
-      allLines.push(...lines);
-    });
-
-    // Manipulador de movimento do mouse
+    // Handler de movimento do mouse
     const handleMouseMove = (event: MouseEvent) => {
       if (!interactive) return;
-      mouseRef.current.targetX = (event.clientX / width) * 2 - 1;
-      mouseRef.current.targetY = -(event.clientY / height) * 2 + 1;
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current.targetX = event.clientX / rect.width;
+      mouseRef.current.targetY = event.clientY / rect.height;
     };
 
     if (interactive) {
@@ -131,60 +106,85 @@ export function FloatingLines({
     }
 
     // Loop de animação
-    const animate = (time: number) => {
-      // Suavizar movimento do mouse
+    let startTime = performance.now();
+
+    const animate = (timestamp: number) => {
+      const elapsed = timestamp - startTime;
+      const rect = canvas.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+
+      // Limpa canvas
+      ctx.clearRect(0, 0, width, height);
+
+      // Suaviza movimento do mouse
       mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * mouseDamping;
       mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * mouseDamping;
 
-      // Animar cada linha
-      allLines.forEach((line) => {
-        const { baseY, index, phase } = line.userData;
-        const positions = (line.geometry as THREE.BufferGeometry).attributes.position;
-        
-        for (let i = 0; i < positions.count; i++) {
-          const x = positions.getX(i);
-          
-          // Onda base
-          const wave = Math.sin(x * 0.5 + time * 0.001 * animationSpeed + phase) * 0.3;
-          const wave2 = Math.sin(x * 0.3 + time * 0.0015 * animationSpeed + phase) * 0.2;
-          
+      const distArray = Array.isArray(lineDistance) ? lineDistance : [lineDistance, lineDistance, lineDistance];
+
+      // Desenha cada linha
+      linesRef.current.forEach((line) => {
+        const waveIdx = enabledWaves.indexOf(line.waveType);
+        const dist = (distArray[waveIdx] || distArray[0]) * 0.01;
+
+        ctx.beginPath();
+        ctx.strokeStyle = line.color;
+        ctx.globalAlpha = Math.max(0.1, line.opacity);
+        ctx.lineWidth = 1.5;
+
+        const segments = 100;
+
+        for (let i = 0; i <= segments; i++) {
+          const x = (i / segments) * width;
+          const normalizedX = (i / segments) * 2 - 1; // -1 a 1
+
+          // Ondas base
+          const time = elapsed * 0.001 * animationSpeed;
+          const wave1 = Math.sin(normalizedX * 2 + time + line.phase) * 20;
+          const wave2 = Math.sin(normalizedX * 1.5 + time * 1.5 + line.phase) * 15;
+
           // Efeito de dobra com o mouse
           let bendEffect = 0;
           if (interactive) {
-            const dx = x / 10 - mouseRef.current.x;
-            const dy = baseY / 5 - mouseRef.current.y;
+            const dx = normalizedX - (mouseRef.current.x * 2 - 1);
+            const dy = line.baseY - mouseRef.current.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
-            if (distance < bendRadius * 0.1) {
-              bendEffect = (1 - distance / (bendRadius * 0.1)) * bendStrength * 0.1;
+            const normalizedBendRadius = bendRadius * 0.1;
+            if (distance < normalizedBendRadius) {
+              bendEffect = (1 - distance / normalizedBendRadius) * bendStrength * 5;
             }
           }
-          
+
           // Parallax
-          const parallaxOffset = parallax 
-            ? mouseRef.current.x * parallaxStrength * (index * 0.1) 
+          const parallaxOffset = parallax
+            ? (mouseRef.current.x - 0.5) * parallaxStrength * line.index * 10
             : 0;
-          
-          const y = baseY + wave + wave2 + bendEffect + (index * 0.15);
-          positions.setY(i, y);
-          positions.setX(i, x + parallaxOffset);
+
+          // Posição Y
+          const baseYPos = line.baseY * height;
+          const offset = line.index * dist * height;
+          const y = baseYPos + wave1 + wave2 + bendEffect + offset;
+
+          if (i === 0) {
+            ctx.moveTo(x + parallaxOffset, y);
+          } else {
+            ctx.lineTo(x + parallaxOffset, y);
+          }
         }
-        
-        positions.needsUpdate = true;
+
+        ctx.stroke();
       });
 
-      renderer.render(scene, camera);
+      ctx.globalAlpha = 1;
       animationRef.current = requestAnimationFrame(animate);
     };
 
-    animate(0);
+    animationRef.current = requestAnimationFrame(animate);
 
     // Redimensionamento
     const handleResize = () => {
-      const newWidth = container.clientWidth;
-      const newHeight = container.clientHeight;
-      camera.aspect = newWidth / newHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(newWidth, newHeight);
+      resizeCanvas();
     };
 
     window.addEventListener('resize', handleResize);
@@ -198,8 +198,6 @@ export function FloatingLines({
       if (interactive) {
         window.removeEventListener('mousemove', handleMouseMove);
       }
-      container.removeChild(renderer.domElement);
-      renderer.dispose();
     };
   }, [
     linesGradient,
@@ -213,14 +211,14 @@ export function FloatingLines({
     mouseDamping,
     parallax,
     parallaxStrength,
-    createWaveLines
+    initLines,
   ]);
 
   return (
-    <div
-      ref={containerRef}
-      className={`absolute inset-0 overflow-hidden ${className}`}
+    <canvas
+      ref={canvasRef}
+      className={`absolute inset-0 w-full h-full ${className}`}
       style={{ mixBlendMode }}
     />
   );
-}
+});

@@ -1,9 +1,10 @@
-import { useRef, useEffect, ReactNode, Children, cloneElement, isValidElement } from 'react';
-import { gsap } from 'gsap';
+import { ReactNode, Children, cloneElement, isValidElement, memo } from 'react';
+import { motion, Variants, useInView } from 'framer-motion';
+import { useRef } from 'react';
 
 /**
  * Componente AnimatedList - Lista com animação de entrada escalonada
- * Anima cada item da lista com delay incremental
+ * Migrado de GSAP para Framer Motion (~80KB economia)
  */
 
 interface AnimatedListProps {
@@ -18,7 +19,18 @@ interface AnimatedListProps {
   once?: boolean;
 }
 
-export const AnimatedList = ({
+// Converte ease GSAP para Framer Motion (cubic-bezier)
+const getEase = (gsapEase: string): [number, number, number, number] => {
+  const easeMap: Record<string, [number, number, number, number]> = {
+    'power3.out': [0.22, 1, 0.36, 1],
+    'power2.out': [0.25, 0.46, 0.45, 0.94],
+    'power4.out': [0.16, 1, 0.3, 1],
+    'expo.out': [0.19, 1, 0.22, 1],
+  };
+  return easeMap[gsapEase] || [0.22, 1, 0.36, 1];
+};
+
+export const AnimatedList = memo(function AnimatedList({
   children,
   className = '',
   delay = 0,
@@ -28,76 +40,80 @@ export const AnimatedList = ({
   direction = 'up',
   distance = 20,
   once = true,
-}: AnimatedListProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const hasAnimated = useRef(false);
+}: AnimatedListProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { 
+    once, 
+    margin: '0px 0px -30px 0px',
+    amount: 0.1,
+  });
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+  // Calcula posição inicial baseada na direção
+  const getInitialPosition = () => {
+    switch (direction) {
+      case 'up': return { y: distance, x: 0 };
+      case 'down': return { y: -distance, x: 0 };
+      case 'left': return { x: distance, y: 0 };
+      case 'right': return { x: -distance, y: 0 };
+      default: return { y: distance, x: 0 };
+    }
+  };
 
-    const items = container.querySelectorAll('.animated-list-item');
-    if (items.length === 0) return;
+  const initialPos = getInitialPosition();
 
-    // Calcula posição inicial baseada na direção
-    const getInitialPosition = () => {
-      switch (direction) {
-        case 'up': return { y: distance, x: 0 };
-        case 'down': return { y: -distance, x: 0 };
-        case 'left': return { x: distance, y: 0 };
-        case 'right': return { x: -distance, y: 0 };
-        default: return { y: distance, x: 0 };
-      }
-    };
+  const containerVariants: Variants = {
+    hidden: {},
+    visible: {
+      transition: {
+        staggerChildren: staggerDelay,
+        delayChildren: delay,
+      },
+    },
+  };
 
-    const initialPos = getInitialPosition();
-
-    // Configuração inicial
-    gsap.set(items, {
+  const itemVariants: Variants = {
+    hidden: {
       opacity: 0,
       ...initialPos,
-    });
-
-    // Intersection Observer
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && (!once || !hasAnimated.current)) {
-            hasAnimated.current = true;
-
-            gsap.to(items, {
-              opacity: 1,
-              x: 0,
-              y: 0,
-              duration,
-              ease,
-              stagger: staggerDelay,
-              delay,
-            });
-          }
-        });
+    },
+    visible: {
+      opacity: 1,
+      x: 0,
+      y: 0,
+      transition: {
+        duration,
+        ease: getEase(ease),
       },
-      { threshold: 0.1, rootMargin: '0px 0px -30px 0px' }
-    );
+    },
+  };
 
-    observer.observe(container);
-
-    return () => observer.disconnect();
-  }, [delay, duration, staggerDelay, ease, direction, distance, once]);
-
-  // Adiciona classe aos children
-  const animatedChildren = Children.map(children, (child) => {
+  // Envolve cada child em motion.div
+  const animatedChildren = Children.map(children, (child, index) => {
     if (isValidElement(child)) {
-      return cloneElement(child as React.ReactElement<{ className?: string }>, {
-        className: `${child.props.className || ''} animated-list-item`.trim(),
-      });
+      return (
+        <motion.div
+          key={index}
+          variants={itemVariants}
+          className={`animated-list-item ${child.props.className || ''}`.trim()}
+        >
+          {cloneElement(child as React.ReactElement<{ className?: string }>, {
+            className: undefined, // Remove className do child original
+          })}
+        </motion.div>
+      );
     }
     return child;
   });
 
   return (
-    <div ref={containerRef} className={className}>
+    <motion.div 
+      ref={ref} 
+      className={className}
+      variants={containerVariants}
+      initial="hidden"
+      animate={isInView ? 'visible' : 'hidden'}
+    >
       {animatedChildren}
-    </div>
+    </motion.div>
   );
-};
+});

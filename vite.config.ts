@@ -222,7 +222,7 @@ export default defineConfig(({ mode }) => ({
             "@radix-ui/react-select",
             "@radix-ui/react-scroll-area",
           ],
-          "vendor-animation": ["framer-motion", "gsap"],
+          "vendor-animation": ["framer-motion"],
           "vendor-charts": ["recharts"],
           "vendor-supabase": ["@supabase/supabase-js"],
         },

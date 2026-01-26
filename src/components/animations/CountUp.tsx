@@ -1,9 +1,9 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
-import { gsap } from 'gsap';
+import { useRef, useState, useEffect, memo } from 'react';
+import { useInView, animate } from 'framer-motion';
 
 /**
  * Componente CountUp - Anima números de 0 até o valor final
- * Ideal para estatísticas e métricas
+ * Migrado de GSAP para Framer Motion (~80KB economia)
  */
 
 interface CountUpProps {
@@ -17,7 +17,7 @@ interface CountUpProps {
   separator?: string;
 }
 
-export const CountUp = ({
+export const CountUp = memo(function CountUp({
   end,
   duration = 2,
   delay = 0,
@@ -26,41 +26,31 @@ export const CountUp = ({
   suffix = '',
   className = '',
   separator = '.',
-}: CountUpProps) => {
+}: CountUpProps) {
   const [count, setCount] = useState(0);
   const elementRef = useRef<HTMLSpanElement>(null);
   const hasAnimated = useRef(false);
+  const isInView = useInView(elementRef, { once: true, amount: 0.1 });
 
   useEffect(() => {
-    const element = elementRef.current;
-    if (!element) return;
+    if (!isInView || hasAnimated.current) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && !hasAnimated.current) {
-            hasAnimated.current = true;
+    hasAnimated.current = true;
 
-            // Anima o contador
-            const obj = { value: 0 };
-            gsap.to(obj, {
-              value: end,
-              duration,
-              delay,
-              ease: 'power2.out',
-              onUpdate: () => {
-                setCount(obj.value);
-              },
-            });
-          }
-        });
+    // Usa animate do Framer Motion para interpolar o valor
+    const controls = animate(0, end, {
+      duration,
+      delay,
+      ease: [0.25, 0.46, 0.45, 0.94], // power2.out
+      onUpdate: (value) => {
+        setCount(value);
       },
-      { threshold: 0.1 }
-    );
+    });
 
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [end, duration, delay]);
+    return () => {
+      controls.stop();
+    };
+  }, [isInView, end, duration, delay]);
 
   // Formata o número
   const formatNumber = (num: number) => {
@@ -75,4 +65,4 @@ export const CountUp = ({
       {prefix}{formatNumber(count)}{suffix}
     </span>
   );
-};
+});

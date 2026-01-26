@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import * as XLSX from 'xlsx';
 
 /**
  * Interface para os dados exportados
@@ -116,6 +115,7 @@ const generateCSV = (headers: string[], rows: string[][]): string => {
 
 /**
  * Hook para exportar dados do usuário
+ * Usa lazy loading para xlsx (~300KB economia no bundle inicial)
  */
 export function useExportUserData() {
   const [isExporting, setIsExporting] = useState(false);
@@ -496,11 +496,15 @@ export function useExportUserData() {
 
   /**
    * Exporta os dados como arquivo Excel (.xlsx) com múltiplas abas
+   * Usa lazy loading para carregar xlsx apenas quando necessário
    */
   const exportAsExcel = async () => {
     setIsExporting(true);
     
     try {
+      // Lazy load xlsx - só carrega quando o usuário precisa (~300KB economia)
+      const XLSX = await import('xlsx');
+      
       const data = await fetchUserData();
       if (!data) return;
 

@@ -49,7 +49,9 @@ export function useWebPush() {
       if (supported && user) {
         try {
           const registration = await navigator.serviceWorker.ready;
-          const existingSubscription = await registration.pushManager.getSubscription();
+          const pm = (registration as any).pushManager;
+          if (!pm) return;
+          const existingSubscription = await pm.getSubscription();
           
           if (existingSubscription) {
             setSubscription(existingSubscription);
@@ -124,8 +126,10 @@ export function useWebPush() {
       
       // Criar subscription com applicationServerKey tipado corretamente
       const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+      const pm = (registration as any).pushManager;
+      if (!pm) throw new Error('PushManager não disponível');
       
-      const newSubscription = await registration.pushManager.subscribe({
+      const newSubscription = await pm.subscribe({
         userVisibleOnly: true,
         applicationServerKey: applicationServerKey.buffer as ArrayBuffer,
       });

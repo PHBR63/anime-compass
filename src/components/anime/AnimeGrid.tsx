@@ -26,8 +26,8 @@ export function AnimeGrid({ entries, className }: AnimeGridProps) {
       {entries.map((entry, index) => (
         <div 
           key={entry.id}
-          className="animate-scale-in"
-          style={{ animationDelay: `${index * 50}ms` }}
+          className={index < 12 ? 'animate-scale-in' : undefined}
+          style={index < 12 ? { animationDelay: `${index * 50}ms` } : undefined}
         >
           <AnimeCard entry={entry} />
         </div>

@@ -128,7 +128,7 @@ export const LazyImage = React.memo(function LazyImage({
         });
       },
       {
-        rootMargin: '100px', // Carrega 100px antes de entrar no viewport
+        rootMargin: '200px', // Pré-carrega 200px antes de entrar no viewport
         threshold: 0.01,
       }
     );
@@ -371,7 +371,7 @@ export const AnimeCardImage = React.memo(function AnimeCardImage({
           data-local={isLocalImage ? 'true' : undefined}
           alt={alt}
           className={cn(
-            'w-full h-full object-cover transition-all duration-500',
+            'w-full h-full object-cover transition-opacity duration-300',
             isLoaded ? 'opacity-100' : 'opacity-0',
             showHoverEffect && 'group-hover:scale-110',
             className

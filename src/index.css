@@ -123,32 +123,29 @@
     @apply border-border;
   }
 
-  /* Transição suave para alternância de temas - 300ms */
-  *,
-  *::before,
-  *::after {
-    transition-property: background-color, border-color, color, fill, stroke, box-shadow, opacity;
+  /* Transições apenas em elementos interativos (não global) */
+  button,
+  [role="button"],
+  a,
+  .glass-card,
+  .anime-card,
+  .gradient-border::before,
+  .link-underline::after {
+    transition-property: background-color, border-color, color, box-shadow, opacity, transform;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 300ms;
-  }
-
-  /* Desabilitar transição em elementos que não devem ter animação lenta */
-  input,
-  textarea,
-  select,
-  button:active,
-  .no-transition,
-  .no-transition *,
-  [data-radix-scroll-area-viewport],
-  .animate-fade-in,
-  .animate-scale-in {
-    transition-duration: 0ms !important;
+    transition-duration: 200ms;
   }
 
   html {
-    scroll-behavior: smooth;
-    /* Previne overscroll/bounce em iOS */
+    /* Smooth scroll apenas em desktop */
     overscroll-behavior: none;
+  }
+
+  /* Smooth scroll apenas em dispositivos com mouse */
+  @media (hover: hover) {
+    html {
+      scroll-behavior: smooth;
+    }
   }
 
   body {
@@ -194,8 +191,14 @@
   .glass-card {
     @apply relative overflow-hidden rounded-xl;
     background: hsl(var(--glass-bg));
-    backdrop-filter: blur(20px);
     border: 1px solid hsl(var(--glass-border));
+  }
+
+  /* Backdrop-filter apenas em desktop (pesado demais para GPU mobile) */
+  @media (hover: hover) {
+    .glass-card {
+      backdrop-filter: blur(20px);
+    }
   }
   
   /* Light mode: adiciona sombra suave para profundidade */
@@ -292,8 +295,10 @@
 
   /* Anime card hover effect */
   .anime-card {
-    @apply relative overflow-hidden rounded-xl transition-all duration-300;
-    transform-style: preserve-3d;
+    @apply relative overflow-hidden rounded-xl;
+    contain: layout style paint;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 300px;
   }
 
   .anime-card:hover {

@@ -17,11 +17,11 @@ export function MainLayout({ children }: MainLayoutProps) {
   useRealtimeNotifications();
   
   return (
-    <div className="min-h-screen bg-background">
-      {/* Background effects - tons orientais sakura/torii */}
-      <div className="fixed inset-0 bg-grid opacity-10 md:opacity-15 pointer-events-none" />
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[400px] md:w-[800px] h-[300px] md:h-[600px] bg-sakura/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="fixed bottom-0 right-0 w-[300px] md:w-[600px] h-[200px] md:h-[400px] bg-torii/5 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-background" style={{ overscrollBehaviorY: 'contain' }}>
+      {/* Background effects - camada composited para GPU */}
+      <div className="fixed inset-0 bg-grid opacity-10 md:opacity-15 pointer-events-none" style={{ transform: 'translateZ(0)' }} />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[400px] md:w-[800px] h-[300px] md:h-[600px] bg-sakura/5 rounded-full blur-3xl pointer-events-none" style={{ transform: 'translateZ(0)' }} />
+      <div className="fixed bottom-0 right-0 w-[300px] md:w-[600px] h-[200px] md:h-[400px] bg-torii/5 rounded-full blur-3xl pointer-events-none" style={{ transform: 'translateZ(0)' }} />
       
       <Sidebar />
       

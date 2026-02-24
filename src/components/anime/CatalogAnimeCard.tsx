@@ -59,7 +59,7 @@ function CatalogAnimeCardComponent({ anime, rank }: CatalogAnimeCardProps) {
   return (
     <>
       <div 
-        className="anime-card group cursor-pointer animate-scale-in"
+        className="anime-card group cursor-pointer"
         onClick={handleOpenModal}
       >
         <div className="relative aspect-[3/4] overflow-hidden rounded-xl">

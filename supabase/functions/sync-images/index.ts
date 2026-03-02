@@ -319,15 +319,14 @@ async function processChunk(supabase: any, supabaseUrl: string, limit: number = 
   // Verificar se há mais para processar
   const hasMore = totalPending > animes.length;
   
-  // Se não há mais, marcar como concluído
-  if (!hasMore) {
-    await updateSyncState(supabase, {
-      isRunning: false,
-      total: totalPending,
-      processed: (currentState?.processed || 0) + processed,
-      success: (currentState?.success || 0) + success,
-    });
-  }
+  // SEMPRE marcar como não rodando ao final do chunk
+  // Isso permite que o cron job dispare o próximo chunk
+  await updateSyncState(supabase, {
+    isRunning: false,
+    total: totalPending,
+    processed: (currentState?.processed || 0) + processed,
+    success: (currentState?.success || 0) + success,
+  });
   
   console.log(`[sync-images] Chunk concluído: ${success} sucesso, ${failed} falhas. Continue: ${hasMore}`);
   

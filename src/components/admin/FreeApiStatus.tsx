@@ -254,16 +254,24 @@ export function FreeApiStatus() {
     },
   });
 
-  // Auto-iniciar sincronização quando ativado
+  // Auto-iniciar/continuar sincronização quando chunk anterior termina
   useEffect(() => {
-    if (autoSync && imageStats && !imageStats.syncProgress?.isRunning) {
-      // Verificar se há imagens para sincronizar e cobertura < 90%
-      if (imageStats.localCoverage < 90 && imageStats.withExternalImage > 0) {
-        console.log("[FreeApiStatus] Auto-sync: iniciando sincronização automática...");
-        imageSyncMutation.mutate(undefined);
-      }
+    if (!autoSync || !imageStats) return;
+    
+    const isRunning = imageStats.syncProgress?.isRunning ?? false;
+    
+    // Se não está rodando e há imagens pendentes, dispara novo chunk
+    if (!isRunning && imageStats.localCoverage < 100 && imageStats.withExternalImage > 0) {
+      console.log("[FreeApiStatus] Auto-sync: disparando próximo chunk...");
+      // Delay para não sobrecarregar
+      const timer = setTimeout(() => {
+        if (!imageSyncMutation.isPending) {
+          imageSyncMutation.mutate(undefined);
+        }
+      }, 3000);
+      return () => clearTimeout(timer);
     }
-  }, [autoSync, imageStats?.localCoverage, imageStats?.syncProgress?.isRunning]);
+  }, [autoSync, imageStats?.localCoverage, imageStats?.syncProgress?.isRunning, imageStats?.withExternalImage]);
 
   // Salvar preferência de auto-sync
   useEffect(() => {
@@ -478,19 +486,30 @@ export function FreeApiStatus() {
         const total = data.totalPending ?? data.progress?.total ?? 0;
         const processed = data.processed ?? data.progress?.processed ?? 0;
         const remaining = total > 0 ? total - processed : '?';
-        const msg = `✅ Chunk: ${success} sucesso, ${failed} falhas. Restam: ${remaining}`;
-        setImageSyncLogs(prev => [...prev.slice(-20), msg]);
         
-        // Auto-continuar após 2 segundos se auto-sync está ativo
-        if (autoSync) {
-          setTimeout(() => {
-            imageSyncMutation.mutate(undefined);
-          }, 2000);
+        const isAlreadyRunning = !!data.error;
+        if (isAlreadyRunning) {
+          // Já em andamento — o polling de stats vai detectar quando terminar
+          // e o useEffect auto-sync vai disparar outro chunk
+          const msg = `⏳ Em andamento: ${processed}/${total} processadas (${success} OK). Restam: ${remaining}`;
+          setImageSyncLogs(prev => [...prev.slice(-20), msg]);
+          // Não re-chamar aqui, deixar o useEffect + polling cuidar
+        } else {
+          // Chunk concluído com sucesso, disparar próximo
+          const msg = `✅ Chunk: ${success} sucesso, ${failed} falhas. Restam: ${remaining}`;
+          setImageSyncLogs(prev => [...prev.slice(-20), msg]);
+          
+          if (autoSync) {
+            setTimeout(() => {
+              imageSyncMutation.mutate(undefined);
+            }, 2000);
+          }
         }
       } else {
         // Sincronização completa
         toast.success("Sincronização de imagens concluída!");
         setImageSyncLogs(prev => [...prev, "🎉 Sincronização completa!"]);
+        setAutoSync(false);
       }
       refetchImageStats();
     },

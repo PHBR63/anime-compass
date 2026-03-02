@@ -472,8 +472,13 @@ export function FreeApiStatus() {
           setImageSyncLogs(prev => [...prev, `❌ ${data.error}`]);
         }
       } else if (data.continue) {
-        // Há mais imagens para processar - auto-continuar se auto-sync ativo
-        const msg = `✅ Chunk: ${data.success || 0} sucesso, ${data.failed || 0} falhas. Restam: ${data.totalPending - (data.processed || 0)}`;
+        // Extrai dados do progresso (pode vir direto ou dentro de data.progress)
+        const success = data.success ?? data.progress?.success ?? 0;
+        const failed = data.failed ?? data.progress?.failed ?? 0;
+        const total = data.totalPending ?? data.progress?.total ?? 0;
+        const processed = data.processed ?? data.progress?.processed ?? 0;
+        const remaining = total > 0 ? total - processed : '?';
+        const msg = `✅ Chunk: ${success} sucesso, ${failed} falhas. Restam: ${remaining}`;
         setImageSyncLogs(prev => [...prev.slice(-20), msg]);
         
         // Auto-continuar após 2 segundos se auto-sync está ativo

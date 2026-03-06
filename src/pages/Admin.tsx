@@ -1,12 +1,13 @@
-import { Shield, LayoutDashboard, Users, FileText, AlertTriangle, FlaskConical, Zap, BarChart3 } from "lucide-react";
+import { Shield, LayoutDashboard, Users, FileText, AlertTriangle, FlaskConical, Download, HardDrive, BarChart3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminStats } from "@/components/admin/AdminStats";
 import { UsersManagement } from "@/components/admin/UsersManagement";
 import { AuditLogs } from "@/components/admin/AuditLogs";
 import { ErrorLogs } from "@/components/admin/ErrorLogs";
 import { SystemTests } from "@/components/admin/SystemTests";
-import { FreeApiStatus } from "@/components/admin/FreeApiStatus";
-import { CatalogStats } from "@/components/admin/CatalogStats";
+import { CatalogImportManager } from "@/components/admin/CatalogImportManager";
+import { CatalogImageSync } from "@/components/admin/CatalogImageSync";
+import { CatalogOverview } from "@/components/admin/CatalogOverview";
 import { motion } from "framer-motion";
 
 /**
@@ -44,11 +45,15 @@ export default function Admin() {
             <LayoutDashboard className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Visão Geral</span>
           </TabsTrigger>
-          <TabsTrigger value="catalog" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
-            <Zap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Catálogo</span>
+          <TabsTrigger value="import" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
+            <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Importação</span>
           </TabsTrigger>
-          <TabsTrigger value="catalog-stats" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
+          <TabsTrigger value="images" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
+            <HardDrive className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Imagens</span>
+          </TabsTrigger>
+          <TabsTrigger value="stats" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
             <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Estatísticas</span>
           </TabsTrigger>
@@ -59,10 +64,6 @@ export default function Admin() {
           <TabsTrigger value="audit" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
             <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Auditoria</span>
-          </TabsTrigger>
-          <TabsTrigger value="errors" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
-            <AlertTriangle className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Erros</span>
           </TabsTrigger>
           <TabsTrigger value="system" className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
             <FlaskConical className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -77,12 +78,16 @@ export default function Admin() {
           </div>
         </TabsContent>
 
-        <TabsContent value="catalog" className="mt-6">
-          <FreeApiStatus />
+        <TabsContent value="import" className="mt-6">
+          <CatalogImportManager />
         </TabsContent>
 
-        <TabsContent value="catalog-stats" className="mt-6">
-          <CatalogStats />
+        <TabsContent value="images" className="mt-6">
+          <CatalogImageSync />
+        </TabsContent>
+
+        <TabsContent value="stats" className="mt-6">
+          <CatalogOverview />
         </TabsContent>
 
         <TabsContent value="users" className="mt-6">
@@ -91,10 +96,6 @@ export default function Admin() {
 
         <TabsContent value="audit" className="mt-6">
           <AuditLogs />
-        </TabsContent>
-
-        <TabsContent value="errors" className="mt-6">
-          <ErrorLogs />
         </TabsContent>
 
         <TabsContent value="system" className="mt-6">

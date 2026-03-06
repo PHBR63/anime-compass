@@ -1,8 +1,8 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
 
 /**
  * Componente AuroraBackground - Efeito de aurora boreal animada
- * Versão leve usando CSS gradients e blur
+ * Versão otimizada com IntersectionObserver para pausar quando fora do viewport
  */
 
 interface AuroraBackgroundProps {
@@ -18,7 +18,23 @@ export const AuroraBackground = ({
   blend = 0.6,
   className = '',
 }: AuroraBackgroundProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(true);
   const animationDuration = 15 / speed;
+
+  // Pausa animações quando fora do viewport
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsVisible(entry.isIntersecting),
+      { threshold: 0 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const gradientStyle = useMemo(() => ({
     '--aurora-color-1': colorStops[0],
@@ -26,10 +42,12 @@ export const AuroraBackground = ({
     '--aurora-color-3': colorStops[2],
     '--aurora-duration': `${animationDuration}s`,
     '--aurora-blend': blend,
-  } as React.CSSProperties), [colorStops, animationDuration, blend]);
+    '--aurora-play-state': isVisible ? 'running' : 'paused',
+  } as React.CSSProperties), [colorStops, animationDuration, blend, isVisible]);
 
   return (
     <div 
+      ref={containerRef}
       className={`aurora-background absolute inset-0 overflow-hidden ${className}`}
       style={gradientStyle}
     >
@@ -55,6 +73,8 @@ export const AuroraBackground = ({
           height: 200%;
           filter: blur(80px);
           opacity: var(--aurora-blend);
+          will-change: transform;
+          animation-play-state: var(--aurora-play-state, running);
         }
         
         .aurora-layer-1 {

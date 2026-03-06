@@ -1,9 +1,9 @@
-import { useRef, useState, useEffect, memo } from 'react';
+import { useRef, useEffect, useCallback, memo } from 'react';
 import { useInView, animate } from 'framer-motion';
 
 /**
  * Componente CountUp - Anima números de 0 até o valor final
- * Migrado de GSAP para Framer Motion (~80KB economia)
+ * Usa manipulação DOM direta (ref.textContent) para evitar re-renders
  */
 
 interface CountUpProps {
@@ -27,42 +27,43 @@ export const CountUp = memo(function CountUp({
   className = '',
   separator = '.',
 }: CountUpProps) {
-  const [count, setCount] = useState(0);
   const elementRef = useRef<HTMLSpanElement>(null);
   const hasAnimated = useRef(false);
   const isInView = useInView(elementRef, { once: true, amount: 0.1 });
 
+  // Formata o número sem causar re-render
+  const formatNumber = useCallback((num: number) => {
+    const fixed = num.toFixed(decimals);
+    const [integer, decimal] = fixed.split('.');
+    const formatted = integer.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+    return decimal ? `${formatted},${decimal}` : formatted;
+  }, [decimals, separator]);
+
   useEffect(() => {
-    if (!isInView || hasAnimated.current) return;
+    if (!isInView || hasAnimated.current || !elementRef.current) return;
 
     hasAnimated.current = true;
 
-    // Usa animate do Framer Motion para interpolar o valor
+    // Usa animate do Framer Motion + DOM direto (sem setState = zero re-renders)
     const controls = animate(0, end, {
       duration,
       delay,
-      ease: [0.25, 0.46, 0.45, 0.94], // power2.out
+      ease: [0.25, 0.46, 0.45, 0.94],
       onUpdate: (value) => {
-        setCount(value);
+        if (elementRef.current) {
+          elementRef.current.textContent = `${prefix}${formatNumber(value)}${suffix}`;
+        }
       },
     });
 
     return () => {
       controls.stop();
     };
-  }, [isInView, end, duration, delay]);
-
-  // Formata o número
-  const formatNumber = (num: number) => {
-    const fixed = num.toFixed(decimals);
-    const [integer, decimal] = fixed.split('.');
-    const formatted = integer.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
-    return decimal ? `${formatted},${decimal}` : formatted;
-  };
+  }, [isInView, end, duration, delay, prefix, suffix, formatNumber]);
 
   return (
     <span ref={elementRef} className={className}>
-      {prefix}{formatNumber(count)}{suffix}
+      {prefix}{formatNumber(0)}{suffix}
     </span>
   );
 });

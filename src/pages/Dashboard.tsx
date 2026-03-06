@@ -32,6 +32,7 @@ export default function Dashboard() {
   const { data: entries, isLoading: entriesLoading, error: entriesError } = useAnimeEntries('watching');
   const { data: stats, isLoading: statsLoading, error: statsError } = useUserStats();
   const { data: profile } = useProfile();
+  const isMobile = useIsMobile();
   
   // Formata tempo total baseado em episódios assistidos
   const formatTime = (episodes: number) => {

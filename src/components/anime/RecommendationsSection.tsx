@@ -158,35 +158,35 @@ export function RecommendationsSection() {
 
       {/* Filtros */}
       {!isLoading && data?.recommendations && data.recommendations.length > 0 && (
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterType)} className="mb-4">
-          <TabsList className="h-8 bg-muted/50">
-            <TabsTrigger value="all" className="text-xs h-7 px-3">
-              <Filter className="h-3 w-3 mr-1" />
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterType)} className="mb-3 sm:mb-4">
+          <TabsList className="h-7 sm:h-8 bg-muted/50 w-full sm:w-auto overflow-x-auto">
+            <TabsTrigger value="all" className="text-[10px] sm:text-xs h-6 sm:h-7 px-2 sm:px-3">
+              <Filter className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
               Todos
             </TabsTrigger>
-            <TabsTrigger value="high" className="text-xs h-7 px-3">
-              <Star className="h-3 w-3 mr-1 text-green-500" />
-              Alta Compatibilidade
+            <TabsTrigger value="high" className="text-[10px] sm:text-xs h-6 sm:h-7 px-2 sm:px-3">
+              <Star className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 text-green-500" />
+              Alta Compat.
             </TabsTrigger>
-            <TabsTrigger value="studio" className="text-xs h-7 px-3">
-              <Building2 className="h-3 w-3 mr-1 text-purple-500" />
-              Por Estúdio
+            <TabsTrigger value="studio" className="text-[10px] sm:text-xs h-6 sm:h-7 px-2 sm:px-3">
+              <Building2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 text-purple-500" />
+              Estúdio
             </TabsTrigger>
-            <TabsTrigger value="genre" className="text-xs h-7 px-3">
+            <TabsTrigger value="genre" className="text-[10px] sm:text-xs h-6 sm:h-7 px-2 sm:px-3">
               Gêneros
             </TabsTrigger>
           </TabsList>
         </Tabs>
       )}
 
-      {/* Grid de recomendações */}
+      {/* Grid de recomendações - 3 colunas mobile, 4 tablet, 5 desktop, 6 wide */}
       {isLoading ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 md:gap-4 lg:grid-cols-6">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 md:gap-4 lg:grid-cols-5 xl:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="space-y-2">
-              <Skeleton className="aspect-[3/4] rounded-xl" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
+            <div key={i} className="space-y-1.5 sm:space-y-2">
+              <Skeleton className="aspect-[3/4] rounded-lg sm:rounded-xl" />
+              <Skeleton className="h-3 sm:h-4 w-3/4" />
+              <Skeleton className="h-2.5 sm:h-3 w-1/2" />
             </div>
           ))}
         </div>
@@ -195,7 +195,7 @@ export function RecommendationsSection() {
           Nenhuma recomendação encontrada com este filtro.
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 md:gap-4 lg:grid-cols-6">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 md:gap-4 lg:grid-cols-5 xl:grid-cols-6">
           {filteredRecommendations.map((recommendation) => (
             <SmartRecommendationCard
               key={recommendation.anime.mal_id}

@@ -179,14 +179,14 @@ export function RecommendationsSection() {
         </Tabs>
       )}
 
-      {/* Grid de recomendações */}
+      {/* Grid de recomendações - 3 colunas mobile, 4 tablet, 5 desktop, 6 wide */}
       {isLoading ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 md:gap-4 lg:grid-cols-6">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 md:gap-4 lg:grid-cols-5 xl:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="space-y-2">
-              <Skeleton className="aspect-[3/4] rounded-xl" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
+            <div key={i} className="space-y-1.5 sm:space-y-2">
+              <Skeleton className="aspect-[3/4] rounded-lg sm:rounded-xl" />
+              <Skeleton className="h-3 sm:h-4 w-3/4" />
+              <Skeleton className="h-2.5 sm:h-3 w-1/2" />
             </div>
           ))}
         </div>
@@ -195,7 +195,7 @@ export function RecommendationsSection() {
           Nenhuma recomendação encontrada com este filtro.
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 md:gap-4 lg:grid-cols-6">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 md:gap-4 lg:grid-cols-5 xl:grid-cols-6">
           {filteredRecommendations.map((recommendation) => (
             <SmartRecommendationCard
               key={recommendation.anime.mal_id}

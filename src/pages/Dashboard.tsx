@@ -21,6 +21,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AuroraBackground, SakuraPetals, WavePattern } from '@/components/backgrounds';
 import { AnimatedContent, NeonText } from '@/components/animations';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 /**
  * Página Dashboard - Visão geral do usuário com estatísticas e atividade recente

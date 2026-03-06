@@ -1,92 +1,125 @@
 
+## Otimizacao de Scroll Mobile
 
-# Auditoria de Otimizações Mobile/Recursos
+### Problemas Identificados
 
-## Status Atual
+1. **Transicao global em TODOS os elementos** (linhas 127-133 do `index.css`): Toda mudanca de `background-color`, `border-color`, `color`, `box-shadow` e `opacity` tem transicao de 300ms aplicada a `*`, `*::before`, `*::after`. Isso causa repaints constantes durante scroll e degrada a performance significativamente em dispositivos moveis.
 
-As otimizações do plano original em `.lovable/plan.md` estão **todas implementadas**. No entanto, existem **6 problemas residuais** que ainda impactam performance mobile e consumo de recursos.
+2. **`backdrop-filter: blur(20px)` no glass-card**: Usado extensivamente (Sidebar, cards, badges), o `backdrop-filter` e extremamente pesado para a GPU em dispositivos moveis, causando jank durante scroll.
 
----
+3. **SakuraPetals com Canvas animando continuamente**: O componente roda `requestAnimationFrame` infinitamente mesmo quando nao visivel, consumindo CPU/bateria.
 
-## Problemas Identificados
+4. **SpotlightCard rastreia mousemove em cada card**: Embora seja mais relevante para desktop (mouse), gera re-renders e atualizacoes de estado desnecessarias em cada card da lista.
 
-### 1. CountUp causa centenas de re-renders por animação
-O session replay mostra atualizações numéricas a cada ~7ms. O `CountUp` usa `setCount()` em cada frame via `onUpdate` do Framer Motion, causando ~120 re-renders por animação por stat card. No Dashboard, são 4 cards = ~480 re-renders em 1.5s.
+5. **`scroll-behavior: smooth` no html**: Pode interferir com scroll programatico e causar sensacao de lag em listas longas no mobile.
 
-**Correção:** Usar `useRef` + DOM direto (`ref.current.textContent`) em vez de `setState` para atualizar o número.
+6. **Transicao de 500ms na imagem** (`transition-all duration-500` no `lazy-image.tsx`): `transition-all` anima TODAS as propriedades incluindo `transform` do `group-hover:scale-110`, causando layout thrashing durante scroll.
 
-### 2. AuroraBackground + SakuraPetals + WavePattern no Dashboard = 3 camadas de animação contínua
-O Dashboard renderiza 3 backgrounds animados simultâneos (`fixed inset-0`). Cada um consome GPU continuamente:
-- Aurora: 3 layers com `filter: blur(80px)` + CSS animations infinitas
-- SakuraPetals: Canvas com `requestAnimationFrame` contínuo
-- WavePattern: SVG repetido (estático, menos impactante)
+7. **`animate-scale-in` com delay incremental nos cards**: Cada card tem `animationDelay: index * 50ms`, o que em listas de 50+ itens gera animacoes por 2.5 segundos, consumindo GPU.
 
-**Correção:** Em mobile, desabilitar Aurora e reduzir SakuraPetals ainda mais (ou desabilitar). A Aurora com `blur(80px)` em 3 camadas é extremamente pesada para GPUs móveis.
-
-### 3. 282 usos de `transition-all` em componentes
-Mesmo com a transição global removida do CSS, 38 componentes ainda usam `transition-all` inline via Tailwind. Isso anima TODAS as propriedades (width, height, padding, margin, transform, etc.) causando layout thrashing durante scroll.
-
-**Correção:** Substituir `transition-all` por transições específicas nos componentes mais renderizados (AnimeCard, AnimeListItem, Sidebar, etc.).
-
-### 4. `backdrop-blur-sm` usado em 31 arquivos de componentes
-O CSS restringe `.glass-card` backdrop-filter ao desktop, mas componentes individuais usam `backdrop-blur-sm` diretamente via Tailwind, ignorando a media query. Exemplos: Sidebar, BulkActionsBar, badges, overlays.
-
-**Correção:** Criar classe utilitária `.blur-desktop` que aplica backdrop-blur apenas em `(hover: hover)` e substituir nos componentes mais renderizados durante scroll.
-
-### 5. AuroraBackground não respeita visibilidade
-Diferente do SakuraPetals (que tem IntersectionObserver), a Aurora roda animações CSS infinitas mesmo quando o usuário está scrollado para baixo e ela não é visível.
-
-**Correção:** Adicionar IntersectionObserver ao AuroraBackground para pausar animações (`animation-play-state: paused`) quando fora do viewport.
-
-### 6. `font-size: 16px !important` aplicado a todos os dispositivos webkit
-A regra na linha 899-911 do CSS usa `(-webkit-min-device-pixel-ratio: 0)` que atinge TODOS os navegadores webkit (Chrome, Safari, Edge), não apenas iOS. Isso força font-size 16px em inputs mesmo em desktop.
-
-**Correção:** Usar media query mais específica para iOS: `@supports (-webkit-touch-callout: none)`.
+8. **`box-shadow` complexo no hover dos anime-cards**: Multiplas sombras com alpha compositing sao caras de renderizar.
 
 ---
 
-## Plano de Implementação
+### Plano de Implementacao
 
-### Arquivo 1: `src/components/animations/CountUp.tsx`
-- Substituir `useState(count)` + `setCount()` por `useRef<HTMLSpanElement>` + `ref.current.textContent = formatNumber(value)`
-- Elimina ~480 re-renders por página de Dashboard
+#### 1. Otimizar transicoes globais no CSS
+**Arquivo:** `src/index.css` (linhas 127-133)
 
-### Arquivo 2: `src/pages/Dashboard.tsx`
-- Envolver AuroraBackground e SakuraPetals com verificação `isMobile` (hook `useIsMobile`)
-- Em mobile: não renderizar Aurora, reduzir petalCount para 8
-- Manter WavePattern (é estático, baixo custo)
+- Remover a transicao global de `*` que afeta todos os elementos
+- Aplicar transicoes apenas onde necessario (botoes, links, cards especificos)
+- Adicionar `will-change: transform` apenas em elementos que realmente animam
 
-### Arquivo 3: `src/components/backgrounds/AuroraBackground.tsx`
-- Adicionar IntersectionObserver para pausar animações quando fora do viewport
-- Adicionar `will-change: transform` nas layers para composição GPU
+#### 2. Reduzir backdrop-filter em mobile
+**Arquivo:** `src/index.css`
 
-### Arquivo 4: `src/index.css`
-- Criar `.backdrop-blur-desktop` que aplica blur apenas em `@media (hover: hover)`
-- Corrigir media query do font-size para iOS-only
+- Usar media query `(hover: none)` para desabilitar `backdrop-filter` em dispositivos touch
+- Substituir por `background` semi-transparente solido em mobile (mais leve)
 
-### Arquivo 5: Componentes com `transition-all` de alto impacto
-- `AnimeListItem.tsx`: `transition-all` → `transition-colors duration-200`
-- `AnimeCard.tsx`: `transition-all` → `transition-[width] duration-300` (barra de progresso)
-- `Sidebar.tsx`: `transition-all` → `transition-colors duration-200`
-- Demais componentes com menor impacto podem ser tratados depois
+#### 3. Pausar SakuraPetals quando fora do viewport
+**Arquivo:** `src/components/backgrounds/SakuraPetals.tsx`
+
+- Adicionar Intersection Observer para pausar animacao quando nao visivel
+- Reduzir `petalCount` automaticamente em mobile (detectar via `window.innerWidth`)
+- Usar `will-change: auto` no canvas
+
+#### 4. Desativar SpotlightCard em touch devices
+**Arquivo:** `src/components/animations/SpotlightCard.tsx`
+
+- Detectar dispositivo touch via `matchMedia('(hover: none)')`
+- Retornar apenas o children sem wrapper de spotlight em mobile
+- Elimina re-renders de mousemove em dispositivos sem mouse
+
+#### 5. Otimizar lazy-image para scroll
+**Arquivo:** `src/components/ui/lazy-image.tsx`
+
+- Trocar `transition-all duration-500` por `transition-opacity duration-300` (anima apenas opacidade)
+- Aumentar `rootMargin` para `200px` em mobile (pre-carrega mais cedo)
+- Adicionar `content-visibility: auto` no container para otimizar rendering
+
+#### 6. CSS: Adicionar contain e content-visibility
+**Arquivo:** `src/index.css`
+
+- Adicionar `.anime-card { contain: layout style paint; }` para isolamento de rendering
+- Usar `content-visibility: auto` em cards fora do viewport
+- Limitar `animate-scale-in` a no maximo 12 itens (cap no delay)
+
+#### 7. Otimizar MainLayout para scroll mobile
+**Arquivo:** `src/components/layout/MainLayout.tsx`
+
+- Adicionar `overscroll-behavior-y: contain` no container principal para evitar "pull-to-refresh" indesejado
+- Mover backgrounds fixos para camada composited com `transform: translateZ(0)`
+
+#### 8. Remover smooth scroll em mobile
+**Arquivo:** `src/index.css`
+
+- Aplicar `scroll-behavior: smooth` apenas em desktop via media query
+- Mobile usa scroll nativo (mais performatico)
+
+---
+
+### Detalhes Tecnicos
 
 ```text
-Impacto Estimado:
+Antes (scroll de 60fps cai para ~30fps em mobile):
 +------------------------------------------+
-| CountUp sem setState    | -480 re-renders |
-| Aurora off em mobile    | +10-15 FPS      |
-| transition-all → spec  | +5-8 FPS scroll |
-| backdrop-blur desktop   | +3-5 FPS mobile |
-| Aurora IntersObserver   | CPU/bateria     |
+| * { transition: 300ms }                  | <-- Repaint global
+| backdrop-filter: blur(20px)              | <-- GPU heavy
+| SakuraPetals: 20 petals + rAF always     | <-- CPU drain
+| SpotlightCard: mousemove + setState      | <-- Re-renders
+| transition-all duration-500 em imagens   | <-- Layout thrashing
+| animate-scale-in com delays ate 2.5s     | <-- GPU queue
++------------------------------------------+
+
+Depois (scroll suave ~60fps):
++------------------------------------------+
+| Transicoes apenas em :hover/:focus       | <-- Sem repaint em scroll
+| bg solido semi-transparente em mobile    | <-- Sem blur GPU
+| SakuraPetals pausado quando invisivel    | <-- CPU livre
+| SpotlightCard desativado em touch        | <-- Sem re-renders
+| transition-opacity duration-300          | <-- Compositor only
+| contain: layout style paint nos cards    | <-- Isolamento
 +------------------------------------------+
 ```
 
-### Arquivos Modificados
-1. `src/components/animations/CountUp.tsx`
-2. `src/pages/Dashboard.tsx`
-3. `src/components/backgrounds/AuroraBackground.tsx`
-4. `src/index.css`
-5. `src/components/anime/AnimeListItem.tsx`
-6. `src/components/anime/AnimeCard.tsx`
-7. `src/components/layout/Sidebar.tsx`
+### Arquivos a Modificar
 
+1. `src/index.css` - Transicoes, contain, content-visibility, scroll-behavior
+2. `src/components/backgrounds/SakuraPetals.tsx` - Pause quando invisivel, menos petalas em mobile
+3. `src/components/animations/SpotlightCard.tsx` - Bypass em touch devices
+4. `src/components/ui/lazy-image.tsx` - Otimizar transicoes de imagem
+5. `src/components/layout/MainLayout.tsx` - overscroll-behavior, GPU layers
+6. `src/components/anime/CatalogAnimeCard.tsx` - Remover animate-scale-in ou limitar
+7. `src/components/anime/AnimeGrid.tsx` - Cap no delay de animacao
+
+### Impacto Esperado
+
+| Otimizacao | Ganho FPS Mobile | Dificuldade |
+|---|---|---|
+| Remover transicao global | +10-15 FPS | Facil |
+| Desabilitar backdrop-filter mobile | +5-10 FPS | Facil |
+| Pausar SakuraPetals | +3-5 FPS + bateria | Facil |
+| Desativar SpotlightCard touch | +5 FPS | Facil |
+| Otimizar lazy-image | +5-8 FPS | Facil |
+| CSS contain nos cards | +5-10 FPS | Facil |
+| Scroll behavior nativo | Percepcao melhor | Facil |

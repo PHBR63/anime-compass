@@ -895,8 +895,8 @@
   }
 }
 
-/* Previne zoom em inputs no iOS */
-@media screen and (-webkit-min-device-pixel-ratio: 0) {
+/* Previne zoom em inputs no iOS - restrito a dispositivos touch */
+@supports (-webkit-touch-callout: none) {
   input[type="text"],
   input[type="email"],
   input[type="password"],

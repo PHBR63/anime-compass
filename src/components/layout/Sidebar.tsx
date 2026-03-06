@@ -95,7 +95,7 @@ export function Sidebar() {
       <Button
         variant="ghost"
         size="icon"
-        className="fixed top-4 left-4 z-50 md:hidden bg-background/80 backdrop-blur-sm border border-border/50"
+        className="fixed top-4 left-4 z-50 md:hidden bg-background/90 border border-border/50"
         onClick={() => setIsOpen(!isOpen)}
       >
         {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -104,7 +104,7 @@ export function Sidebar() {
       {/* Overlay para fechar sidebar em mobile */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 md:hidden"
+          className="fixed inset-0 bg-background/80 z-40 md:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -187,7 +187,7 @@ export function Sidebar() {
                     to={item.path}
                     onClick={() => setIsOpen(false)}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group relative",
+                      "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-200 group relative",
                       isActive || isSubActive
                         ? "bg-sakura/10 text-sakura border border-sakura/20"
                         : "text-muted-foreground hover:bg-secondary hover:text-foreground"

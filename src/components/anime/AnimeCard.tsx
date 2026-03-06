@@ -210,7 +210,7 @@ function AnimeCardComponent({ entry }: AnimeCardProps) {
               {entry.total_episodes && (
                 <div className="h-0.5 md:h-1 bg-secondary rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-gradient-to-r from-sakura to-torii rounded-full transition-all duration-300"
+                    className="h-full bg-gradient-to-r from-sakura to-torii rounded-full transition-[width] duration-300"
                     style={{ width: `${progress}%` }}
                   />
                 </div>

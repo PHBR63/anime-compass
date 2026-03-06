@@ -6,12 +6,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
  * Sistema de recomendações personalizadas com:
  * - Análise profunda do perfil do usuário (até 10 animes)
  * - Algoritmo de scoring considerando gêneros, estúdios e notas
- * - Explicações baseadas em regras (sem IA externa)
+ * - Enriquecimento com catálogo local (imagens e sinopse PT-BR)
  */
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const JIKAN_BASE_URL = "https://api.jikan.moe/v4";
@@ -36,7 +36,7 @@ interface GenreData {
   id: number;
   name: string;
   count: number;
-  weight: number; // Peso baseado nas notas
+  weight: number;
 }
 
 interface StudioData {
@@ -54,8 +54,31 @@ interface UserProfile {
   favoriteAnimes: { title: string; rating: number }[];
 }
 
+interface NormalizedAnime {
+  mal_id: number;
+  title: string;
+  title_english: string | null;
+  title_japanese: string | null;
+  image_url: string | null;
+  local_image_url: string | null;
+  score: number | null;
+  episodes: number | null;
+  year: number | null;
+  season: string | null;
+  status: string | null;
+  type: string | null;
+  rating: string | null;
+  synopsis: string | null;
+  synopsis_pt: string | null;
+  genres: string[];
+  studios: string[];
+  members: number | null;
+  popularity: number | null;
+  rank: number | null;
+}
+
 interface SmartRecommendation {
-  anime: any;
+  anime: NormalizedAnime;
   matchScore: number;
   reasons: {
     genres: string[];
@@ -66,27 +89,21 @@ interface SmartRecommendation {
   confidence: 'high' | 'medium' | 'low';
 }
 
-/**
- * Cria delay para rate limiting
- */
+/** Cria delay para rate limiting */
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/**
- * Busca com retry e tratamento de rate limit
- */
+/** Busca com retry e tratamento de rate limit */
 async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     try {
       const response = await fetch(url);
-      
       if (response.status === 429) {
         console.log(`[Jikan] Rate limited, aguardando 2s antes de retry ${i + 1}/${retries}`);
         await delay(2000);
         continue;
       }
-      
       return response;
     } catch (error) {
       console.warn(`[Jikan] Erro na requisição (tentativa ${i + 1}):`, error);
@@ -97,9 +114,7 @@ async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
   throw new Error('Max retries exceeded');
 }
 
-/**
- * Filtra animes indesejados (adultos, músicas, etc.)
- */
+/** Filtra animes indesejados (adultos, músicas, etc.) */
 const filterAnimes = (animes: any[]): any[] => {
   return animes.filter(anime => {
     if (anime.rating && EXCLUDED_RATINGS.includes(anime.rating)) return false;
@@ -109,13 +124,51 @@ const filterAnimes = (animes: any[]): any[] => {
 };
 
 /**
- * Analisa o perfil do usuário e extrai preferências
+ * Normaliza dados do Jikan para o formato CatalogAnime esperado pelo frontend.
+ * Se existir no catálogo local, prioriza imagens e sinopse locais.
  */
+function normalizeJikanToCatalog(jikanAnime: any, catalogEntry?: any): NormalizedAnime {
+  const normalized: NormalizedAnime = {
+    mal_id: jikanAnime.mal_id,
+    title: jikanAnime.title || '',
+    title_english: jikanAnime.title_english || null,
+    title_japanese: jikanAnime.title_japanese || null,
+    image_url: jikanAnime.images?.jpg?.large_image_url || jikanAnime.images?.jpg?.image_url || null,
+    local_image_url: null,
+    score: jikanAnime.score || null,
+    episodes: jikanAnime.episodes || null,
+    year: jikanAnime.year || null,
+    season: jikanAnime.season || null,
+    status: jikanAnime.status || null,
+    type: jikanAnime.type || null,
+    rating: jikanAnime.rating || null,
+    synopsis: jikanAnime.synopsis || null,
+    synopsis_pt: null,
+    genres: (jikanAnime.genres || []).map((g: any) => g.name),
+    studios: (jikanAnime.studios || []).map((s: any) => s.name),
+    members: jikanAnime.members || null,
+    popularity: jikanAnime.popularity || null,
+    rank: jikanAnime.rank || null,
+  };
+
+  // Sobrescreve com dados do catálogo local se disponível
+  if (catalogEntry) {
+    normalized.local_image_url = catalogEntry.local_image_url || null;
+    normalized.image_url = catalogEntry.image_url || normalized.image_url;
+    normalized.synopsis_pt = catalogEntry.synopsis_pt || null;
+    normalized.title_english = catalogEntry.title_english || normalized.title_english;
+    normalized.title_japanese = catalogEntry.title_japanese || normalized.title_japanese;
+  }
+
+  return normalized;
+}
+
+/** Analisa o perfil do usuário e extrai preferências */
 async function analyzeUserProfile(userAnimes: UserAnimeEntry[]): Promise<UserProfile> {
   const genreCounts = new Map<number, GenreData>();
   const studioCounts = new Map<number, { id: number; name: string; ratings: number[] }>();
   const typeCounts = new Map<string, number>();
-  
+
   // Pega os top 10 animes com melhor nota para análise
   const topAnimes = userAnimes
     .filter(a => a.rating && Number(a.rating) >= 6)
@@ -123,53 +176,40 @@ async function analyzeUserProfile(userAnimes: UserAnimeEntry[]): Promise<UserPro
     .slice(0, 10);
 
   const animesToAnalyze = topAnimes.length >= 3 ? topAnimes : userAnimes.slice(0, 10);
-  
   console.log(`[Profile] Analisando ${animesToAnalyze.length} animes do usuário`);
 
   // Busca detalhes de cada anime para extrair gêneros e estúdios
   for (const anime of animesToAnalyze) {
     try {
       await delay(DELAY_BETWEEN_REQUESTS);
-      
       const response = await fetchWithRetry(`${JIKAN_BASE_URL}/anime/${anime.mal_id}`);
       if (response.ok) {
         const data = await response.json();
         const animeData = data.data;
         const userRating = Number(anime.rating) || 7;
         const ratingWeight = userRating >= 9 ? 3 : userRating >= 8 ? 2 : 1;
-        
+
         // Processa gêneros com peso baseado na nota
-        const genres = animeData?.genres || [];
-        for (const genre of genres) {
+        for (const genre of (animeData?.genres || [])) {
           const existing = genreCounts.get(genre.mal_id);
           if (existing) {
             existing.count++;
             existing.weight += ratingWeight;
           } else {
-            genreCounts.set(genre.mal_id, {
-              id: genre.mal_id,
-              name: genre.name,
-              count: 1,
-              weight: ratingWeight
-            });
+            genreCounts.set(genre.mal_id, { id: genre.mal_id, name: genre.name, count: 1, weight: ratingWeight });
           }
         }
-        
+
         // Processa estúdios
-        const studios = animeData?.studios || [];
-        for (const studio of studios) {
+        for (const studio of (animeData?.studios || [])) {
           const existing = studioCounts.get(studio.mal_id);
           if (existing) {
             existing.ratings.push(userRating);
           } else {
-            studioCounts.set(studio.mal_id, {
-              id: studio.mal_id,
-              name: studio.name,
-              ratings: [userRating]
-            });
+            studioCounts.set(studio.mal_id, { id: studio.mal_id, name: studio.name, ratings: [userRating] });
           }
         }
-        
+
         // Processa tipos
         if (animeData?.type) {
           typeCounts.set(animeData.type, (typeCounts.get(animeData.type) || 0) + 1);
@@ -180,73 +220,38 @@ async function analyzeUserProfile(userAnimes: UserAnimeEntry[]): Promise<UserPro
     }
   }
 
-  // Ordena gêneros por peso (considerando nota)
-  const topGenres = Array.from(genreCounts.values())
-    .sort((a, b) => b.weight - a.weight)
-    .slice(0, 5);
-
-  // Ordena estúdios por média de nota
+  const topGenres = Array.from(genreCounts.values()).sort((a, b) => b.weight - a.weight).slice(0, 5);
   const topStudios = Array.from(studioCounts.values())
-    .map(s => ({
-      id: s.id,
-      name: s.name,
-      count: s.ratings.length,
-      avgRating: s.ratings.reduce((a, b) => a + b, 0) / s.ratings.length
-    }))
-    .filter(s => s.count >= 2) // Apenas estúdios com 2+ animes
+    .map(s => ({ id: s.id, name: s.name, count: s.ratings.length, avgRating: s.ratings.reduce((a, b) => a + b, 0) / s.ratings.length }))
+    .filter(s => s.count >= 2)
     .sort((a, b) => b.avgRating - a.avgRating)
     .slice(0, 3);
 
-  // Tipos preferidos
-  const preferredTypes = Array.from(typeCounts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 2)
-    .map(([type]) => type);
-
-  // Calcula média de rating
+  const preferredTypes = Array.from(typeCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([type]) => type);
   const ratedAnimes = animesToAnalyze.filter(a => a.rating);
-  const avgRating = ratedAnimes.length > 0
-    ? ratedAnimes.reduce((sum, a) => sum + Number(a.rating), 0) / ratedAnimes.length
-    : 7;
-
-  // Animes favoritos para contexto da IA
-  const favoriteAnimes = animesToAnalyze
-    .filter(a => Number(a.rating) >= 8)
-    .slice(0, 5)
-    .map(a => ({ title: a.title, rating: Number(a.rating) }));
+  const avgRating = ratedAnimes.length > 0 ? ratedAnimes.reduce((sum, a) => sum + Number(a.rating), 0) / ratedAnimes.length : 7;
+  const favoriteAnimes = animesToAnalyze.filter(a => Number(a.rating) >= 8).slice(0, 5).map(a => ({ title: a.title, rating: Number(a.rating) }));
 
   console.log(`[Profile] Gêneros: ${topGenres.map(g => g.name).join(', ')}`);
   console.log(`[Profile] Estúdios: ${topStudios.map(s => s.name).join(', ')}`);
 
-  return {
-    topGenres,
-    topStudios,
-    avgRating,
-    preferredTypes,
-    favoriteAnimes
-  };
+  return { topGenres, topStudios, avgRating, preferredTypes, favoriteAnimes };
 }
 
-/**
- * Calcula score de compatibilidade entre anime e perfil do usuário
- */
+/** Calcula score de compatibilidade entre anime e perfil do usuário */
 function calculateMatchScore(anime: any, profile: UserProfile): { score: number; matchedGenres: string[]; matchedStudio: string | null } {
   let score = 0;
   const matchedGenres: string[] = [];
   let matchedStudio: string | null = null;
 
   // Score base do anime no MAL (0-30 pontos)
-  const malScore = anime.score || 0;
-  score += (malScore / 10) * 30;
+  score += ((anime.score || 0) / 10) * 30;
 
   // Compatibilidade de gêneros (0-40 pontos)
   const animeGenres = anime.genres?.map((g: any) => g.mal_id) || [];
-  const profileGenreIds = profile.topGenres.map(g => g.id);
-  
   for (const genreId of animeGenres) {
     const profileGenre = profile.topGenres.find(g => g.id === genreId);
     if (profileGenre) {
-      // Peso maior para gêneros mais bem avaliados
       score += Math.min(8, profileGenre.weight * 2);
       matchedGenres.push(profileGenre.name);
     }
@@ -269,29 +274,11 @@ function calculateMatchScore(anime: any, profile: UserProfile): { score: number;
   else if (popularity > 500000) score += 7;
   else if (popularity > 100000) score += 5;
 
-  // Normaliza para 0-100
-  return { 
-    score: Math.min(100, Math.round(score)), 
-    matchedGenres,
-    matchedStudio
-  };
+  return { score: Math.min(100, Math.round(score)), matchedGenres, matchedStudio };
 }
 
-/**
- * Gera explicação personalizada (baseada em regras)
- */
-function generateExplanation(
-  recommendation: any,
-  matchedGenres: string[],
-  matchedStudio: string | null
-): string {
-  return generateFallbackExplanation(matchedGenres, matchedStudio);
-}
-
-/**
- * Gera explicação de fallback quando IA não está disponível
- */
-function generateFallbackExplanation(matchedGenres: string[], matchedStudio: string | null): string {
+/** Gera explicação personalizada (baseada em regras) */
+function generateExplanation(matchedGenres: string[], matchedStudio: string | null): string {
   if (matchedStudio && matchedGenres.length > 0) {
     return `Do estúdio ${matchedStudio} que você curte, combinando ${matchedGenres.slice(0, 2).join(' e ')} que são seus gêneros favoritos!`;
   }
@@ -304,13 +291,38 @@ function generateFallbackExplanation(matchedGenres: string[], matchedStudio: str
   return `Altamente recomendado pela comunidade e combina com seu perfil de fã de anime!`;
 }
 
-/**
- * Determina nível de confiança da recomendação
- */
+/** Determina nível de confiança da recomendação */
 function getConfidence(score: number): 'high' | 'medium' | 'low' {
   if (score >= 75) return 'high';
   if (score >= 50) return 'medium';
   return 'low';
+}
+
+/**
+ * Busca dados do catálogo local para uma lista de mal_ids.
+ * Retorna um Map de mal_id -> catalogEntry.
+ */
+async function fetchCatalogEntries(supabase: any, malIds: number[]): Promise<Map<number, any>> {
+  const catalogMap = new Map<number, any>();
+  if (malIds.length === 0) return catalogMap;
+
+  try {
+    const { data, error } = await supabase
+      .from("anime_catalog")
+      .select("mal_id, image_url, local_image_url, synopsis_pt, title_english, title_japanese")
+      .in("mal_id", malIds);
+
+    if (!error && data) {
+      for (const entry of data) {
+        catalogMap.set(entry.mal_id, entry);
+      }
+    }
+    console.log(`[Catalog] Encontrados ${catalogMap.size}/${malIds.length} animes no catálogo local`);
+  } catch (e) {
+    console.warn("[Catalog] Erro ao buscar catálogo local:", e);
+  }
+
+  return catalogMap;
 }
 
 // Edge function principal
@@ -331,9 +343,7 @@ serve(async (req) => {
 
     const tokenMatch = authHeader.match(/^Bearer\s+(.+)$/i);
     const token = tokenMatch?.[1]?.trim();
-
     if (!token) {
-      console.error("[Recommendations] Header de autorização sem token Bearer válido");
       return new Response(
         JSON.stringify({ error: "Token inválido" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -348,16 +358,15 @@ serve(async (req) => {
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
-      console.error("[Recommendations] Erro ao validar usuário:", userError);
       return new Response(
         JSON.stringify({ error: "Usuário não encontrado ou sessão inválida" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    
+
     console.log(`[Recommendations] Usuário autenticado: ${user.id}`);
 
-    // Busca animes do usuário com título
+    // Busca animes do usuário
     const { data: userAnimes, error: animesError } = await supabase
       .from("anime_entries")
       .select("mal_id, title, status, rating, image_url")
@@ -365,19 +374,11 @@ serve(async (req) => {
       .in("status", ["completed", "watching"])
       .order("rating", { ascending: false, nullsFirst: false });
 
-    if (animesError) {
-      console.error("[Recommendations] Erro ao buscar animes:", animesError);
-      throw new Error("Erro ao buscar animes do usuário");
-    }
+    if (animesError) throw new Error("Erro ao buscar animes do usuário");
 
     if (!userAnimes || userAnimes.length === 0) {
       return new Response(
-        JSON.stringify({ 
-          recommendations: [],
-          topGenres: [],
-          topStudios: [],
-          message: "Adicione animes à sua lista para receber recomendações personalizadas!"
-        }),
+        JSON.stringify({ recommendations: [], topGenres: [], topStudios: [], message: "Adicione animes à sua lista para receber recomendações personalizadas!" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -388,9 +389,8 @@ serve(async (req) => {
     console.log("[Recommendations] Analisando perfil do usuário...");
     const userProfile = await analyzeUserProfile(userAnimes as UserAnimeEntry[]);
 
-    // Se não conseguiu identificar gêneros, usar populares
-    const genresToSearch = userProfile.topGenres.length > 0 
-      ? userProfile.topGenres 
+    const genresToSearch = userProfile.topGenres.length > 0
+      ? userProfile.topGenres
       : [{ id: 1, name: 'Action', count: 1, weight: 1 }, { id: 2, name: 'Adventure', count: 1, weight: 1 }];
 
     // ETAPA 2: Buscar recomendações baseadas no perfil
@@ -402,16 +402,10 @@ serve(async (req) => {
     for (const genre of genresToSearch.slice(0, 3)) {
       try {
         await delay(DELAY_BETWEEN_REQUESTS);
-        
-        const response = await fetchWithRetry(
-          `${JIKAN_BASE_URL}/anime?genres=${genre.id}&order_by=score&sort=desc&limit=10&sfw=true`
-        );
-        
+        const response = await fetchWithRetry(`${JIKAN_BASE_URL}/anime?genres=${genre.id}&order_by=score&sort=desc&limit=10&sfw=true`);
         if (response.ok) {
           const data = await response.json();
-          const animes = filterAnimes(data.data || []);
-          
-          for (const anime of animes) {
+          for (const anime of filterAnimes(data.data || [])) {
             if (!userMalIds.has(anime.mal_id) && !seenIds.has(anime.mal_id)) {
               seenIds.add(anime.mal_id);
               candidateAnimes.push(anime);
@@ -427,16 +421,10 @@ serve(async (req) => {
     for (const studio of userProfile.topStudios.slice(0, 2)) {
       try {
         await delay(DELAY_BETWEEN_REQUESTS);
-        
-        const response = await fetchWithRetry(
-          `${JIKAN_BASE_URL}/anime?producers=${studio.id}&order_by=score&sort=desc&limit=8&sfw=true`
-        );
-        
+        const response = await fetchWithRetry(`${JIKAN_BASE_URL}/anime?producers=${studio.id}&order_by=score&sort=desc&limit=8&sfw=true`);
         if (response.ok) {
           const data = await response.json();
-          const animes = filterAnimes(data.data || []);
-          
-          for (const anime of animes) {
+          for (const anime of filterAnimes(data.data || [])) {
             if (!userMalIds.has(anime.mal_id) && !seenIds.has(anime.mal_id)) {
               seenIds.add(anime.mal_id);
               candidateAnimes.push(anime);
@@ -450,50 +438,52 @@ serve(async (req) => {
 
     // ETAPA 3: Calcular scores e ordenar
     console.log(`[Recommendations] Calculando compatibilidade para ${candidateAnimes.length} animes...`);
-    
-    const scoredRecommendations = candidateAnimes.map(anime => {
-      const { score, matchedGenres, matchedStudio } = calculateMatchScore(anime, userProfile);
-      return { anime, score, matchedGenres, matchedStudio };
-    });
-
-    // Ordena por score e pega top 12
-    const topRecommendations = scoredRecommendations
+    const scoredRecommendations = candidateAnimes
+      .map(anime => {
+        const { score, matchedGenres, matchedStudio } = calculateMatchScore(anime, userProfile);
+        return { anime, score, matchedGenres, matchedStudio };
+      })
       .sort((a, b) => b.score - a.score)
       .slice(0, 12);
 
-    // ETAPA 4: Gerar explicações para as recomendações
-    console.log("[Recommendations] Gerando explicações personalizadas...");
-    
-    const smartRecommendations: SmartRecommendation[] = topRecommendations.map(rec => ({
-      anime: rec.anime,
-      matchScore: rec.score,
-      reasons: {
-        genres: rec.matchedGenres,
-        studio: rec.matchedStudio,
-        similarity: rec.matchedGenres.length > 0 
-          ? `Combina com seu gosto por ${rec.matchedGenres[0]}`
-          : null,
-        aiExplanation: generateExplanation(rec.anime, rec.matchedGenres, rec.matchedStudio)
-      },
-      confidence: getConfidence(rec.score)
-    }));
+    // ETAPA 4: Enriquecer com catálogo local
+    const candidateMalIds = scoredRecommendations.map(r => r.anime.mal_id);
+    const catalogMap = await fetchCatalogEntries(supabase, candidateMalIds);
 
-    console.log(`[Recommendations] Retornando ${smartRecommendations.length} recomendações inteligentes`);
+    // ETAPA 5: Normalizar e montar resposta
+    console.log("[Recommendations] Normalizando dados e gerando explicações...");
+    const smartRecommendations: SmartRecommendation[] = scoredRecommendations.map(rec => {
+      const catalogEntry = catalogMap.get(rec.anime.mal_id);
+      const normalizedAnime = normalizeJikanToCatalog(rec.anime, catalogEntry);
+
+      return {
+        anime: normalizedAnime,
+        matchScore: rec.score,
+        reasons: {
+          genres: rec.matchedGenres,
+          studio: rec.matchedStudio,
+          similarity: rec.matchedGenres.length > 0 ? `Combina com seu gosto por ${rec.matchedGenres[0]}` : null,
+          aiExplanation: generateExplanation(rec.matchedGenres, rec.matchedStudio),
+        },
+        confidence: getConfidence(rec.score),
+      };
+    });
+
+    console.log(`[Recommendations] Retornando ${smartRecommendations.length} recomendações (${catalogMap.size} enriquecidas com catálogo local)`);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         recommendations: smartRecommendations,
         topGenres: userProfile.topGenres.slice(0, 3),
         topStudios: userProfile.topStudios,
         userStats: {
           analyzedAnimes: userAnimes.length,
           avgRating: userProfile.avgRating.toFixed(1),
-          favoriteGenres: userProfile.topGenres.map(g => g.name).slice(0, 3)
-        }
+          favoriteGenres: userProfile.topGenres.map(g => g.name).slice(0, 3),
+        },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error) {
     console.error("[Recommendations] Erro:", error);
     return new Response(

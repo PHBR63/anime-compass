@@ -81,7 +81,7 @@ export function AnimeListItem({ entry, onClick }: AnimeListItemProps) {
   return (
     <>
       <div 
-        className="group flex items-center gap-4 p-3 rounded-xl bg-card border border-border/50 hover:border-sakura/30 hover:shadow-md hover:shadow-sakura/5 transition-all cursor-pointer"
+        className="group flex items-center gap-4 p-3 rounded-xl bg-card border border-border/50 hover:border-sakura/30 hover:shadow-md hover:shadow-sakura/5 transition-colors duration-200 cursor-pointer"
         onClick={handleClick}
       >
         {/* Imagem com lazy loading e tratamento de erro */}

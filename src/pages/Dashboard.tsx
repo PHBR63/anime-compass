@@ -60,20 +60,21 @@ export default function Dashboard() {
 
   return (
     <div className="relative space-y-6 md:space-y-8 pt-14 md:pt-0">
-      {/* Aurora Background - efeito visual premium */}
-      {/* Aurora Background - efeito visual premium oriental */}
-      <div className="fixed inset-0 -z-10 opacity-25">
-        <AuroraBackground 
-          colorStops={['hsl(350, 100%, 85%)', 'hsl(350, 80%, 70%)', 'hsl(0, 75%, 50%)']}
-          speed={0.5}
-          blend={0.4}
-        />
-      </div>
+      {/* Aurora Background - desabilitado em mobile (GPU pesada com blur 80px) */}
+      {!isMobile && (
+        <div className="fixed inset-0 -z-10 opacity-25">
+          <AuroraBackground 
+            colorStops={['hsl(350, 100%, 85%)', 'hsl(350, 80%, 70%)', 'hsl(0, 75%, 50%)']}
+            speed={0.5}
+            blend={0.4}
+          />
+        </div>
+      )}
 
-      {/* Pétalas de Sakura sutis */}
+      {/* Pétalas de Sakura - reduzidas em mobile */}
       <div className="fixed inset-0 -z-5 pointer-events-none opacity-40">
         <SakuraPetals
-          petalCount={20}
+          petalCount={isMobile ? 8 : 20}
           colors={['hsl(350, 100%, 85%)', 'hsl(350, 90%, 80%)']}
           speed={0.5}
           windStrength={0.2}

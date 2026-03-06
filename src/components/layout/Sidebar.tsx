@@ -187,7 +187,7 @@ export function Sidebar() {
                     to={item.path}
                     onClick={() => setIsOpen(false)}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group relative",
+                      "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-200 group relative",
                       isActive || isSubActive
                         ? "bg-sakura/10 text-sakura border border-sakura/20"
                         : "text-muted-foreground hover:bg-secondary hover:text-foreground"

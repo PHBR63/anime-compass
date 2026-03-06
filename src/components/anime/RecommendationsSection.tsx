@@ -158,21 +158,21 @@ export function RecommendationsSection() {
 
       {/* Filtros */}
       {!isLoading && data?.recommendations && data.recommendations.length > 0 && (
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterType)} className="mb-4">
-          <TabsList className="h-8 bg-muted/50">
-            <TabsTrigger value="all" className="text-xs h-7 px-3">
-              <Filter className="h-3 w-3 mr-1" />
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterType)} className="mb-3 sm:mb-4">
+          <TabsList className="h-7 sm:h-8 bg-muted/50 w-full sm:w-auto overflow-x-auto">
+            <TabsTrigger value="all" className="text-[10px] sm:text-xs h-6 sm:h-7 px-2 sm:px-3">
+              <Filter className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
               Todos
             </TabsTrigger>
-            <TabsTrigger value="high" className="text-xs h-7 px-3">
-              <Star className="h-3 w-3 mr-1 text-green-500" />
-              Alta Compatibilidade
+            <TabsTrigger value="high" className="text-[10px] sm:text-xs h-6 sm:h-7 px-2 sm:px-3">
+              <Star className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 text-green-500" />
+              Alta Compat.
             </TabsTrigger>
-            <TabsTrigger value="studio" className="text-xs h-7 px-3">
-              <Building2 className="h-3 w-3 mr-1 text-purple-500" />
-              Por Estúdio
+            <TabsTrigger value="studio" className="text-[10px] sm:text-xs h-6 sm:h-7 px-2 sm:px-3">
+              <Building2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 text-purple-500" />
+              Estúdio
             </TabsTrigger>
-            <TabsTrigger value="genre" className="text-xs h-7 px-3">
+            <TabsTrigger value="genre" className="text-[10px] sm:text-xs h-6 sm:h-7 px-2 sm:px-3">
               Gêneros
             </TabsTrigger>
           </TabsList>

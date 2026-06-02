@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS sync_state_public_read ON public.sync_state;

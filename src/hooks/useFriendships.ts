@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import type { Database } from '@/integrations/supabase/types';
+import { escapeLikePattern } from '@/lib/sanitize';
 
 type FriendshipStatus = Database['public']['Enums']['friendship_status'];
 

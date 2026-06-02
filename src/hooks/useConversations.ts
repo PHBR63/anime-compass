@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useEffect } from 'react';
+import { escapeLikePattern } from '@/lib/sanitize';
 
 // Interface para conversa com última mensagem e participantes
 export interface ConversationWithDetails {

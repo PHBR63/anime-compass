@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useEffect } from 'react';
+import { escapeLikePattern } from '@/lib/sanitize';
 
 // Interface para conversa com última mensagem e participantes
 export interface ConversationWithDetails {
@@ -107,9 +108,10 @@ export function useConversations(searchQuery?: string) {
         .in('id', conversationIds)
         .order('updated_at', { ascending: false });
 
-      // Aplicar filtro de busca no nome do grupo
-      if (searchQuery) {
-        query = query.ilike('name', `%${searchQuery}%`);
+      // Aplicar filtro de busca no nome do grupo (escapando wildcards LIKE)
+      if (searchQuery && searchQuery.length <= 100) {
+        const escaped = escapeLikePattern(searchQuery);
+        query = query.ilike('name', `%${escaped}%`);
       }
 
       const { data: conversations, error: convError } = await query;

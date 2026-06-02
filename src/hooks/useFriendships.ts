@@ -134,11 +134,13 @@ export function useSearchUsers(query: string) {
     queryFn: async () => {
       if (!user || query.length < 2) return [];
 
+      // Escapa caracteres LIKE (% e _) para evitar enumeração via wildcards
+      const escaped = escapeLikePattern(query.slice(0, 50));
       const { data, error } = await supabase
         .from('profiles')
         .select('id, username, display_name, avatar_url, bio')
         .neq('id', user.id)
-        .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+        .or(`username.ilike.%${escaped}%,display_name.ilike.%${escaped}%`)
         .limit(10);
 
       if (error) throw error;

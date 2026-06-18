@@ -40,7 +40,7 @@ function ChatInput({
   const [showAnimeSelector, setShowAnimeSelector] = useState(false);
   const [showListSelector, setShowListSelector] = useState(false);
   const [animeMode, setAnimeMode] = useState<'card' | 'recommendation'>('card');
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasTypingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const lastTypingStateRef = useRef(false);

@@ -36,7 +36,7 @@ export function ListCard({ list, onClick }: ListCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   const deleteList = useDeleteList();
   const { data: items } = useListItems(list.id);

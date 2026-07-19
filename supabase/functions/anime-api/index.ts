@@ -299,14 +299,25 @@ async function handleGetById(supabase: any, id: string | null, malId: string | n
     query = query.eq('mal_id', malIdNum);
   }
 
-  const { data, error } = await query.single();
+  // Usa maybeSingle para tratar animes ausentes como resultado vazio,
+  // não como erro da Edge Function. Isso evita falsos RUNTIME_ERROR/404
+  // quando a lista do usuário contém um MAL ID ainda não importado no catálogo.
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      return errorResponse('NOT_FOUND', 'Anime not found', 404);
-    }
     console.error('[anime-api] Database error:', error);
     return errorResponse('DATABASE_ERROR', error.message, 500);
+  }
+
+  if (!data) {
+    return jsonResponse({
+      success: true,
+      data: null,
+      meta: {
+        found: false,
+        reason: 'Anime ainda não está disponível no catálogo local',
+      },
+    });
   }
 
   return jsonResponse({

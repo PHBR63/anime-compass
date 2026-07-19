@@ -56,6 +56,13 @@ export default function MyList() {
   
   const { data: entries, isLoading, error } = useAnimeEntries();
 
+  // Metadados do catálogo (gêneros, estúdios, tipo, ano) para os animes da lista
+  const malIds = useMemo(
+    () => (entries ?? []).map((e) => e.mal_id).filter((id): id is number => typeof id === 'number'),
+    [entries]
+  );
+  const { metaMap, options } = useEntriesCatalogMeta(malIds);
+
   // Filtrar e ordenar entradas
   const filteredEntries = useMemo(() => {
     if (!entries) return [];

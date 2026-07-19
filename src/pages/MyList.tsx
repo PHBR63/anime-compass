@@ -29,6 +29,11 @@ const defaultFilters: FilterOptions = {
   onlyFavorites: false,
   minRating: 0,
   hasNotes: false,
+  selectedGenres: [],
+  selectedStudios: [],
+  selectedTypes: [],
+  yearFrom: null,
+  yearTo: null,
 };
 
 const defaultSort: SortOptions = {

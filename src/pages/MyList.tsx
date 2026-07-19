@@ -413,12 +413,12 @@ export default function MyList() {
       ) : (
         <div className="glass-card p-8 text-center">
           <p className="text-muted-foreground mb-4">
-            {searchQuery || activeStatus !== 'all' || filters.onlyFavorites || filters.minRating > 0 || filters.hasNotes
+            {searchQuery || activeStatus !== 'all' || filters.onlyFavorites || filters.minRating > 0 || filters.hasNotes || filters.selectedGenres.length > 0 || filters.selectedStudios.length > 0 || filters.selectedTypes.length > 0 || filters.yearFrom !== null || filters.yearTo !== null
               ? 'Nenhum anime encontrado com esses filtros'
               : 'Sua lista está vazia. Que tal adicionar alguns animes?'
             }
           </p>
-          {!searchQuery && activeStatus === 'all' && !filters.onlyFavorites && filters.minRating === 0 && !filters.hasNotes && (
+          {!searchQuery && activeStatus === 'all' && !filters.onlyFavorites && filters.minRating === 0 && !filters.hasNotes && filters.selectedGenres.length === 0 && filters.selectedStudios.length === 0 && filters.selectedTypes.length === 0 && filters.yearFrom === null && filters.yearTo === null && (
             <Link to="/discover">
               <Button variant="torii">
                 <Plus className="h-4 w-4 mr-2" />

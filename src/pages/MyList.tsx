@@ -10,6 +10,7 @@ import { AdvancedFilters, FilterOptions, SortOptions, SortOption } from '@/compo
 import { ListsSection } from '@/components/lists/ListsSection';
 import { SessionExpiredCard, isSessionExpiredError } from '@/components/ui/SessionExpiredCard';
 import { useAnimeEntries } from '@/hooks/useAnimeEntries';
+import { useEntriesCatalogMeta } from '@/hooks/useEntriesCatalogMeta';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,6 +29,11 @@ const defaultFilters: FilterOptions = {
   onlyFavorites: false,
   minRating: 0,
   hasNotes: false,
+  selectedGenres: [],
+  selectedStudios: [],
+  selectedTypes: [],
+  yearFrom: null,
+  yearTo: null,
 };
 
 const defaultSort: SortOptions = {
@@ -49,6 +55,13 @@ export default function MyList() {
   const [sort, setSort] = useState<SortOptions>(defaultSort);
   
   const { data: entries, isLoading, error } = useAnimeEntries();
+
+  // Metadados do catálogo (gêneros, estúdios, tipo, ano) para os animes da lista
+  const malIds = useMemo(
+    () => (entries ?? []).map((e) => e.mal_id).filter((id): id is number => typeof id === 'number'),
+    [entries]
+  );
+  const { metaMap, options } = useEntriesCatalogMeta(malIds);
 
   // Filtrar e ordenar entradas
   const filteredEntries = useMemo(() => {
@@ -80,6 +93,40 @@ export default function MyList() {
       result = result.filter(e => e.notes && e.notes.trim().length > 0);
     }
 
+    // Filtros baseados em metadados do catálogo (gêneros, estúdios, tipo, ano)
+    const needsMeta =
+      filters.selectedGenres.length > 0 ||
+      filters.selectedStudios.length > 0 ||
+      filters.selectedTypes.length > 0 ||
+      filters.yearFrom !== null ||
+      filters.yearTo !== null;
+
+    if (needsMeta) {
+      result = result.filter((e) => {
+        const meta = metaMap.get(e.mal_id);
+        if (!meta) return false;
+
+        if (filters.selectedGenres.length > 0) {
+          const hasAny = filters.selectedGenres.some((g) => meta.genres.includes(g));
+          if (!hasAny) return false;
+        }
+        if (filters.selectedStudios.length > 0) {
+          const hasAny = filters.selectedStudios.some((s) => meta.studios.includes(s));
+          if (!hasAny) return false;
+        }
+        if (filters.selectedTypes.length > 0) {
+          if (!meta.type || !filters.selectedTypes.includes(meta.type)) return false;
+        }
+        if (filters.yearFrom !== null && (meta.year === null || meta.year < filters.yearFrom)) {
+          return false;
+        }
+        if (filters.yearTo !== null && (meta.year === null || meta.year > filters.yearTo)) {
+          return false;
+        }
+        return true;
+      });
+    }
+
     // Ordenação
     result.sort((a, b) => {
       let comparison = 0;
@@ -108,7 +155,7 @@ export default function MyList() {
     });
     
     return result;
-  }, [entries, activeStatus, searchQuery, filters, sort]);
+  }, [entries, activeStatus, searchQuery, filters, sort, metaMap]);
 
   // Contadores por status
   const statusCounts = useMemo(() => {
@@ -297,6 +344,10 @@ export default function MyList() {
                 sort={sort}
                 onFiltersChange={setFilters}
                 onSortChange={setSort}
+                availableGenres={options.genres}
+                availableStudios={options.studios}
+                availableTypes={options.types}
+                availableYears={options.years}
               />
             </div>
           </div>
@@ -362,12 +413,12 @@ export default function MyList() {
       ) : (
         <div className="glass-card p-8 text-center">
           <p className="text-muted-foreground mb-4">
-            {searchQuery || activeStatus !== 'all' || filters.onlyFavorites || filters.minRating > 0 || filters.hasNotes
+            {searchQuery || activeStatus !== 'all' || filters.onlyFavorites || filters.minRating > 0 || filters.hasNotes || filters.selectedGenres.length > 0 || filters.selectedStudios.length > 0 || filters.selectedTypes.length > 0 || filters.yearFrom !== null || filters.yearTo !== null
               ? 'Nenhum anime encontrado com esses filtros'
               : 'Sua lista está vazia. Que tal adicionar alguns animes?'
             }
           </p>
-          {!searchQuery && activeStatus === 'all' && !filters.onlyFavorites && filters.minRating === 0 && !filters.hasNotes && (
+          {!searchQuery && activeStatus === 'all' && !filters.onlyFavorites && filters.minRating === 0 && !filters.hasNotes && filters.selectedGenres.length === 0 && filters.selectedStudios.length === 0 && filters.selectedTypes.length === 0 && filters.yearFrom === null && filters.yearTo === null && (
             <Link to="/discover">
               <Button variant="torii">
                 <Plus className="h-4 w-4 mr-2" />

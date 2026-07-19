@@ -10,6 +10,7 @@ import { AdvancedFilters, FilterOptions, SortOptions, SortOption } from '@/compo
 import { ListsSection } from '@/components/lists/ListsSection';
 import { SessionExpiredCard, isSessionExpiredError } from '@/components/ui/SessionExpiredCard';
 import { useAnimeEntries } from '@/hooks/useAnimeEntries';
+import { useEntriesCatalogMeta } from '@/hooks/useEntriesCatalogMeta';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';

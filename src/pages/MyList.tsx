@@ -93,6 +93,40 @@ export default function MyList() {
       result = result.filter(e => e.notes && e.notes.trim().length > 0);
     }
 
+    // Filtros baseados em metadados do catálogo (gêneros, estúdios, tipo, ano)
+    const needsMeta =
+      filters.selectedGenres.length > 0 ||
+      filters.selectedStudios.length > 0 ||
+      filters.selectedTypes.length > 0 ||
+      filters.yearFrom !== null ||
+      filters.yearTo !== null;
+
+    if (needsMeta) {
+      result = result.filter((e) => {
+        const meta = metaMap.get(e.mal_id);
+        if (!meta) return false;
+
+        if (filters.selectedGenres.length > 0) {
+          const hasAny = filters.selectedGenres.some((g) => meta.genres.includes(g));
+          if (!hasAny) return false;
+        }
+        if (filters.selectedStudios.length > 0) {
+          const hasAny = filters.selectedStudios.some((s) => meta.studios.includes(s));
+          if (!hasAny) return false;
+        }
+        if (filters.selectedTypes.length > 0) {
+          if (!meta.type || !filters.selectedTypes.includes(meta.type)) return false;
+        }
+        if (filters.yearFrom !== null && (meta.year === null || meta.year < filters.yearFrom)) {
+          return false;
+        }
+        if (filters.yearTo !== null && (meta.year === null || meta.year > filters.yearTo)) {
+          return false;
+        }
+        return true;
+      });
+    }
+
     // Ordenação
     result.sort((a, b) => {
       let comparison = 0;

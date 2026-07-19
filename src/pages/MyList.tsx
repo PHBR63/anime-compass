@@ -155,7 +155,7 @@ export default function MyList() {
     });
     
     return result;
-  }, [entries, activeStatus, searchQuery, filters, sort]);
+  }, [entries, activeStatus, searchQuery, filters, sort, metaMap]);
 
   // Contadores por status
   const statusCounts = useMemo(() => {

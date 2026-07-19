@@ -344,6 +344,10 @@ export default function MyList() {
                 sort={sort}
                 onFiltersChange={setFilters}
                 onSortChange={setSort}
+                availableGenres={options.genres}
+                availableStudios={options.studios}
+                availableTypes={options.types}
+                availableYears={options.years}
               />
             </div>
           </div>

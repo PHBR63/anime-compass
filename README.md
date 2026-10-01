@@ -1,205 +1,381 @@
-# 🎌 AniCheck - Gerenciador de Animes
-
 <div align="center">
-  <img src="src/assets/logo-full.png" alt="AniCheck Logo" width="200" />
-  
-  **Organize sua jornada pelo mundo dos animes**
-  
-  [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react)](https://react.dev/)
-  [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?logo=typescript)](https://www.typescriptlang.org/)
-  [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-06B6D4?logo=tailwindcss)](https://tailwindcss.com/)
-  [![Supabase](https://img.shields.io/badge/Supabase-Cloud-3FCF8E?logo=supabase)](https://supabase.com/)
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="src/assets/logo-full-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="src/assets/logo-full-light.svg">
+    <img src="src/assets/logo-full-dark.svg" alt="AniCheck" width="280">
+  </picture>
+
+  <p><strong>Organize sua jornada anime, descubra novos títulos e compartilhe experiências.</strong></p>
+
+  <p>
+    <img alt="React 18" src="https://img.shields.io/badge/React-18-149ECA?logo=react&logoColor=white">
+    <img alt="TypeScript 5" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white">
+    <img alt="Vite 5" src="https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white">
+    <img alt="Tailwind CSS 3" src="https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white">
+    <img alt="PWA" src="https://img.shields.io/badge/PWA-instalável-5A0FC8?logo=pwa&logoColor=white">
+    <img alt="Idioma PT-BR" src="https://img.shields.io/badge/idioma-PT--BR-009C3B">
+  </p>
 </div>
 
 ---
 
-## 📖 Sobre o Projeto
+## Sobre o AniCheck
 
-**AniCheck** é uma aplicação web moderna para gerenciamento de listas de animes, com estética oriental inspirada em elementos tradicionais japoneses como pétalas de sakura, ondas Seigaiha e portais Torii.
+O **AniCheck** é uma aplicação web completa para acompanhar animes. Em um único lugar, o usuário pode montar sua lista, registrar progresso e avaliações, explorar um catálogo próprio, descobrir franquias e estúdios, interagir com amigos e participar da comunidade.
 
-### ✨ Principais Funcionalidades
+O projeto combina uma interface responsiva inspirada na estética japonesa com recursos sociais em tempo real, experiência instalável, funcionamento offline e ferramentas próprias de administração e moderação.
 
-| Funcionalidade | Descrição |
-|----------------|-----------|
-| 📋 **Minha Lista** | Organize animes por status (Assistindo, Completo, Pausado, Dropado, Planejado) |
-| 🔍 **Descobrir** | Explore novos animes via integração com API Jikan (MyAnimeList) |
-| 📊 **Dashboard** | Estatísticas detalhadas do seu progresso com gráficos interativos |
-| 👥 **Social** | Conecte-se com amigos, compare listas e veja atividades |
-| 💬 **Chat** | Mensagens em tempo real com amigos e grupos |
-| 🏆 **Conquistas** | Sistema de gamificação com badges e níveis |
-| ⭐ **Reviews** | Escreva e leia avaliações de animes |
-| 📁 **Listas Personalizadas** | Crie coleções temáticas (Listas públicas/privadas) |
-| 🎯 **Recomendações** | Receba sugestões personalizadas baseadas no seu histórico |
-| 🌙 **Modo Escuro/Claro** | Tema adaptável às suas preferências |
+![Visão geral do AniCheck](public/og-image.png)
 
----
+## Índice
 
-## 🎨 Estética Oriental
+- [Principais recursos](#principais-recursos)
+- [Catálogo e fluxo de dados](#catálogo-e-fluxo-de-dados)
+- [Experiência PWA e offline](#experiência-pwa-e-offline)
+- [Segurança e privacidade](#segurança-e-privacidade)
+- [Arquitetura](#arquitetura)
+- [Tecnologias](#tecnologias)
+- [Rotas principais](#rotas-principais)
+- [Executando localmente](#executando-localmente)
+- [Comandos disponíveis](#comandos-disponíveis)
+- [Estrutura do projeto](#estrutura-do-projeto)
+- [Documentação](#documentação)
+- [Contribuição e licença](#contribuição-e-licença)
 
-O AniCheck possui uma identidade visual única inspirada na cultura japonesa:
+## Principais recursos
 
-- **🌸 Sakura Petals** - Pétalas de cerejeira animadas como background
-- **🌊 Wave Pattern** - Padrão tradicional Seigaiha como textura
-- **⛩️ Torii Gate** - Portais decorativos como separadores de seção
-- **✒️ Ink Cursor** - Efeito de tinta sumi-e seguindo o mouse
-- **💫 Neon Text** - Texto com glow estilo letreiros de Tokyo
-- **🎌 Paleta Oriental** - Cores sakura, bamboo, indigo japonês, kintsugi
+### Catálogo e descoberta
 
----
+- Catálogo local com mais de **13 mil animes** e sinopses em português brasileiro.
+- Busca por título e filtros por gênero, estúdio, formato, status, ano e nota.
+- Ordenação por nota, popularidade, ano, título, ranking e número de membros.
+- Visões de temporada, títulos em destaque e carregamento contínuo de resultados.
+- Opção para ocultar da descoberta os títulos que já estão na lista do usuário.
+- Páginas dedicadas à exploração por franquias e estúdios.
+- Detalhes do anime abertos dentro do aplicativo, sem interromper a navegação.
 
-## 🛠️ Stack Tecnológica
+### Minha Lista
 
-### Frontend
-- **React 18** - Biblioteca UI com hooks e Suspense
-- **TypeScript** - Tipagem estática para código mais seguro
-- **Vite** - Build tool ultrarrápido
-- **Tailwind CSS** - Estilização utility-first
-- **shadcn/ui** - Componentes acessíveis e customizáveis
-- **Framer Motion** - Animações fluidas
-- **React Query** - Gerenciamento de estado assíncrono
-- **React Router** - Navegação SPA
+- Estados de acompanhamento: **Planejado**, **Assistindo**, **Completo**, **Pausado** e **Abandonado**.
+- Registro de episódios assistidos, nota pessoal, favorito, datas e observações.
+- Proteção visual para observações marcadas como spoiler.
+- Visualização em grade ou lista.
+- Busca, ordenação e filtros por status, favoritos, nota, observações, gênero, estúdio, formato e ano.
+- Edição em massa para organizar vários títulos com mais rapidez.
+- Listas personalizadas públicas ou privadas, com reordenação por arrastar e soltar.
+- Detecção de franquias e sugestões de títulos relacionados que ainda não foram adicionados.
+- Exportação dos dados do usuário em **Excel, JSON e CSV**.
 
-### Backend (Lovable Cloud)
-- **Supabase** - Backend-as-a-Service
-  - PostgreSQL - Banco de dados relacional
-  - Auth - Autenticação (email/senha)
-  - RLS - Row Level Security para proteção de dados
-  - Realtime - Atualizações em tempo real
-  - Edge Functions - Funções serverless
-  - Storage - Armazenamento de arquivos
+### Perfil e estatísticas
 
-### APIs Externas
-- **Jikan API** - Dados de animes do MyAnimeList
+- Painel pessoal com progresso, distribuição por status e atividades recentes.
+- Perfil com avatar, capa, biografia, gêneros e estúdios favoritos.
+- Perfis públicos com visibilidade controlada pelo usuário.
+- Histórico de progresso e indicadores de atividade.
+- Sistema de conquistas com categorias, raridades, metas e progresso de desbloqueio.
 
----
+### Comunidade
 
-## 📁 Estrutura do Projeto
+- Solicitações de amizade, lista de amigos e descoberta de pessoas.
+- Convites para novos usuários.
+- Feed de atividades e reações.
+- Ranking entre amigos, títulos em alta e animes em comum.
+- Comparação de listas e envio de recomendações.
+- Reviews públicas com notas, curtidas e descurtidas.
+- Denúncia de usuários, reviews e mensagens para análise da moderação.
 
+### Chat em tempo real
+
+- Conversas individuais e em grupo.
+- Mensagens de texto, respostas, reações e indicadores de leitura.
+- Indicadores de digitação e contadores de mensagens não lidas.
+- Compartilhamento de cards de animes e listas personalizadas dentro da conversa.
+- Envio de recomendações diretamente para amigos.
+- Layout específico para celular, tablet e desktop.
+
+### Notificações e preferências
+
+- Central de notificações dentro do aplicativo.
+- Notificações push por categoria.
+- Alertas para atividades sociais, mensagens e episódios de animes em exibição.
+- Horário de **Não Perturbe** configurável.
+- Preferências de tema, animações e redução de movimento.
+
+### Administração e moderação
+
+O acesso é protegido por função de usuário e separado entre as áreas de administração e moderação.
+
+**Administração**
+
+- Visão geral da saúde do sistema e métricas de uso.
+- Gerenciamento de usuários.
+- Auditoria e acompanhamento de erros.
+- Testes operacionais do sistema.
+- Importação completa ou atualização incremental do catálogo.
+- Monitoramento de cobertura, sincronização e armazenamento local de imagens.
+
+**Moderação**
+
+- Fila de denúncias pendentes.
+- Ações sobre conteúdo e usuários denunciados.
+- Histórico de decisões de moderação.
+- Indicadores para acompanhamento da comunidade.
+
+## Catálogo e fluxo de dados
+
+O frontend não depende de consultas diretas a uma API pública durante a navegação normal. Os dados são importados para um catálogo próprio e servidos por uma API interna otimizada.
+
+```text
+Fonte externa consolidada
+          │
+          ▼
+  importação completa ─────┐
+  atualização incremental ─┤
+                           ▼
+                    catálogo local
+                    + sinopses PT-BR
+                    + imagens locais
+                           │
+                           ▼
+                       API interna
+                           │
+                           ▼
+          Descoberta · Detalhes · Filtros
 ```
-src/
-├── assets/              # Imagens e recursos estáticos
-├── components/
-│   ├── admin/           # Componentes administrativos
-│   ├── animations/      # Animações (NeonText, JapaneseReveal, etc)
-│   ├── anime/           # Cards, grids, modais de animes
-│   ├── auth/            # Autenticação
-│   ├── backgrounds/     # Backgrounds (SakuraPetals, WavePattern)
-│   ├── chat/            # Sistema de mensagens
-│   ├── dashboard/       # Widgets do dashboard
-│   ├── decorative/      # Elementos decorativos (ToriiGate)
-│   ├── effects/         # Efeitos visuais (InkCursor)
-│   ├── help/            # Sistema de ajuda e tour
-│   ├── landing/         # Página inicial pública
-│   ├── layout/          # MainLayout, Sidebar
-│   ├── lists/           # Listas personalizadas
-│   ├── moderation/      # Ferramentas de moderação
-│   ├── notifications/   # Sistema de notificações
-│   ├── profile/         # Perfil do usuário
-│   ├── pwa/             # Progressive Web App
-│   ├── social/          # Recursos sociais
-│   └── ui/              # Componentes base (shadcn)
-├── contexts/            # Contextos React (Auth, Anime, Help)
-├── hooks/               # Custom hooks
-├── integrations/        # Integrações (Supabase client)
-├── lib/                 # Utilitários e helpers
-├── pages/               # Páginas da aplicação
-└── types/               # Definições TypeScript
+
+Esse desenho oferece:
+
+- respostas rápidas e dados consistentes;
+- menor exposição a limites e indisponibilidades de serviços externos;
+- sinopses pré-traduzidas em PT-BR;
+- CDN próprio para capas, com fallback para a imagem de origem;
+- importação e imagens administradas em fluxos separados;
+- atualização incremental sem refazer todo o catálogo.
+
+Tipos promocionais ou musicais, como **Music**, **CM** e **PV**, são excluídos do catálogo apresentado aos usuários.
+
+## Experiência PWA e offline
+
+O AniCheck pode ser instalado como aplicativo em dispositivos compatíveis. A configuração PWA inclui:
+
+- manifesto com ícones adaptativos e atalhos para Minha Lista, Descobrir, Dashboard e Social;
+- atualização automática do aplicativo, com controles disponíveis nas configurações;
+- cache de catálogo e imagens;
+- pré-carregamento manual da lista do usuário para acesso offline;
+- sincronização de alterações pendentes quando a conexão retorna;
+- preferência para sincronizar e baixar imagens apenas por Wi-Fi;
+- indicador de conexão e feedback de sincronização;
+- notificações push em segundo plano;
+- compartilhamento de links para a área de descoberta.
+
+> Alguns recursos sociais e dados ainda não armazenados localmente exigem conexão com a internet.
+
+## Segurança e privacidade
+
+- Autenticação com sessão persistente e rotas privadas.
+- Recuperação e redefinição de senha.
+- Controle de acesso por linha no banco de dados.
+- Papéis administrativos mantidos separadamente dos perfis dos usuários.
+- Rotas exclusivas para administradores e moderadores.
+- Perfis, listas e conteúdos públicos sujeitos às preferências de visibilidade.
+- Validação e higienização das entradas de busca e formulários.
+- Registro de auditoria, erros e ações de moderação.
+- Operações administrativas sensíveis executadas fora do navegador.
+
+## Arquitetura
+
+O AniCheck é uma **Single Page Application** em React. As páginas são carregadas sob demanda, enquanto o estado remoto é gerenciado com cache e invalidação controlados.
+
+```text
+┌──────────────────────────────────────────────────────────┐
+│                    Aplicação React                        │
+│                                                          │
+│  Páginas ── Componentes ── Hooks ── Contextos            │
+│     │                          │                          │
+│     ├── React Router          ├── TanStack Query         │
+│     ├── Tailwind/Radix        ├── cache offline          │
+│     └── Framer Motion         └── sincronização realtime │
+└───────────────────────────┬──────────────────────────────┘
+                            │
+                            ▼
+┌──────────────────────────────────────────────────────────┐
+│                  Backend gerenciado                       │
+│                                                          │
+│  autenticação · PostgreSQL · arquivos · tempo real       │
+│  funções de servidor · políticas de acesso               │
+└──────────────────────────────────────────────────────────┘
 ```
 
----
+### Decisões de desempenho
 
-## 🚀 Como Executar
+- Divisão do código por rota com `lazy` e `Suspense`.
+- Pré-carregamento das rotas mais acessadas em tempo ocioso.
+- Cache de consultas com TanStack Query.
+- Virtualização de grades extensas com TanStack Virtual.
+- Cache multinível para catálogo e imagens.
+- Processamento paginado do catálogo e de imagens.
+- Observadores de interseção para carregamento progressivo.
+- Preferência por utilitários nativos de data para reduzir o pacote final.
+
+## Tecnologias
+
+| Área | Tecnologias |
+|---|---|
+| Interface | React 18, TypeScript 5, Vite 5 |
+| Estilos e componentes | Tailwind CSS 3, shadcn/ui, Radix UI, Lucide |
+| Animações | Framer Motion |
+| Navegação | React Router 6 |
+| Dados no cliente | TanStack Query 5, Context API |
+| Formulários e validação | React Hook Form, Zod |
+| Gráficos | Recharts |
+| Arrastar e soltar | dnd-kit |
+| Listas extensas | TanStack Virtual |
+| Exportação | SheetJS (`xlsx`) |
+| Aplicativo instalável | Vite PWA, Workbox, Service Worker próprio |
+| Backend | Lovable Cloud: PostgreSQL, autenticação, arquivos, tempo real e funções de servidor |
+
+## Rotas principais
+
+| Rota | Área | Acesso |
+|---|---|---|
+| `/` | Página pública ou painel do usuário autenticado | Público |
+| `/auth` | Entrada e criação de conta | Público |
+| `/u/:username` | Perfil público | Público |
+| `/shared/list/:listId` | Lista compartilhada | Público |
+| `/list` | Minha Lista | Autenticado |
+| `/list/:id` | Lista personalizada | Autenticado |
+| `/list/franchises` | Franquias | Autenticado |
+| `/list/studios` | Estúdios | Autenticado |
+| `/discover` | Descoberta e catálogo | Autenticado |
+| `/reviews` | Reviews da comunidade | Autenticado |
+| `/social` | Amigos, ranking e recomendações | Autenticado |
+| `/chat` | Conversas | Autenticado |
+| `/achievements` | Conquistas | Autenticado |
+| `/profile` | Perfil do usuário | Autenticado |
+| `/settings` | Preferências, dados e PWA | Autenticado |
+| `/moderation` | Moderação | Moderador ou administrador |
+| `/admin` | Administração | Administrador |
+
+## Executando localmente
 
 ### Pré-requisitos
-- Node.js 18+ 
-- npm ou bun
+
+- Node.js 18 ou superior;
+- npm ou Bun;
+- acesso a uma instância de backend compatível e já configurada para o projeto.
 
 ### Instalação
 
 ```bash
-# Clone o repositório
 git clone <URL_DO_REPOSITORIO>
-
-# Entre no diretório
 cd anicheck
-
-# Instale as dependências
 npm install
+```
 
-# Inicie o servidor de desenvolvimento
+Crie um arquivo `.env` local com as variáveis públicas fornecidas para o ambiente de desenvolvimento:
+
+```env
+VITE_SUPABASE_URL=<url-do-backend>
+VITE_SUPABASE_PUBLISHABLE_KEY=<chave-publica>
+VITE_SUPABASE_PROJECT_ID=<identificador-do-projeto>
+```
+
+> Não inclua credenciais privadas no frontend nem envie o arquivo `.env` para o repositório.
+
+Inicie o ambiente de desenvolvimento:
+
+```bash
 npm run dev
 ```
 
-A aplicação estará disponível em `http://localhost:5173`
+A aplicação ficará disponível em `http://localhost:8080`.
 
----
+## Comandos disponíveis
 
-## 📱 PWA (Progressive Web App)
+| Comando | Descrição |
+|---|---|
+| `npm run dev` | Inicia o ambiente local com atualização automática |
+| `npm run build` | Gera a versão otimizada para produção |
+| `npm run build:dev` | Gera uma versão usando o modo de desenvolvimento |
+| `npm run lint` | Executa a análise estática do código |
+| `npm run preview` | Abre localmente a versão já gerada |
 
-O AniCheck pode ser instalado como aplicativo:
+Os mesmos scripts também podem ser executados com Bun, por exemplo: `bun run dev`.
 
-- **Desktop**: Clique no ícone de instalação na barra de endereços
-- **Mobile**: "Adicionar à tela inicial" no menu do navegador
+## Estrutura do projeto
 
-Funcionalidades PWA:
-- ✅ Funcionamento offline básico
-- ✅ Sincronização em background
-- ✅ Push notifications
-- ✅ Ícones adaptativos
+```text
+.
+├── docs/                         # Documentação do catálogo e dos dados
+├── public/                       # Ícones, imagem social e Service Worker próprio
+├── src/
+│   ├── assets/                   # Marca e imagens locais
+│   ├── components/
+│   │   ├── admin/                # Administração e operação do catálogo
+│   │   ├── anime/                # Cards, filtros, grades e detalhes
+│   │   ├── animations/           # Transições e efeitos visuais
+│   │   ├── backgrounds/          # Fundos temáticos
+│   │   ├── chat/                 # Conversas individuais e em grupo
+│   │   ├── layout/               # Estrutura principal e navegação
+│   │   ├── lists/                # Listas personalizadas
+│   │   ├── moderation/           # Denúncias e ações de moderação
+│   │   ├── notifications/        # Preferências e central de notificações
+│   │   ├── profile/              # Perfil, avatar, capa e exportação
+│   │   ├── pwa/                  # Instalação, cache, atualização e offline
+│   │   ├── social/               # Amigos, feed, ranking e comparação
+│   │   └── ui/                   # Componentes compartilhados
+│   ├── contexts/                 # Estados globais da aplicação
+│   ├── hooks/                    # Dados, regras e integrações da interface
+│   ├── integrations/             # Cliente e tipos gerados do backend
+│   ├── lib/                      # Cache, sincronização, validação e utilitários
+│   ├── pages/                    # Páginas e rotas
+│   └── types/                    # Tipos do domínio
+├── supabase/
+│   ├── functions/                # Funções executadas no servidor
+│   └── migrations/               # Histórico versionado do banco de dados
+├── package.json                  # Dependências e comandos
+├── tailwind.config.ts            # Tema e tokens visuais
+└── vite.config.ts                # Build, PWA, cache e divisão de código
+```
 
----
+## Documentação
 
-## 🔐 Segurança
+- [`docs/ANIME_CATALOG_API.md`](docs/ANIME_CATALOG_API.md) — filtros, paginação, respostas e operações da API do catálogo.
+- [`docs/ANIME_DATA_DOCUMENTATION.md`](docs/ANIME_DATA_DOCUMENTATION.md) — modelo de dados, origem dos campos, cache e tratamento de imagens.
 
-- Autenticação segura via Supabase Auth
-- Row Level Security (RLS) em todas as tabelas
-- Políticas de acesso granulares
-- Dados criptografados em trânsito e em repouso
+## Identidade visual
 
----
+A interface combina elementos contemporâneos com referências visuais japonesas:
 
-## 👥 Funcionalidades Sociais
+- **Sakura** como cor e animação de destaque;
+- **Torii** em separadores e acentos;
+- padrão **Seigaiha** aplicado de forma sutil;
+- efeitos inspirados em tinta sumi-e;
+- temas claro e escuro;
+- respeito à preferência de redução de movimento.
 
-- **Amigos**: Adicione, aceite/recuse solicitações
-- **Feed de Atividades**: Veja o que seus amigos estão assistindo
-- **Comparação de Listas**: Compare progresso com amigos
-- **Recomendações**: Envie/receba sugestões de animes
-- **Chat em Tempo Real**: Conversas individuais e em grupo
-- **Rankings**: Veja quem assistiu mais animes
+Toda a experiência autenticada é apresentada em português brasileiro e adaptada para celular, tablet e desktop.
 
----
+## Estado do projeto
 
-## 🏆 Sistema de Conquistas
+O AniCheck está em desenvolvimento ativo. As áreas centrais de catálogo, listas, comunidade, chat, reviews, conquistas, PWA, administração e moderação já fazem parte da aplicação. Melhorias de desempenho, cobertura offline e qualidade do catálogo continuam evoluindo.
 
-Desbloqueie badges por:
-- Número de animes completados
-- Episódios assistidos
-- Reviews escritas
-- Amigos adicionados
-- Listas criadas
-- E muito mais!
+## Contribuição e licença
 
----
+Este é um projeto privado. O acesso ao código não concede permissão para copiar, redistribuir, modificar ou utilizar o software fora dos termos definidos pelos responsáveis pelo projeto.
 
-## 🎯 Roadmap
+Para contribuir:
 
-- [ ] Integração com mais plataformas (AniList, Kitsu)
-- [ ] App mobile nativo
-- [ ] Calendário de lançamentos
-- [ ] Notificações de novos episódios
-- [ ] Modo offline completo
-- [ ] Temas personalizáveis
-
----
-
-## 📄 Licença
-
-Este projeto é privado e desenvolvido com [Lovable](https://lovable.dev).
+1. crie uma branch para a alteração;
+2. mantenha textos e comentários em português brasileiro;
+3. preserve os componentes e tokens visuais existentes;
+4. valide a experiência em celular, tablet e desktop;
+5. execute a análise estática e a geração de produção antes de abrir a revisão;
+6. descreva claramente o objetivo e o impacto da mudança.
 
 ---
 
 <div align="center">
-  <sub>Feito com 💜 e muito ☕ por entusiastas de anime</sub>
-  
-  **[⬆ Voltar ao topo](#-anicheck---gerenciador-de-animes)**
+  <strong>AniCheck</strong><br>
+  Feito para quem transforma cada episódio em parte de uma jornada.
 </div>

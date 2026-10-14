@@ -50,6 +50,13 @@
       "when": 1791977050761,
       "tag": "0006_kitsu_items_realtime",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791983516579,
+      "tag": "0007_profiles_welcome_seen",
+      "breakpoints": true
     }
   ]
 }

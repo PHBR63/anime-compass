@@ -11,6 +11,7 @@ import { JikanImportManager } from "@/components/admin/JikanImportManager";
 import { JikanImportHistory } from "@/components/admin/JikanImportHistory";
 import { KitsuImportManager } from "@/components/admin/KitsuImportManager";
 import { KitsuImportHistory } from "@/components/admin/KitsuImportHistory";
+import { KitsuImportItems } from "@/components/admin/KitsuImportItems";
 import { JikanImportLogs } from "@/components/admin/JikanImportLogs";
 import { ScrollText } from "lucide-react";
 import { JikanImportAlerts } from "@/components/admin/JikanImportAlerts";
@@ -98,7 +99,7 @@ export default function Admin() {
               <Aba valor="legacy" icone={Archive}>Importação antiga</Aba>
             </AbasRolaveis>
             <TabsContent value="import" className="mt-4 min-w-0"><JikanImportManager /></TabsContent>
-            <TabsContent value="kitsu" className="mt-4 min-w-0 space-y-4"><KitsuImportManager /><KitsuImportHistory /></TabsContent>
+            <TabsContent value="kitsu" className="mt-4 min-w-0 space-y-4"><KitsuImportManager /><KitsuImportHistory /><KitsuImportItems /></TabsContent>
             <TabsContent value="history" className="mt-4 min-w-0"><JikanImportHistory /></TabsContent>
             <TabsContent value="logs" className="mt-4 min-w-0"><JikanImportLogs /></TabsContent>
             <TabsContent value="translations" className="mt-4 min-w-0"><DeeplTranslationReview /></TabsContent>

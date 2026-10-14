@@ -87,7 +87,8 @@ export function JikanImportManager() {
     restaurado.current = chave;
     let salvo: RetomadaJikan | null = null;
     try { salvo = lerRetomadaJikan(localStorage.getItem(chave)); } catch { /* Retomada manual permanece disponível sem armazenamento. */ }
-    if (salvo) {
+    if (salvo && (salvo.modo === "full" || salvo.modo === "season")) {
+      // Só retoma modos do Jikan; as retomadas do Kitsu ficam em outra chave e usam o próprio painel.
       setModo(salvo.modo);
       void executarImportacao(salvo.pagina, salvo.todas, salvo.modo, salvo);
     }

@@ -852,6 +852,45 @@ export type Database = {
         }
         Relationships: []
       }
+      kitsu_import_items: {
+        Row: {
+          acao: string
+          campos: Json
+          capa: boolean
+          created_at: string
+          id: string
+          kitsu_id: number | null
+          mal_id: number
+          mode: string
+          page: number
+          title: string | null
+        }
+        Insert: {
+          acao: string
+          campos?: Json
+          capa?: boolean
+          created_at?: string
+          id?: string
+          kitsu_id?: number | null
+          mal_id: number
+          mode: string
+          page: number
+          title?: string | null
+        }
+        Update: {
+          acao?: string
+          campos?: Json
+          capa?: boolean
+          created_at?: string
+          id?: string
+          kitsu_id?: number | null
+          mal_id?: number
+          mode?: string
+          page?: number
+          title?: string | null
+        }
+        Relationships: []
+      }
       list_items: {
         Row: {
           anime_entry_id: string

@@ -202,6 +202,8 @@ Deno.serve(async (req) => {
     if (intervalo < 1200) await new Promise(resolve => setTimeout(resolve, 1200 - intervalo));
 
     let novos = 0, atualizados = 0, capas = 0, falhasCapas = 0, semMapeamento = 0, semPendencias = 0, traduzidos = 0, totalPaginas: number | null = null;
+    // Lista de animes tocados nesta página, gravada em kitsu_import_items para o painel exibir.
+    const itens: { kitsu_id: number; mal_id: number; title: string | null; acao: "criado" | "completado"; campos: string[]; capa: boolean }[] = [];
     if (mode === "enrich") {
       // Percorre o catálogo em ordem de MAL ID, página por página, completando o que falta.
       const offset = (page - 1) * TAMANHO_PAGINA;
@@ -230,6 +232,9 @@ Deno.serve(async (req) => {
         if (erroSalvar) throw erroSalvar;
         atualizados++;
         preenchidos.push(v.mal_id);
+        // Registra o anime completado com os campos que a importação preencheu.
+        const item = { kitsu_id: v.kitsu, mal_id: v.mal_id, title: typeof linha.title === "string" ? linha.title : null, acao: "completado" as const, campos: Object.keys(registro), capa: false };
+        itens.push(item);
         if (capa && baixadas < MAX_CAPAS_POR_PAGINA) {
           baixadas++;
           try {
@@ -237,6 +242,7 @@ Deno.serve(async (req) => {
             const { error: erroCapa } = await banco.from("anime_catalog").update({ local_image_url: local }).eq("mal_id", v.mal_id);
             if (erroCapa) throw erroCapa;
             capas++;
+            item.capa = true;
           } catch (falhaCapa) { falhasCapas++; diagnostico("falha_capa", { mal_id: v.mal_id, erro: falhaCapa instanceof Error ? falhaCapa.message : "desconhecido", pagina: page }); }
         }
       }
@@ -276,6 +282,9 @@ Deno.serve(async (req) => {
         if (erroSalvar) throw erroSalvar;
         novos++;
         criados.push({ mal_id: v.mal_id, anime: v.anime });
+        // Registra o anime recém-criado com os campos gravados na primeira importação.
+        const item = { kitsu_id: Number(v.anime.id), mal_id: v.mal_id, title: v.anime.attributes.canonicalTitle ?? null, acao: "criado" as const, campos: Object.keys(registro), capa: false };
+        itens.push(item);
         if (capa && baixadas < MAX_CAPAS_POR_PAGINA) {
           baixadas++;
           try {
@@ -283,6 +292,7 @@ Deno.serve(async (req) => {
             const { error: erroCapa } = await banco.from("anime_catalog").update({ local_image_url: local }).eq("mal_id", v.mal_id);
             if (erroCapa) throw erroCapa;
             capas++;
+            item.capa = true;
           } catch (falhaCapa) { falhasCapas++; diagnostico("falha_capa", { mal_id: v.mal_id, erro: falhaCapa instanceof Error ? falhaCapa.message : "desconhecido", pagina: page }); }
         }
       }
@@ -305,6 +315,11 @@ Deno.serve(async (req) => {
     if (erroFinal) throw erroFinal;
     if (!confirmado?.length) throw new ErroImportacao("A execução anterior expirou; consultando o progresso salvo.", true, 5000, 409);
     await registrarHistorico({ status: "success", created_count: novos, updated_count: atualizados, covers_count: capas, cover_failures: falhasCapas });
+    // Grava anime por anime para o painel exibir o que a importação tocou; falha de log não interrompe.
+    if (itens.length) {
+      const { error: erroItens } = await banco.from("kitsu_import_items").insert(itens.map(i => ({ mode, page, kitsu_id: i.kitsu_id, mal_id: i.mal_id, title: i.title, acao: i.acao, campos: i.campos, capa: i.capa })));
+      if (erroItens) console.error("itens Kitsu", erroItens);
+    }
     diagnostico("pagina_concluida", { pagina: page, modo: mode, novos, atualizados, capas, falhasCapas, traducoes: traduzidos, semMapeamento, semPendencias, duracao_ms: Date.now() - inicio });
     // Erros pendentes são resolvidos quando uma página volta a ser concluída.
     const { data: errosPendentes } = await banco.from("kitsu_import_history").select("id,finished_at").eq("status", "error").eq("mode", mode).eq("page", page).is("resolved_at", null);

@@ -1498,10 +1498,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      can_add_conversation_participant: {
+        Args: { _conversation_id: string; _role: string; _user_id: string }
+        Returns: boolean
+      }
       check_and_unlock_achievements: {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      get_catalog_stats: { Args: never; Returns: Json }
       get_public_list_owner_info: {
         Args: { list_id: string }
         Returns: {
@@ -1509,11 +1514,16 @@ export type Database = {
           username: string
         }[]
       }
+      get_site_stats: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_conversation_admin: {
+        Args: { _conversation_id: string }
         Returns: boolean
       }
       is_conversation_participant: {

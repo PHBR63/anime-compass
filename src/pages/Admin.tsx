@@ -9,6 +9,7 @@ import { SystemTests } from "@/components/admin/SystemTests";
 import { CatalogImportManager } from "@/components/admin/CatalogImportManager";
 import { JikanImportManager } from "@/components/admin/JikanImportManager";
 import { JikanImportHistory } from "@/components/admin/JikanImportHistory";
+import { JikanImportAlerts } from "@/components/admin/JikanImportAlerts";
 import { DeeplTranslationReview } from "@/components/admin/DeeplTranslationReview";
 import { CatalogImageSync } from "@/components/admin/CatalogImageSync";
 import { CatalogOverview } from "@/components/admin/CatalogOverview";

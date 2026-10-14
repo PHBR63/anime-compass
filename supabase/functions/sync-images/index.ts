@@ -265,7 +265,7 @@ async function processChunk(supabase: any, supabaseUrl: string, limit: number = 
   const { data: animes, error, count } = await supabase
     .from('anime_catalog')
     .select('mal_id, image_url', { count: 'exact' })
-    .is('local_image_url', null)
+    .or(`local_image_url.is.null,local_image_url.not.like.${supabaseUrl}/storage/v1/object/public/anime-images/%`)
     .not('image_url', 'is', null)
     .order('popularity', { ascending: true, nullsFirst: false })
     .limit(limit);
@@ -340,10 +340,8 @@ async function processChunk(supabase: any, supabaseUrl: string, limit: number = 
   };
 }
 
-/**
- * Retorna estatísticas de imagens
- */
-async function getImageStats(supabase: any) {
+/** Retorna cobertura do projeto atual; URLs de outros ambientes são pendências. */
+async function getImageStats(supabase: any, supabaseUrl: string) {
   const { count: totalAnimes } = await supabase
     .from('anime_catalog')
     .select('*', { count: 'exact', head: true });
@@ -351,18 +349,18 @@ async function getImageStats(supabase: any) {
   const { count: withLocalImage } = await supabase
     .from('anime_catalog')
     .select('*', { count: 'exact', head: true })
-    .not('local_image_url', 'is', null);
+    .like('local_image_url', `${supabaseUrl}/storage/v1/object/public/anime-images/%`);
   
   const { count: withExternalImage } = await supabase
     .from('anime_catalog')
     .select('*', { count: 'exact', head: true })
-    .is('local_image_url', null)
+    .or(`local_image_url.is.null,local_image_url.not.like.${supabaseUrl}/storage/v1/object/public/anime-images/%`)
     .not('image_url', 'is', null);
   
   const { count: withoutImage } = await supabase
     .from('anime_catalog')
     .select('*', { count: 'exact', head: true })
-    .is('local_image_url', null)
+    .or(`local_image_url.is.null,local_image_url.not.like.${supabaseUrl}/storage/v1/object/public/anime-images/%`)
     .is('image_url', null);
   
   const syncState = await getSyncState(supabase);
@@ -372,7 +370,7 @@ async function getImageStats(supabase: any) {
     withLocalImage: withLocalImage || 0,
     withExternalImage: withExternalImage || 0,
     withoutImage: withoutImage || 0,
-    localCoverage: totalAnimes ? Math.round((withLocalImage || 0) / totalAnimes * 100) : 0,
+    localCoverage: totalAnimes ? Math.round((withLocalImage || 0) / totalAnimes * 10000) / 100 : 0,
     syncProgress: syncState?.isRunning ? syncState : null,
     isStalled: syncState?.lastError?.includes('travada'),
   };
@@ -422,7 +420,7 @@ Deno.serve(async (req) => {
       }
       
       // Estatísticas padrão
-      const stats = await getImageStats(supabase);
+      const stats = await getImageStats(supabase, supabaseUrl);
       return new Response(
         JSON.stringify(stats),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

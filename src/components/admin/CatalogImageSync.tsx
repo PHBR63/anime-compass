@@ -121,16 +121,10 @@ export function CatalogImageSync() {
   /** Mutation para resetar estado travado de sincronização */
   const resetarSincronizacaoMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-images?action=reset`,
-        {
-          headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          }
-        }
-      );
-      if (!response.ok) throw new Error('Falha ao resetar');
-      return response.json();
+      // O SDK envia a sessão administrativa atual; a chave pública não autoriza reset.
+      const { data, error } = await supabase.functions.invoke("sync-images?action=reset", { method: "GET" });
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       toast.success("Estado resetado! Pode iniciar nova sincronização.");
@@ -146,7 +140,7 @@ export function CatalogImageSync() {
   useEffect(() => {
     if (!autoSync || !estatisticas) return;
     const isRunning = estatisticas.syncProgress?.isRunning ?? false;
-    if (!isRunning && estatisticas.localCoverage < 100 && estatisticas.withExternalImage > 0) {
+    if (!isRunning && estatisticas.withExternalImage > 0) {
       const timer = setTimeout(() => {
         if (!sincronizarImagensMutation.isPending) {
           sincronizarImagensMutation.mutate(undefined);
@@ -161,6 +155,8 @@ export function CatalogImageSync() {
     localStorage.setItem("admin-auto-image-sync", String(autoSync));
   }, [autoSync]);
 
+  // Não confunde cobertura alta/arredondada com ausência de pendências.
+  const sincronizacaoCompleta = Boolean(estatisticas && estatisticas.totalAnimes > 0 && estatisticas.withLocalImage === estatisticas.totalAnimes);
   const emSincronizacao = sincronizarImagensMutation.isPending || estatisticas?.syncProgress?.isRunning;
 
   return (
@@ -177,7 +173,7 @@ export function CatalogImageSync() {
                   Sincronizando
                 </Badge>
               )}
-              {!emSincronizacao && estatisticas && estatisticas.localCoverage >= 90 && (
+              {!emSincronizacao && sincronizacaoCompleta && (
                 <Badge variant="default" className="ml-2 bg-green-500">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   Completo
@@ -201,7 +197,7 @@ export function CatalogImageSync() {
               id="auto-sync"
               checked={autoSync}
               onCheckedChange={setAutoSync}
-              disabled={estatisticas?.localCoverage !== undefined && estatisticas.localCoverage >= 90}
+              disabled={sincronizacaoCompleta || estatisticas?.withExternalImage === 0}
             />
           </div>
         </div>
@@ -314,7 +310,7 @@ export function CatalogImageSync() {
         )}
 
         {/* Sincronização concluída */}
-        {!estatisticas?.syncProgress?.isRunning && !estatisticas?.isStalled && estatisticas && estatisticas.localCoverage >= 90 && (
+        {!estatisticas?.syncProgress?.isRunning && !estatisticas?.isStalled && estatisticas && sincronizacaoCompleta && (
           <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20 space-y-2">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -352,7 +348,7 @@ export function CatalogImageSync() {
             Sincronizar 100 (Teste)
           </Button>
 
-          {autoSync && !emSincronizacao && estatisticas && estatisticas.localCoverage < 90 && (
+          {autoSync && !emSincronizacao && estatisticas && estatisticas.withExternalImage > 0 && (
             <Badge variant="outline" className="gap-1.5 text-yellow-600 border-yellow-500/50">
               <Zap className="h-3 w-3" />
               Auto-sync ativo - iniciará automaticamente

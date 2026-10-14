@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
   const inicio = Date.now();
   /** Registra a execução no histórico sem interromper a importação em caso de falha. */
   const registrarHistorico = async (dados: Record<string, unknown>) => {
-    const { error } = await banco.from("jikan_import_history").insert({ mode, page, started_at: new Date(inicio).toISOString(), finished_at: new Date().toISOString(), duration_ms: Date.now() - inicio, triggered_by: usuario.user.id, ...dados });
+    const { error } = await banco.from("jikan_import_history").insert({ mode, page, started_at: new Date(inicio).toISOString(), finished_at: new Date().toISOString(), duration_ms: Date.now() - inicio, triggered_by: usuario.user?.id, ...dados });
     if (error) console.error("histórico Jikan", error);
   };
   try {

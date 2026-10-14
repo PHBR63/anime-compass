@@ -11,7 +11,7 @@ import { calcularEsperaJikan, lerRetomadaJikan, type RetomadaJikan } from "@/lib
 import { toast } from "sonner";
 
 // Modos da importação do Kitsu: completar dados faltantes ou descobrir animes novos.
-type Modo = "enrich" | "discover";
+type Modo = "enrich" | "discover" | "recent";
 interface Estado {
   mode: Modo; current_page: number; max_page: number | null;
   total_synced: number; is_running: boolean; last_error: string | null; adminId: string;
@@ -145,13 +145,15 @@ export function KitsuImportManager() {
           else salvarRetomada(dados.continue && todas ? progresso : null);
           if (!montado.current) break;
           setResultado(dados); setMensagem("");
-          const partes = modoExecucao === "enrich"
+          const partes = modoExecucao === "recent"
+            ? `${dados.stats.novos} novos, ${dados.stats.atualizados} atualizados, ${dados.stats.semPendencias} já em dia, ${dados.stats.capas} capas salvas`
+            : modoExecucao === "enrich"
             ? `${dados.stats.atualizados} completados, ${dados.stats.semPendencias} sem pendências, ${dados.stats.capas} capas salvas`
             : `${dados.stats.novos} novos, ${dados.stats.semMapeamento} sem vínculo com o MAL, ${dados.stats.capas} capas salvas`;
           setLogs(anteriores => [...anteriores.slice(-19), `Página ${dados.page}: ${partes}${dados.stats.falhasCapas ? `, ${dados.stats.falhasCapas} capas pendentes` : ""}.`]);
           await refetch();
           void cliente.invalidateQueries({ queryKey: ["freeapi-stats"] });
-          if (!dados.continue || !todas) { toast.success(dados.continue ? "Página processada" : modoExecucao === "enrich" ? "Preenchimento concluído" : "Descoberta concluída"); break; }
+          if (!dados.continue || !todas) { toast.success(dados.continue ? "Página processada" : modoExecucao === "enrich" ? "Preenchimento concluído" : modoExecucao === "recent" ? "Lançamentos em dia" : "Descoberta concluída"); break; }
         } catch (erro) {
           if (!montado.current || pausado.current) break;
           const falha = erro instanceof ErroKitsu ? erro : new ErroKitsu(erro instanceof Error ? erro.message : "Falha na importação", false);
@@ -200,9 +202,10 @@ export function KitsuImportManager() {
             <SelectContent>
               <SelectItem value="enrich">Completar dados faltantes</SelectItem>
               <SelectItem value="discover">Descobrir animes novos</SelectItem>
+              <SelectItem value="recent">Lançamentos recentes até hoje</SelectItem>
             </SelectContent>
           </Select>
-          <p className="self-center text-sm text-muted-foreground">{modo === "enrich" ? "Só preenche o que está vazio · Nada é sobrescrito" : "Animes novos apenas com vínculo no MAL"}</p>
+          <p className="self-center text-sm text-muted-foreground">{modo === "enrich" ? "Só preenche o que está vazio · Nada é sobrescrito" : modo === "recent" ? "Do ano mais recente do catálogo até hoje · Novos e checagem de atualização" : "Animes novos apenas com vínculo no MAL"}</p>
         </div>
         <div className="flex flex-wrap gap-2 [&>button]:max-w-full [&>button]:whitespace-normal">
           <Button onClick={() => executarImportacao(1, true)} disabled={!chave || executando || estado?.is_running} className="gap-2"><RefreshCw className="h-4 w-4 shrink-0" />Importar / atualizar</Button>

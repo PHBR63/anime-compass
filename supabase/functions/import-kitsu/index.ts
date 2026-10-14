@@ -12,7 +12,7 @@ import { mapearAnimeKitsu, permitirAnimeKitsu, type AnimeKitsu, type TextosExist
 
 const esquema = z.object({
   action: z.enum(["status", "process", "reset"]).default("status"),
-  mode: z.enum(["enrich", "discover"]).default("enrich"),
+  mode: z.enum(["enrich", "discover", "recent"]).default("enrich"),
   page: z.number().int().min(1).max(100000).default(1),
 });
 const chaveEstado = "kitsu_import";
@@ -142,16 +142,18 @@ Deno.serve(async (req) => {
   const banco = createClient(urlBackend, chavePrivada);
   const tokenAgendamento = req.headers.get("x-cron-token");
   let idUsuario: string | null = null;
-  let action: "status" | "process" | "reset", mode: "enrich" | "discover", page: number;
+  let action: "status" | "process" | "reset", mode: "enrich" | "discover" | "recent", page: number;
   if (tokenAgendamento) {
     // Agendamento: compara o hash da senha exclusiva guardada no banco (nome separado do Jikan).
     const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(tokenAgendamento)))).map(b => b.toString(16).padStart(2, "0")).join("");
     const { data: registro } = await banco.from("cron_token_hashes").select("token_hash").eq("name", "kitsu_daily").maybeSingle();
     if (!registro || registro.token_hash !== hash) return responder({ error: "Agendamento não autorizado" }, 401);
-    action = "process"; mode = "enrich";
-    // Continua a varredura a partir da última página salva.
+    // Agendamento usa por padrão a checagem de lançamentos recentes (pode pedir outro modo no corpo).
+    const corpo = await req.json().catch(() => null);
+    action = "process"; mode = corpo?.mode === "enrich" ? "enrich" : "recent";
+    // Continua a varredura a partir da última página salva; ao terminar, recomeça da página 1.
     const { data: atual } = await banco.from("sync_state").select("current_page,mode,max_page").eq("id", chaveEstado).maybeSingle();
-    const ultima = atual?.mode === "enrich" ? atual.current_page ?? 0 : 0;
+    const ultima = atual?.mode === mode ? atual.current_page ?? 0 : 0;
     page = atual?.max_page && ultima >= atual.max_page ? 1 : Math.max(2, ultima + 1);
     if (ultima === 0) page = 1;
   } else {
@@ -252,6 +254,65 @@ Deno.serve(async (req) => {
         const { data: lidas } = preenchidos.length
           ? await banco.from("anime_catalog").select("mal_id,title,synopsis,synopsis_pt").in("mal_id", preenchidos)
           : { data: [] };
+        traduzidos = await gerarSugestoes(banco, (lidas ?? []) as { mal_id: number; title: string; synopsis: string | null; synopsis_pt: string | null }[], "import");
+      } catch (e) { diagnostico("erro_traducao", { pagina: page, erro: e instanceof Error ? e.message : "Falha na tradução", modo: mode }); }
+    } else if (mode === "recent") {
+      // Lançamentos recentes: do ano mais recente cadastrado (até hoje) até a data atual, do mais novo ao mais antigo.
+      const hoje = new Date().toISOString().slice(0, 10);
+      const anoAtual = new Date().getUTCFullYear();
+      const { data: maisRecente } = await banco.from("anime_catalog").select("year").lte("year", anoAtual).not("year", "is", null).order("year", { ascending: false }).limit(1).maybeSingle();
+      // Volta um ano de margem para cobrir temporadas que começaram no fim do ano anterior.
+      const anoInicio = Math.min(anoAtual, Number(maisRecente?.year ?? anoAtual)) - 1;
+      const url = `${KITSU_BASE}?sort=-startDate&filter%5BseasonYear%5D=${anoInicio}..${anoAtual}&filter%5Bsubtype%5D=TV,movie,OVA,ONA,special&page%5Blimit%5D=${TAMANHO_PAGINA}&page%5Boffset%5D=${(page - 1) * TAMANHO_PAGINA}`;
+      diagnostico("consulta_iniciada", { fonte: "kitsu", pagina: page, modo: mode, ano_inicio: anoInicio });
+      const resposta = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      diagnostico("consulta_respondida", { base: "kitsu", status: resposta.status, pagina: page, modo: mode });
+      if (resposta.status === 429 || resposta.status >= 500) throw new ErroImportacao(`O Kitsu está ocupado (${resposta.status}). A importação será retomada automaticamente.`, true, resposta.status === 429 ? 60000 : 15000);
+      if (!resposta.ok) throw new ErroImportacao(`Kitsu indisponível (${resposta.status}).`, false, 0, 422);
+      const resultado = await resposta.json().catch(() => null);
+      if (!Array.isArray(resultado?.data)) throw new ErroImportacao("Resposta inválida do Kitsu; aguardando nova tentativa.", true);
+      const total = Number(resultado?.meta?.count);
+      totalPaginas = Number.isInteger(total) && total > 0 ? Math.ceil(total / TAMANHO_PAGINA) : page;
+      // Só entram animes já lançados (estreia até hoje); futuros ficam para checagens seguintes.
+      const candidatos = (resultado.data as AnimeKitsu[]).filter(a => permitirAnimeKitsu(a) && !!a.attributes.startDate && String(a.attributes.startDate) <= hoje);
+      const vinculos = await emGrupos(candidatos, 5, async (anime) => ({ anime, mal_id: await mapearId("kitsu", Number(anime.id)) }));
+      for (const v of vinculos) if (!v.mal_id) { semMapeamento++; diagnostico("sem_mapeamento", { kitsu_id: v.anime.id, modo: mode, pagina: page }); }
+      const idsValidos = vinculos.map(v => v.mal_id).filter(Number.isInteger) as number[];
+      const { data: existentes } = idsValidos.length
+        ? await banco.from("anime_catalog").select("mal_id,title,title_english,title_japanese,synopsis,synopsis_pt,score,scored_by,rank,popularity,members,episodes,status,type,rating,year,season,image_url,local_image_url").in("mal_id", idsValidos)
+        : { data: [] };
+      const porMal = new Map((existentes ?? []).map(e => [e.mal_id as number, e]));
+      let baixadas = 0;
+      const paraTraduzir: number[] = [];
+      for (const v of vinculos) {
+        if (!v.mal_id) continue;
+        const linha = porMal.get(v.mal_id);
+        // Existente: checagem de atualização preenchendo só campos vazios. Novo: cadastro completo.
+        const registro = linha ? mapearAnimeKitsu(v.anime, linha as unknown as TextosExistentesKitsu) : { mal_id: v.mal_id, ...mapearAnimeKitsu(v.anime) };
+        if (linha && Object.keys(registro).length === 0) { semPendencias++; continue; }
+        const capa = (registro.image_url as string | null) ?? null;
+        const { error: erroSalvar } = linha
+          ? await banco.from("anime_catalog").update(registro).eq("mal_id", v.mal_id)
+          : await banco.from("anime_catalog").upsert(registro, { onConflict: "mal_id", ignoreDuplicates: true });
+        if (erroSalvar) { diagnostico("erro_salvar_anime", { mal_id: v.mal_id, pagina: page, modo: mode, erro: erroSalvar.message, codigo: erroSalvar.code }); continue; }
+        if (linha) atualizados++; else novos++;
+        paraTraduzir.push(v.mal_id);
+        const item = { kitsu_id: Number(v.anime.id), mal_id: v.mal_id, title: v.anime.attributes.canonicalTitle ?? null, acao: (linha ? "completado" : "criado") as "criado" | "completado", campos: Object.keys(registro), capa: false };
+        itens.push(item);
+        if (capa && baixadas < MAX_CAPAS_POR_PAGINA) {
+          baixadas++;
+          try {
+            const local = await salvarCapa(banco, v.mal_id, capa);
+            const { error: erroCapa } = await banco.from("anime_catalog").update({ local_image_url: local }).eq("mal_id", v.mal_id);
+            if (erroCapa) throw erroCapa;
+            capas++;
+            item.capa = true;
+          } catch (falhaCapa) { falhasCapas++; diagnostico("falha_capa", { mal_id: v.mal_id, erro: falhaCapa instanceof Error ? falhaCapa.message : "desconhecido", pagina: page }); }
+        }
+      }
+      // Sinopses em inglês recém-gravadas seguem para a fila de revisão do DeepL.
+      try {
+        const { data: lidas } = paraTraduzir.length ? await banco.from("anime_catalog").select("mal_id,title,synopsis,synopsis_pt").in("mal_id", paraTraduzir) : { data: [] };
         traduzidos = await gerarSugestoes(banco, (lidas ?? []) as { mal_id: number; title: string; synopsis: string | null; synopsis_pt: string | null }[], "import");
       } catch (e) { diagnostico("erro_traducao", { pagina: page, erro: e instanceof Error ? e.message : "Falha na tradução", modo: mode }); }
     } else {

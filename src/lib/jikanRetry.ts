@@ -6,7 +6,7 @@ export function calcularEsperaJikan(tentativa: number, minimoMs = 0): number {
 
 // Modo "full"/"season" pertence ao Jikan; "enrich"/"discover" ao Kitsu.
 export interface RetomadaJikan {
-  modo: "full" | "season" | "enrich" | "discover";
+  modo: "full" | "season" | "enrich" | "discover" | "recent";
   pagina: number;
   todas: boolean;
   tentativa: number;

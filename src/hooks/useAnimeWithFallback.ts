@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { CatalogAnime } from '@/types/catalog';
 import { getCachedCatalogAnime, cacheCatalogAnime } from '@/lib/offlineCache';
 import { CATALOG_API_URL } from '@/lib/apiConfig';
+import { getAnnSource, isAnnCacheCurrent } from '@/lib/annMetadata';
 
 // Resultado do hook com indicador de fonte
 export interface AnimeWithSource {
@@ -20,10 +21,12 @@ export interface AnimeWithSource {
  * Busca anime primeiro no cache local, depois na API do catálogo
  */
 async function fetchAnimeFromCatalog(malId: number): Promise<{ anime: CatalogAnime | null; source: 'catalog' | 'local' | null }> {
+  let offlineFallback: CatalogAnime | null = null;
   // 1. Tentar buscar do cache IndexedDB primeiro
   try {
     const cached = await getCachedCatalogAnime(malId);
-    if (cached) {
+    if (cached) offlineFallback = cached.data as unknown as CatalogAnime;
+    if (cached && isAnnCacheCurrent(malId, (cached.data as unknown as CatalogAnime).metadata_sources)) {
       console.log(`[AnimeWithFallback] Cache hit para mal_id: ${malId}`);
       return { anime: cached.data as unknown as CatalogAnime, source: 'local' };
     }
@@ -47,7 +50,7 @@ async function fetchAnimeFromCatalog(malId: number): Promise<{ anime: CatalogAni
     console.warn(`[AnimeWithFallback] Erro ao buscar do catálogo (mal_id: ${malId}):`, error);
   }
 
-  return { anime: null, source: null };
+  return offlineFallback ? { anime: offlineFallback, source: 'local' } : { anime: null, source: null };
 }
 
 /**
@@ -55,7 +58,7 @@ async function fetchAnimeFromCatalog(malId: number): Promise<{ anime: CatalogAni
  */
 export function useAnimeWithFallback(malId: number | null): AnimeWithSource {
   const query = useQuery({
-    queryKey: ['anime-catalog', malId],
+    queryKey: ['anime-catalog', malId, getAnnSource(malId)?.id ?? null],
     queryFn: async () => {
       if (!malId) return { anime: null, source: null };
       return fetchAnimeFromCatalog(malId);
@@ -80,7 +83,7 @@ export function useAnimeWithFallback(malId: number | null): AnimeWithSource {
  */
 export function useAnimesWithFallback(malIds: number[]) {
   return useQuery({
-    queryKey: ['animes-catalog', malIds.sort().join(',')],
+    queryKey: ['animes-catalog', 'ann-20261014', malIds.sort().join(',')],
     queryFn: async () => {
       const results: Map<number, { anime: CatalogAnime | null; source: 'catalog' | 'local' | null }> = new Map();
       const uncachedIds: number[] = [];
@@ -89,7 +92,7 @@ export function useAnimesWithFallback(malIds: number[]) {
       for (const malId of malIds) {
         try {
           const cached = await getCachedCatalogAnime(malId);
-          if (cached) {
+          if (cached && isAnnCacheCurrent(malId, (cached.data as unknown as CatalogAnime).metadata_sources)) {
             results.set(malId, { 
               anime: cached.data as unknown as CatalogAnime, 
               source: 'local' 
@@ -144,7 +147,7 @@ export async function prefetchAnimesToCache(malIds: number[]): Promise<{
   for (const malId of malIds) {
     try {
       const existing = await getCachedCatalogAnime(malId);
-      if (existing) {
+      if (existing && isAnnCacheCurrent(malId, (existing.data as unknown as CatalogAnime).metadata_sources)) {
         cached++;
       } else {
         uncachedIds.push(malId);

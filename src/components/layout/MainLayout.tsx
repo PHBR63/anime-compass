@@ -32,6 +32,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           <footer className="mt-8 text-xs text-muted-foreground">
             Metadados complementares: anime-offline-database (ODbL).{' '}
             <a href="/metadata/aod/index.html" className="underline underline-offset-4">Fontes, licença e download</a>
+            {' · '}<a href="/metadata/ann/index.html" className="underline underline-offset-4">Dados do Anime News Network</a>
           </footer>
         </div>
       </main>

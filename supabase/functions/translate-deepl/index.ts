@@ -1,14 +1,13 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
+import { ErroDeepl, gerarSugestoes } from "../_shared/deepl.ts";
 
-// Ações: "preview" traduz sem salvar; "save" grava apenas traduções revisadas.
+// Ações: "generate" cria sugestões pendentes; "save" aplica as aprovadas; "reject" descarta.
 const esquema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("preview"), limit: z.number().int().min(1).max(25).default(10), offset: z.number().int().min(0).max(100000).default(0) }),
-  z.object({
-    action: z.literal("save"),
-    items: z.array(z.object({ mal_id: z.number().int().positive(), synopsis_pt: z.string().trim().min(1).max(10000) })).min(1).max(25),
-  }),
+  z.object({ action: z.literal("generate"), scope: z.enum(["missing", "english"]).default("missing"), offset: z.number().int().min(0).max(1000000).default(0) }),
+  z.object({ action: z.literal("save"), items: z.array(z.object({ mal_id: z.number().int().positive(), synopsis_pt: z.string().trim().min(1).max(10000) })).min(1).max(50) }),
+  z.object({ action: z.literal("reject"), mal_ids: z.array(z.number().int().positive()).min(1).max(50) }),
 ]);
 
 /** Responde JSON com CORS, inclusive em erros. */
@@ -16,14 +15,13 @@ function responder(dados: unknown, status = 200) {
   return new Response(JSON.stringify(dados), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
-/** Traduz sinopses ausentes via DeepL para revisão administrativa, sem sobrescrever textos existentes. */
+/** Gera, aprova ou rejeita traduções DeepL de sinopses, sempre com revisão administrativa. */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return responder({ error: "Método não permitido" }, 405);
   const url = Deno.env.get("SUPABASE_URL");
   const anon = Deno.env.get("SUPABASE_ANON_KEY");
   const servico = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const chaveDeepl = Deno.env.get("DEEPL_API_KEY");
   if (!url || !anon || !servico) return responder({ error: "Configuração indisponível" }, 500);
 
   // Autorização no servidor: apenas administradores.
@@ -36,59 +34,45 @@ Deno.serve(async (req) => {
   const entrada = esquema.safeParse(await req.json().catch(() => null));
   if (!entrada.success) return responder({ error: "Parâmetros inválidos", details: entrada.error.flatten() }, 400);
   const banco = createClient(url, servico);
+  const agora = new Date().toISOString();
 
   try {
+    if (entrada.data.action === "reject") {
+      await banco.from("translation_suggestions").update({ status: "rejected", reviewed_at: agora }).in("mal_id", entrada.data.mal_ids).eq("status", "pending");
+      return responder({ success: true });
+    }
+
     if (entrada.data.action === "save") {
       let salvos = 0;
       for (const item of entrada.data.items) {
-        // Condição no banco: só grava se a sinopse PT-BR continuar vazia.
-        const { data, error } = await banco.from("anime_catalog")
-          .update({ synopsis_pt: item.synopsis_pt })
-          .eq("mal_id", item.mal_id)
-          .or("synopsis_pt.is.null,synopsis_pt.eq.")
-          .select("mal_id");
+        const { data: sugestao } = await banco.from("translation_suggestions").select("current_pt").eq("mal_id", item.mal_id).eq("status", "pending").maybeSingle();
+        if (!sugestao) continue;
+        // Só grava se o texto atual continuar igual ao da sugestão (vazio ou em inglês); nunca sobrescreve edições em PT-BR.
+        let consulta = banco.from("anime_catalog").update({ synopsis_pt: item.synopsis_pt }).eq("mal_id", item.mal_id);
+        consulta = sugestao.current_pt ? consulta.eq("synopsis_pt", sugestao.current_pt) : consulta.or("synopsis_pt.is.null,synopsis_pt.eq.");
+        const { data, error } = await consulta.select("mal_id");
         if (error) throw error;
-        salvos += data?.length ?? 0;
+        const ok = (data?.length ?? 0) > 0;
+        await banco.from("translation_suggestions").update({ status: ok ? "approved" : "rejected", suggested_text: item.synopsis_pt, reviewed_at: agora }).eq("mal_id", item.mal_id);
+        if (ok) salvos++;
       }
       return responder({ success: true, saved: salvos, skipped: entrada.data.items.length - salvos });
     }
 
-    if (!chaveDeepl) return responder({ error: "Chave do DeepL não configurada" }, 503);
-    const { limit, offset } = entrada.data;
-    // Busca animes com sinopse original mas sem versão em PT-BR.
-    const { data: animes, error, count } = await banco.from("anime_catalog")
-      .select("mal_id,title,synopsis", { count: "exact" })
-      .or("synopsis_pt.is.null,synopsis_pt.eq.")
-      .not("synopsis", "is", null).neq("synopsis", "")
-      .order("members", { ascending: false, nullsFirst: false })
-      .range(offset, offset + limit - 1);
+    // Gera sugestões de um lote do catálogo inteiro (ausentes ou em inglês).
+    const { scope, offset } = entrada.data;
+    let consulta = banco.from("anime_catalog").select("mal_id,title,synopsis,synopsis_pt")
+      .not("synopsis", "is", null).neq("synopsis", "").order("members", { ascending: false, nullsFirst: false });
+    consulta = scope === "missing" ? consulta.or("synopsis_pt.is.null,synopsis_pt.eq.") : consulta.not("synopsis_pt", "is", null).neq("synopsis_pt", "");
+    // Varredura de inglês analisa 200 registros por vez; ausentes buscam 60 (alguns já têm sugestão).
+    const tamanho = scope === "english" ? 200 : 60;
+    const { data: animes, error } = await consulta.range(offset, offset + tamanho - 1);
     if (error) throw error;
-    if (!animes?.length) return responder({ success: true, items: [], pending: count ?? 0 });
-
-    // Chaves gratuitas terminam com ":fx" e usam outro domínio.
-    const host = chaveDeepl.endsWith(":fx") ? "https://api-free.deepl.com" : "https://api.deepl.com";
-    const resposta = await fetch(`${host}/v2/translate`, {
-      method: "POST",
-      headers: { Authorization: `DeepL-Auth-Key ${chaveDeepl}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ text: animes.map(a => a.synopsis), target_lang: "PT-BR", source_lang: "EN" }),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!resposta.ok) {
-      const corpo = await resposta.text();
-      console.error(`DeepL falhou [${resposta.status}]: ${corpo}`);
-      const msg = resposta.status === 456 ? "Cota do DeepL esgotada neste mês"
-        : resposta.status === 403 ? "Chave do DeepL inválida"
-        : resposta.status === 429 ? "Muitas solicitações ao DeepL; aguarde e tente novamente"
-        : "Falha ao traduzir com o DeepL";
-      return responder({ error: msg, status: resposta.status }, resposta.status === 456 ? 402 : resposta.status);
-    }
-    const { translations } = await resposta.json() as { translations: { text: string }[] };
-    return responder({
-      success: true,
-      pending: count ?? 0,
-      items: animes.map((a, i) => ({ mal_id: a.mal_id, title: a.title, synopsis: a.synopsis, synopsis_pt: translations[i]?.text ?? "" })),
-    });
+    const criadas = await gerarSugestoes(banco, animes ?? [], "manual");
+    const proximo = scope === "missing" ? offset : offset + tamanho;
+    return responder({ success: true, created: criadas, nextOffset: proximo, done: (animes?.length ?? 0) < tamanho });
   } catch (e) {
+    if (e instanceof ErroDeepl) return responder({ error: e.message }, e.status);
     console.error("translate-deepl", e);
     return responder({ error: "Erro interno ao processar traduções" }, 500);
   }

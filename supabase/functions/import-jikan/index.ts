@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
+import { gerarSugestoes } from "../_shared/deepl.ts";
 import { mapearAnime, permitirAnime, obterCapa, type AnimeJikan, type TextosExistentes } from "./catalog.ts";
 
 const esquema = z.object({
@@ -136,13 +137,19 @@ Deno.serve(async (req) => {
     const { data: confirmado, error: erroFinal } = await banco.from("sync_state").update({ mode, current_page: page, max_page: resultado.pagination.last_visible_page, total_synced: total, is_running: false, last_error: null, last_run_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", chaveEstado).eq("updated_at", concessao).select("id");
     if (erroFinal) throw erroFinal;
     if (!confirmado?.length) throw new ErroImportacao("A execução anterior expirou; consultando o progresso salvo.", true, 5000, 409);
+    // Gera sugestões de tradução para os animes desta página; falhas não interrompem a importação.
+    let traducoes = 0, erroTraducao: string | null = null;
+    try {
+      const { data: candidatos } = ids.length ? await banco.from("anime_catalog").select("mal_id,title,synopsis,synopsis_pt").in("mal_id", ids) : { data: [] };
+      traducoes = await gerarSugestoes(banco, candidatos ?? [], "import");
+    } catch (e) { erroTraducao = e instanceof Error ? e.message : "Falha na tradução"; console.error("tradução automática", e); }
     await registrarHistorico({ status: "success", created_count: novos, updated_count: atualizados, covers_count: capas, cover_failures: falhasCapas });
     // Erros pendentes são resolvidos quando uma página volta a ser concluída.
     const { data: pendentes } = await banco.from("jikan_import_history").select("id,finished_at").eq("status", "error").is("resolved_at", null);
     for (const p of pendentes ?? []) {
       await banco.from("jikan_import_history").update({ resolved_at: new Date().toISOString(), resolved_after_ms: Date.now() - new Date(p.finished_at).getTime() }).eq("id", p.id);
     }
-    return responder({ success: true, continue: continuar, page, totalPages: resultado.pagination.last_visible_page, processed: total, stats: { novos, atualizados, capas, falhasCapas, filtrados: resultado.data.length - animes.length } });
+    return responder({ success: true, continue: continuar, page, totalPages: resultado.pagination.last_visible_page, processed: total, stats: { novos, atualizados, capas, falhasCapas, traducoes, erroTraducao, filtrados: resultado.data.length - animes.length } });
   } catch (erro) {
     const mensagem = erro instanceof Error && (erro.name === "TimeoutError" || erro.name === "AbortError")
       ? "O Jikan demorou demais para responder. Aguarde e retome a importação; nenhum progresso será perdido."

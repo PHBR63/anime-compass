@@ -229,7 +229,8 @@ Deno.serve(async (req) => {
         const capa = (registro.image_url as string | null) ?? null;
         if (Object.keys(registro).length === 0) { semPendencias++; continue; }
         const { error: erroSalvar } = await banco.from("anime_catalog").update(registro).eq("mal_id", v.mal_id);
-        if (erroSalvar) throw erroSalvar;
+        // Falha em um anime não derruba a página: registra o motivo e segue para o próximo.
+        if (erroSalvar) { diagnostico("erro_salvar_anime", { mal_id: v.mal_id, pagina: page, modo: mode, erro: erroSalvar.message, codigo: erroSalvar.code, campos: Object.keys(registro) }); continue; }
         atualizados++;
         preenchidos.push(v.mal_id);
         // Registra o anime completado com os campos que a importação preencheu.
@@ -279,7 +280,8 @@ Deno.serve(async (req) => {
         const registro = { mal_id: v.mal_id, ...mapearAnimeKitsu(v.anime) };
         const capa = (registro.image_url as string | null) ?? null;
         const { error: erroSalvar } = await banco.from("anime_catalog").upsert(registro, { onConflict: "mal_id", ignoreDuplicates: true });
-        if (erroSalvar) throw erroSalvar;
+        // Falha em um anime não derruba a página: registra o motivo e segue para o próximo.
+        if (erroSalvar) { diagnostico("erro_salvar_anime", { mal_id: v.mal_id, pagina: page, modo: mode, erro: erroSalvar.message, codigo: erroSalvar.code }); continue; }
         novos++;
         criados.push({ mal_id: v.mal_id, anime: v.anime });
         // Registra o anime recém-criado com os campos gravados na primeira importação.
@@ -329,10 +331,13 @@ Deno.serve(async (req) => {
     return responder({ success: true, continue: continuar, page, totalPages: totalPaginas, processed: total, stats: { novos, atualizados, capas, falhasCapas, traducoes: traduzidos, semMapeamento, semPendencias } });
   } catch (erro) {
     const eTimeout = erro instanceof Error && (erro.name === "TimeoutError" || erro.name === "AbortError");
+    // Erros do banco chegam como objetos simples ({ message, code }); extrai a mensagem real.
+    const objeto = erro && typeof erro === "object" ? erro as { message?: unknown; code?: unknown } : null;
+    const eBanco = !(erro instanceof Error) && typeof objeto?.message === "string";
     const mensagem = eTimeout
       ? "Uma das fontes demorou demais para responder. Aguarde e retome a importação; nenhum progresso será perdido."
-      : erro instanceof Error ? erro.message : "Falha na importação";
-    diagnostico(eTimeout ? "timeout_importacao" : "erro_importacao", { pagina: page, modo: mode, erro: mensagem, tipo: erro instanceof Error ? erro.name : "desconhecido", duracao_ms: Date.now() - inicio });
+      : erro instanceof Error ? erro.message : eBanco ? `Erro no banco: ${objeto!.message}` : "Falha na importação";
+    diagnostico(eTimeout ? "timeout_importacao" : "erro_importacao", { pagina: page, modo: mode, erro: mensagem, tipo: erro instanceof Error ? erro.name : eBanco ? `banco ${String(objeto!.code ?? "")}` : "desconhecido", duracao_ms: Date.now() - inicio });
     if (possuiBloqueio) await registrarHistorico({ status: "error", error_message: mensagem, retryable: erro instanceof ErroImportacao ? erro.temporario : true });
     if (possuiBloqueio) await banco.from("sync_state").update({ is_running: false, last_error: mensagem, updated_at: new Date().toISOString() }).eq("id", chaveEstado).eq("updated_at", concessao);
     // Falhas temporárias voltam com status 200 e success:false, para o painel tratar como "retomar depois".

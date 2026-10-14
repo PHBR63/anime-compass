@@ -343,7 +343,8 @@ Deno.serve(async (req) => {
       const criados: { mal_id: number; anime: AnimeKitsu }[] = [];
       for (const v of vinculos) {
         if (!v.mal_id || jaCatalogados.has(v.mal_id)) continue;
-        const registro = { mal_id: v.mal_id, ...mapearAnimeKitsu(v.anime) };
+        // Registro novo do Kitsu: tipado como mapa genérico para permitir leitura da capa.
+        const registro: Record<string, unknown> = { mal_id: v.mal_id, ...mapearAnimeKitsu(v.anime) };
         const capa = (registro.image_url as string | null) ?? null;
         const { error: erroSalvar } = await banco.from("anime_catalog").upsert(registro, { onConflict: "mal_id", ignoreDuplicates: true });
         // Falha em um anime não derruba a página: registra o motivo e segue para o próximo.

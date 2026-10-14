@@ -78,6 +78,13 @@
       "when": 1792006301002,
       "tag": "0010_fix_apply_kitsu_metadata_array",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792007432797,
+      "tag": "0011_discover_hide_ignores_archived",
+      "breakpoints": true
     }
   ]
 }

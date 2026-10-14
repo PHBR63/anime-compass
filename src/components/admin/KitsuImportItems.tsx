@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +51,8 @@ const ACOES = [
 /** Lista o que a importação do Kitsu tocou: animes criados, completados e capas baixadas. */
 export function KitsuImportItems() {
   const [filtro, setFiltro] = useState<(typeof ACOES)[number]["valor"]>("todos");
+  const [aoVivo, setAoVivo] = useState(false);
+  const cliente = useQueryClient();
   const { data = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["kitsu-import-items"],
     queryFn: async () => {
@@ -58,8 +60,22 @@ export function KitsuImportItems() {
       if (error) throw error;
       return data as ItemKitsu[];
     },
-    refetchInterval: 15000,
+    // Consulta periódica só como reserva quando o tempo real não estiver conectado.
+    refetchInterval: aoVivo ? false : 15000,
   });
+
+  /** Assina inserções em tempo real e coloca cada anime no topo da lista assim que é gravado. */
+  useEffect(() => {
+    const canal = supabase
+      .channel("kitsu-import-items-ao-vivo")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "kitsu_import_items" }, payload => {
+        const novo = payload.new as ItemKitsu;
+        cliente.setQueryData<ItemKitsu[]>(["kitsu-import-items"], anteriores =>
+          [novo, ...(anteriores ?? []).filter(i => i.id !== novo.id)].slice(0, 100));
+      })
+      .subscribe(status => setAoVivo(status === "SUBSCRIBED"));
+    return () => { supabase.removeChannel(canal); };
+  }, [cliente]);
 
   const filtrados = filtro === "todos" ? data : data.filter(i => i.acao === filtro);
   const novos = data.filter(i => i.acao === "criado").length;
@@ -71,7 +87,10 @@ export function KitsuImportItems() {
       <CardHeader className="flex flex-row items-start justify-between gap-2 p-4 sm:p-6">
         <div className="min-w-0">
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg"><ListTree className="h-5 w-5 text-primary" />Animes importados do Kitsu</CardTitle>
-          <CardDescription className="text-xs sm:text-sm">Últimos 100 animes tocados pela importação.</CardDescription>
+          <CardDescription className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+            Últimos 100 animes tocados pela importação.
+            <Badge variant={aoVivo ? "default" : "outline"} className="text-[10px]">{aoVivo ? "Ao vivo" : "Atualização a cada 15 s"}</Badge>
+          </CardDescription>
         </div>
         <Button size="icon" variant="ghost" onClick={() => refetch()} disabled={isFetching} aria-label="Atualizar lista de animes">
           <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />

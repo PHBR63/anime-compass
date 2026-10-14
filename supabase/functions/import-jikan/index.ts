@@ -254,6 +254,9 @@ Deno.serve(async (req) => {
     diagnostico(eTimeout ? "timeout_importacao" : "erro_importacao", { pagina: page, modo: mode, erro: mensagem, tipo: erro instanceof Error ? erro.name : "desconhecido", duracao_ms: Date.now() - inicio });
     if (possuiBloqueio) await registrarHistorico({ status: "error", error_message: mensagem, retryable: erro instanceof ErroImportacao ? erro.temporario : true });
     if (possuiBloqueio) await banco.from("sync_state").update({ is_running: false, last_error: mensagem, updated_at: new Date().toISOString() }).eq("id", chaveEstado).eq("updated_at", concessao);
-    return responder({ success: false, error: mensagem, retryable: erro instanceof ErroImportacao ? erro.temporario : erro instanceof Error && ["TimeoutError", "AbortError"].includes(erro.name), retryAfterMs: erro instanceof ErroImportacao ? erro.esperaMs : 0 }, erro instanceof ErroImportacao ? erro.status : 500);
+    // Falhas temporárias (Jikan fora do ar, timeout) voltam com status 200 e success:false,
+    // para o painel tratar como "retomar depois" sem que o app considere um erro fatal de execução.
+    const temporario = erro instanceof ErroImportacao ? erro.temporario : erro instanceof Error && ["TimeoutError", "AbortError"].includes(erro.name);
+    return responder({ success: false, error: mensagem, retryable: temporario, retryAfterMs: erro instanceof ErroImportacao ? erro.esperaMs : 0 }, temporario ? 200 : erro instanceof ErroImportacao ? erro.status : 500);
   }
 });

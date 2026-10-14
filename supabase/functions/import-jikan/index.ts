@@ -10,6 +10,13 @@ const esquema = z.object({
 });
 const chaveEstado = "jikan_import";
 
+/** Diferencia indisponibilidade temporária de falhas que exigem intervenção administrativa. */
+class ErroImportacao extends Error {
+  constructor(mensagem: string, readonly temporario: boolean, readonly esperaMs = 0, readonly status = 502) {
+    super(mensagem);
+  }
+}
+
 /** Devolve respostas JSON com CORS inclusive nos erros. */
 function responder(dados: unknown, status = 200) {
   return new Response(JSON.stringify(dados), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -34,26 +41,31 @@ Deno.serve(async (req) => {
   const { action, mode, page } = entrada.data;
   const banco = createClient(urlBackend, chavePrivada);
   let possuiBloqueio = false;
+  let concessao = "";
   try {
     // Garante uma linha inicial sem substituir progresso de outra execução.
     const { error: erroInicial } = await banco.from("sync_state").upsert({ id: chaveEstado, mode: "full", current_page: 0, is_running: false }, { onConflict: "id", ignoreDuplicates: true });
     if (erroInicial) throw erroInicial;
     const { data: estado, error: erroEstado } = await banco.from("sync_state").select("*").eq("id", chaveEstado).single();
     if (erroEstado) throw erroEstado;
-    if (action === "status") return responder({ success: true, data: estado });
     const agora = new Date().toISOString();
     const ocupado = estado.is_running && Date.now() - new Date(estado.updated_at).getTime() < 120000;
-    if (ocupado) return responder({ error: "Uma página já está sendo processada; aguarde sua conclusão." }, 409);
+    if (action === "status") return responder({ success: true, data: { ...estado, is_running: ocupado } });
+    if (ocupado) return responder({ error: "Uma página já está sendo processada; aguardando sua conclusão.", retryable: true, retryAfterMs: Math.max(5000, 120000 - (Date.now() - new Date(estado.updated_at).getTime())) }, 409);
     if (action === "reset") {
-      const { error } = await banco.from("sync_state").update({ current_page: 0, total_synced: 0, max_page: null, is_running: false, last_error: null, updated_at: agora }).eq("id", chaveEstado).eq("updated_at", estado.updated_at);
+      const { data: reinicio, error } = await banco.from("sync_state").update({ current_page: 0, total_synced: 0, max_page: null, is_running: false, last_error: null, updated_at: agora }).eq("id", chaveEstado).eq("updated_at", estado.updated_at).select("id");
       if (error) throw error;
+      if (!reinicio?.length) return responder({ error: "Outra execução alterou o progresso; tente novamente.", retryable: true }, 409);
       return responder({ success: true });
     }
     // Compare-and-swap impede importações simultâneas em abas diferentes.
-    const { data: bloqueio, error: erroBloqueio } = await banco.from("sync_state").update({ is_running: true, updated_at: agora }).eq("id", chaveEstado).eq("updated_at", estado.updated_at).select("id");
+    const reiniciando = page === 1 || estado.mode !== mode;
+    const { data: bloqueio, error: erroBloqueio } = await banco.from("sync_state").update({ is_running: true, mode, ...(reiniciando ? { current_page: 0, total_synced: 0, max_page: null } : {}), updated_at: agora }).eq("id", chaveEstado).eq("updated_at", estado.updated_at).select("id,updated_at");
     if (erroBloqueio) throw erroBloqueio;
-    if (!bloqueio?.length) return responder({ error: "Outra importação iniciou; tente novamente." }, 409);
+    if (!bloqueio?.length) return responder({ error: "Outra importação iniciou; aguardando a liberação.", retryable: true, retryAfterMs: 5000 }, 409);
     possuiBloqueio = true;
+    // Usa o valor retornado pelo banco: o gatilho atualiza o horário com precisão própria.
+    concessao = bloqueio[0].updated_at;
     // Intervalo conservador: uma página a cada 1,2 s, abaixo de 60 consultas/minuto.
     const intervalo = Date.now() - new Date(estado.updated_at).getTime();
     if (intervalo < 1200) await new Promise(resolve => setTimeout(resolve, 1200 - intervalo));
@@ -62,14 +74,20 @@ Deno.serve(async (req) => {
     endereco.searchParams.set("page", String(page));
     endereco.searchParams.set("limit", "25");
     if (mode === "full") { endereco.searchParams.set("order_by", "mal_id"); endereco.searchParams.set("sort", "asc"); }
-    const resposta = await fetch(endereco, { signal: AbortSignal.timeout(20000) });
+    let resposta: Response;
+    try { resposta = await fetch(endereco, { signal: AbortSignal.timeout(20000) }); }
+    catch { throw new ErroImportacao("O Jikan não respondeu. A importação será retomada automaticamente.", true); }
     if (!resposta.ok) {
       const detalhes = await resposta.text();
       console.error(`Jikan [${resposta.status}]: ${detalhes}`);
-      throw new Error(`Jikan indisponível (${resposta.status}). ${resposta.status === 429 ? "Limite de consultas atingido; aguarde um minuto e retome." : "Retome a mesma página mais tarde."}`);
+      const cabecalho = resposta.headers.get("Retry-After");
+      const segundos = cabecalho ? Number(cabecalho) : NaN;
+      const espera = cabecalho ? (Number.isFinite(segundos) ? segundos * 1000 : Date.parse(cabecalho) - Date.now()) : 0;
+      const temporario = resposta.status === 408 || resposta.status === 429 || resposta.status >= 500;
+      throw new ErroImportacao(`Jikan indisponível (${resposta.status}). ${resposta.status === 429 ? "Limite de consultas atingido." : temporario ? "Aguardando nova tentativa." : "Verifique a origem antes de retomar."}`, temporario, Math.max(resposta.status === 429 ? 60000 : 0, Number.isFinite(espera) ? espera : 0), temporario ? 503 : 422);
     }
-    const resultado = await resposta.json();
-    if (!Array.isArray(resultado.data) || !resultado.pagination) throw new Error("Resposta inválida do Jikan");
+    const resultado = await resposta.json().catch(() => null);
+    if (!Array.isArray(resultado?.data) || !Number.isInteger(resultado?.pagination?.last_visible_page)) throw new ErroImportacao("Resposta inválida do Jikan; aguardando nova tentativa.", true);
     const animes = (resultado.data as AnimeJikan[]).filter(anime => Number.isInteger(anime.mal_id) && anime.title && permitirAnime(anime));
     const ids = animes.map(anime => anime.mal_id);
     const { data: existentes, error: erroLeitura } = ids.length ? await banco.from("anime_catalog").select("mal_id,title,title_english,title_japanese,synopsis,local_image_url,image_url").in("mal_id", ids) : { data: [], error: null };
@@ -108,14 +126,15 @@ Deno.serve(async (req) => {
     }
     const continuar = resultado.pagination.has_next_page === true;
     const total = (page === 1 ? 0 : estado.total_synced ?? 0) + novos + atualizados;
-    const { error: erroFinal } = await banco.from("sync_state").update({ mode, current_page: page, max_page: resultado.pagination.last_visible_page, total_synced: total, is_running: false, last_error: null, last_run_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", chaveEstado);
+    const { data: confirmado, error: erroFinal } = await banco.from("sync_state").update({ mode, current_page: page, max_page: resultado.pagination.last_visible_page, total_synced: total, is_running: false, last_error: null, last_run_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", chaveEstado).eq("updated_at", concessao).select("id");
     if (erroFinal) throw erroFinal;
+    if (!confirmado?.length) throw new ErroImportacao("A execução anterior expirou; consultando o progresso salvo.", true, 5000, 409);
     return responder({ success: true, continue: continuar, page, totalPages: resultado.pagination.last_visible_page, processed: total, stats: { novos, atualizados, capas, falhasCapas, filtrados: resultado.data.length - animes.length } });
   } catch (erro) {
     const mensagem = erro instanceof Error && (erro.name === "TimeoutError" || erro.name === "AbortError")
       ? "O Jikan demorou demais para responder. Aguarde e retome a importação; nenhum progresso será perdido."
       : erro instanceof Error ? erro.message : "Falha na importação";
-    if (possuiBloqueio) await banco.from("sync_state").update({ is_running: false, last_error: mensagem, updated_at: new Date().toISOString() }).eq("id", chaveEstado);
-    return responder({ success: false, error: mensagem }, 502);
+    if (possuiBloqueio) await banco.from("sync_state").update({ is_running: false, last_error: mensagem, updated_at: new Date().toISOString() }).eq("id", chaveEstado).eq("updated_at", concessao);
+    return responder({ success: false, error: mensagem, retryable: erro instanceof ErroImportacao ? erro.temporario : erro instanceof Error && ["TimeoutError", "AbortError"].includes(erro.name), retryAfterMs: erro instanceof ErroImportacao ? erro.esperaMs : 0 }, erro instanceof ErroImportacao ? erro.status : 500);
   }
 });

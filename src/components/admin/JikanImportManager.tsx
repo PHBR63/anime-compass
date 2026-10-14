@@ -54,7 +54,7 @@ export function JikanImportManager() {
     if (executando) return;
     pausado.current = false;
     setExecutando(true);
-    setMensagem("");
+        setMensagem("");
     try {
       let atual = pagina;
       while (!pausado.current && montado.current) {

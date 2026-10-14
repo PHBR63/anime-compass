@@ -56,7 +56,8 @@ export function JikanRecurringAlerts() {
   });
   if (!data) return null;
 
-  const falhas = data.filter((l) => l.resultado === "erro");
+  // Um evento terminal representa uma execução; diagnósticos intermediários não duplicam a contagem.
+  const falhas = data.filter((l) => ["erro_importacao", "timeout_importacao"].includes(l.evento));
   const fallbacks = data.filter((l) => l.evento === "fallback_acionado");
   const motivoFallback = (l: (typeof data)[number]) =>
     String(((l.detalhes ?? {}) as Record<string, unknown>).motivo ?? "desconhecido");

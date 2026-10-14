@@ -1,3 +1,4 @@
+import { requireAdmin } from "../_shared/adminAuth.ts";
 /**
  * Edge Function: import-catalog
  * 
@@ -460,6 +461,14 @@ Deno.serve(async (req) => {
   // Preflight CORS
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Impede acesso privilegiado sem papel admin ou token do agendamento.
+  const access = await requireAdmin(req);
+  if (access.status !== 200) {
+    return new Response(JSON.stringify({ success: false, error: access.error }), {
+      status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {

@@ -129,6 +129,7 @@ export const ANIME_TYPES: Record<string, string> = {
 export const ANIME_STATUS: Record<string, string> = {
   'Finished Airing': 'Finalizado',
   'Currently Airing': 'Em Exibição',
+  'Airing': 'Em Exibição',
   'Not yet aired': 'Não Lançado',
 };
 

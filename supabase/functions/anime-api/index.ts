@@ -330,81 +330,10 @@ async function handleGetById(supabase: any, id: string | null, malId: string | n
  * Obter estatísticas do catálogo
  */
 async function handleStats(supabase: any): Promise<Response> {
-  // Total de animes
-  const { count: totalAnime } = await supabase
-    .from('anime_catalog')
-    .select('*', { count: 'exact', head: true });
-
-  // Total com imagens
-  const { count: withImages } = await supabase
-    .from('anime_catalog')
-    .select('*', { count: 'exact', head: true })
-    .not('image_url', 'is', null);
-
-  // Buscar todos para agregações
-  const { data: allAnime } = await supabase
-    .from('anime_catalog')
-    .select('type, status, year, score, last_synced_at')
-    .order('last_synced_at', { ascending: false })
-    .limit(10000);
-
-  // Agregar por tipo e status
-  const byType: Record<string, number> = {};
-  const byStatus: Record<string, number> = {};
-  let minYear = Infinity;
-  let maxYear = -Infinity;
-  let minScore = Infinity;
-  let maxScore = -Infinity;
-  let lastSync: string | null = null;
-
-  if (allAnime) {
-    for (const anime of allAnime) {
-      // Primeira iteração define último sync
-      if (!lastSync && anime.last_synced_at) {
-        lastSync = anime.last_synced_at;
-      }
-      
-      // Contagem por tipo
-      if (anime.type) {
-        byType[anime.type] = (byType[anime.type] || 0) + 1;
-      }
-      // Contagem por status
-      if (anime.status) {
-        byStatus[anime.status] = (byStatus[anime.status] || 0) + 1;
-      }
-      // Range de anos
-      if (anime.year) {
-        minYear = Math.min(minYear, anime.year);
-        maxYear = Math.max(maxYear, anime.year);
-      }
-      // Range de notas
-      if (anime.score) {
-        minScore = Math.min(minScore, anime.score);
-        maxScore = Math.max(maxScore, anime.score);
-      }
-    }
-  }
-
-  const stats: StatsResponse = {
-    total_anime: totalAnime || 0,
-    with_images: withImages || 0,
-    by_type: byType,
-    by_status: byStatus,
-    year_range: {
-      min: minYear === Infinity ? 0 : minYear,
-      max: maxYear === -Infinity ? 0 : maxYear,
-    },
-    score_range: {
-      min: minScore === Infinity ? 0 : minScore,
-      max: maxScore === -Infinity ? 0 : maxScore,
-    },
-    last_sync: lastSync,
-  };
-
-  return jsonResponse({
-    success: true,
-    data: stats,
-  });
+  // A agregação SQL considera todo o catálogo e não depende do limite de linhas da API.
+  const { data, error } = await supabase.rpc('get_catalog_stats');
+  if (error) throw error;
+  return jsonResponse({ success: true, data: data as StatsResponse });
 }
 
 /**

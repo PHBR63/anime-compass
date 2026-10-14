@@ -1,5 +1,5 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
+import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "npm:zod@3";
 import { gerarSugestoes } from "../_shared/deepl.ts";
 import { mapearAnime, permitirAnime, obterCapa, type AnimeJikan, type TextosExistentes } from "./catalog.ts";
@@ -33,7 +33,7 @@ class ErroImportacao extends Error {
 }
 
 /** Cliente privado usado só para gravar os logs de diagnóstico (criado sob demanda). */
-let bancoLogs: ReturnType<typeof createClient> | null = null;
+let bancoLogs: SupabaseClient | null = null;
 function obterBancoLogs() {
   const url = Deno.env.get("SUPABASE_URL"), chave = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!bancoLogs && url && chave) bancoLogs = createClient(url, chave);
@@ -239,7 +239,7 @@ Deno.serve(async (req) => {
     await registrarHistorico({ status: "success", created_count: novos, updated_count: atualizados, covers_count: capas, cover_failures: falhasCapas });
     diagnostico("pagina_concluida", { pagina: page, modo: mode, novos, atualizados, capas, falhasCapas, traducoes, duracao_ms: Date.now() - inicio });
     // Erros pendentes são resolvidos quando uma página volta a ser concluída.
-    const { data: pendentes } = await banco.from("jikan_import_history").select("id,finished_at").eq("status", "error").is("resolved_at", null);
+    const { data: pendentes } = await banco.from("jikan_import_history").select("id,finished_at").eq("status", "error").eq("mode", mode).eq("page", page).is("resolved_at", null);
     for (const p of pendentes ?? []) {
       await banco.from("jikan_import_history").update({ resolved_at: new Date().toISOString(), resolved_after_ms: Date.now() - new Date(p.finished_at).getTime() }).eq("id", p.id);
     }

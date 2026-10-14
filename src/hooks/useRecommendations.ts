@@ -1,3 +1,4 @@
+import { useAuth } from './useAuth';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { CatalogAnime } from '@/types/catalog';
@@ -115,8 +116,10 @@ function normalizeResponse(data: any): SmartRecommendationsResponse {
  * Utiliza análise de perfil, scoring e explicações IA
  */
 export function useRecommendations() {
+  const { user } = useAuth();
   return useQuery<SmartRecommendationsResponse>({
-    queryKey: ['recommendations', 'smart'],
+    queryKey: ['recommendations', 'smart', user?.id],
+    enabled: !!user,
     queryFn: async () => {
       // Verificar sessão ativa
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();

@@ -1,3 +1,4 @@
+import { requireAdmin } from "../_shared/adminAuth.ts";
 /**
  * Edge Function: sync-airing-episodes
  * Sincroniza o número de episódios de animes "Currently Airing"
@@ -8,7 +9,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-token',
 };
 
 // Configurações
@@ -29,7 +30,7 @@ function delay(ms: number): Promise<void> {
  */
 async function fetchAnimeFromJikan(malId: number): Promise<{ episodes: number | null; status: string } | null> {
   try {
-    const response = await fetch(`${JIKAN_API_URL}/anime/${malId}`);
+    const response = await fetch(`${JIKAN_API_URL}/anime/${malId}`, { signal: AbortSignal.timeout(6000) });
     
     if (!response.ok) {
       if (response.status === 429) {
@@ -58,6 +59,14 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Impede acesso privilegiado sem papel admin ou token do agendamento.
+  const access = await requireAdmin(req, "sync_airing");
+  if (access.status !== 200) {
+    return new Response(JSON.stringify({ success: false, error: access.error }), {
+      status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     console.log('[sync-airing] Iniciando sincronização de episódios...');
 
@@ -71,7 +80,7 @@ Deno.serve(async (req) => {
     const { data: airingAnimes, error: fetchError } = await supabase
       .from('anime_catalog')
       .select('id, mal_id, title, episodes, status')
-      .eq('status', 'Currently Airing')
+      .in('status', ['Currently Airing', 'Airing'])
       .or('episodes.is.null,episodes.eq.0')
       .order('popularity', { ascending: true, nullsFirst: false })
       .limit(MAX_ANIMES_PER_RUN);
@@ -103,7 +112,10 @@ Deno.serve(async (req) => {
       statusChanged: 0,
     };
 
+    const deadline = Date.now() + 90000;
     for (let i = 0; i < airingAnimes.length; i++) {
+      // Encerra antes do limite do runtime; registros não tratados ficam para a próxima execução.
+      if (Date.now() >= deadline) break;
       const anime = airingAnimes[i];
       results.checked++;
 
@@ -198,8 +210,9 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        success: true,
-        message: `Sincronização concluída`,
+        success: results.errors === 0 && results.checked === airingAnimes.length,
+        pending: airingAnimes.length - results.checked,
+        message: results.errors === 0 && results.checked === airingAnimes.length ? "Sincronização concluída" : "Sincronização parcial; pendências preservadas.",
         results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -1,3 +1,4 @@
+import { requireAdmin } from "../_shared/adminAuth.ts";
 /**
  * Edge Function: run-system-tests
  * Executa testes automatizados do sistema e registra resultados
@@ -1260,12 +1261,20 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
   
+  // Impede acesso privilegiado sem papel admin ou token do agendamento.
+  const access = await requireAdmin(req);
+  if (access.status !== 200) {
+    return new Response(JSON.stringify({ success: false, error: access.error }), {
+      status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     
     // Parse request body
     let triggerType = 'manual';
-    let triggeredBy: string | null = null;
+    let triggeredBy: string | null = access.userId;
     let category: string | null = null;
     let testIds: string[] | null = null;
     
@@ -1273,7 +1282,7 @@ Deno.serve(async (req) => {
       try {
         const body = await req.json();
         triggerType = body.trigger || 'manual';
-        triggeredBy = body.triggered_by || null;
+        triggeredBy = access.userId;
         category = body.category || null;
         testIds = body.test_ids || null;
       } catch {

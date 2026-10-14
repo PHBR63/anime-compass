@@ -22,11 +22,11 @@ Todas as ações exigem sessão válida e papel de administrador verificado no s
 
 Falhas temporárias de rede, tempo limite, HTTP 408/429 e erros 5xx geram tentativas com esperas de 5, 10, 20, 40, 80, 160 e até 300 segundos. O limite 429 respeita pelo menos 60 segundos e o cabeçalho `Retry-After`, quando presente. A última falha, número da tentativa e contagem regressiva aparecem no painel. Erros permanentes, de permissão ou parâmetros encerram a retomada automática.
 
-O navegador guarda a intenção de execução, modo, página e prazo por administrador; o servidor mantém a última página confirmada e o erro. Antes de cada tentativa, o painel consulta esse progresso para recuperar inclusive chamadas que concluíram após perda da resposta. Bloqueios abandonados expiram após dois minutos. Não há chamadas em segundo plano com a tela fechada, nem agendamento recorrente: a retomada acontece ao retornar ao painel, e pode ser cancelada em **Pausar**.
+O navegador guarda a intenção de execução, modo, página e prazo por administrador; o servidor mantém a última página confirmada e o erro. Antes de cada tentativa, o painel consulta esse progresso para recuperar inclusive chamadas que concluíram após perda da resposta. Bloqueios abandonados expiram após dois minutos. A retomada progressiva manual depende do painel aberto e pode ser cancelada em **Pausar**. Separadamente, existe o cron diário das 03h BRT: cada disparo percorre até 40 páginas, continua do checkpoint salvo e encerra a cadeia se uma página falhar. O próximo cron diário retoma do checkpoint. Isso não representa uma atualização completa diária de todos os títulos.
 
 ## Opções de tradução automática pesquisadas
 
-Nenhuma tradução foi ativada nem credencial solicitada. Os serviços abaixo utilizam modelos de tradução automática, mesmo quando não são ferramentas de IA generativa.
+O fluxo DeepL está implementado para gerar sugestões pendentes; depende de chave/cota válida e revisão administrativa. Não salva automaticamente a sinopse final. Os serviços abaixo utilizam modelos de tradução automática, mesmo quando não são ferramentas de IA generativa.
 
 | Opção | Português | Requisitos e observações |
 | --- | --- | --- |

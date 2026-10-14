@@ -60,7 +60,7 @@ self.addEventListener('activate', (event) => {
           cacheNames
             .filter((cacheName) => {
               // Manter apenas caches atuais do Workbox
-              return cacheName.startsWith('workbox-') && 
+              return cacheName === 'supabase-cache' || cacheName.startsWith('workbox-') &&
                      !cacheName.includes('precache') && 
                      !cacheName.includes('runtime');
             })

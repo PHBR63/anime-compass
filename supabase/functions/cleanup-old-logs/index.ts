@@ -1,3 +1,4 @@
+import { requireAdmin } from "../_shared/adminAuth.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /**
@@ -8,13 +9,21 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-token",
 };
 
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Impede acesso privilegiado sem papel admin ou token do agendamento.
+  const access = await requireAdmin(req, "cleanup_logs");
+  if (access.status !== 200) {
+    return new Response(JSON.stringify({ success: false, error: access.error }), {
+      status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {

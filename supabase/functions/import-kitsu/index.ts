@@ -8,7 +8,7 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "npm:zod@3";
 import { gerarSugestoes } from "../_shared/deepl.ts";
-import { mapearAnimeKitsu, permitirAnimeKitsu, obterCapaKitsu, type AnimeKitsu } from "./kitsu.ts";
+import { mapearAnimeKitsu, permitirAnimeKitsu, type AnimeKitsu, type TextosExistentesKitsu } from "./kitsu.ts";
 
 const esquema = z.object({
   action: z.enum(["status", "process", "reset"]).default("status"),
@@ -90,11 +90,11 @@ async function mapearId(fonte: "myanimelist" | "kitsu", id: number): Promise<num
 /** Busca no Kitsu os animes por uma lista de IDs do Kitsu; devolve mapa por id. */
 async function buscarKitsu(ids: number[]): Promise<Map<number, AnimeKitsu>> {
   const mapa = new Map<number, AnimeKitsu>();
-  for (const grupo of []) void grupo; // marcador para leitura clara dos blocos abaixo
+  // Consulta em grupos de 10, aproveitando o filtro em lote do Kitsu.
   for (let i = 0; i < ids.length; i += 10) {
     const lista = ids.slice(i, i + 10).join(",");
-    const url = `${KITSU_BASE}?filter[id]=${lista}&page%5Blimit%5D=10`;
-    diagnostico("consulta_iniciada", { fonte: "kitsu", ids: lista.length });
+    const url = `${KITSU_BASE}?filter%5Bid%5D=${lista}&page%5Blimit%5D=10`;
+    diagnostico("consulta_iniciada", { fonte: "kitsu", ids: lista });
     const resposta = await fetch(url, { signal: AbortSignal.timeout(15000) });
     diagnostico("consulta_respondida", { base: "kitsu", status: resposta.status });
     if (resposta.status === 429 || resposta.status >= 500) throw new ErroImportacao(`O Kitsu está ocupado (${resposta.status}). A importação será retomada automaticamente.`, true, resposta.status === 429 ? 60000 : 15000);
@@ -109,8 +109,8 @@ async function buscarKitsu(ids: number[]): Promise<Map<number, AnimeKitsu>> {
   return mapa;
 }
 
-/** Baixa a capa e grava no balde de imagens local; devolve a URL pública ou null. */
-async function salvarCapa(banco: SupabaseClient, urlBackend: string, malId: number, capa: string) {
+/** Baixa a capa e grava no balde de imagens local; devolve a URL pública ou lança falha tratada acima. */
+async function salvarCapa(banco: SupabaseClient, malId: number, capa: string) {
   const imagem = await fetch(capa, { signal: AbortSignal.timeout(7000) });
   if (!imagem.ok) { await imagem.text(); throw new Error("Capa indisponível"); }
   const tipo = imagem.headers.get("content-type")?.split(";")[0] ?? "";
@@ -149,6 +149,7 @@ Deno.serve(async (req) => {
     const { data: registro } = await banco.from("cron_token_hashes").select("token_hash").eq("name", "kitsu_daily").maybeSingle();
     if (!registro || registro.token_hash !== hash) return responder({ error: "Agendamento não autorizado" }, 401);
     action = "process"; mode = "enrich";
+    // Continua a varredura a partir da última página salva.
     const { data: atual } = await banco.from("sync_state").select("current_page,mode,max_page").eq("id", chaveEstado).maybeSingle();
     const ultima = atual?.mode === "enrich" ? atual.current_page ?? 0 : 0;
     page = atual?.max_page && ultima >= atual.max_page ? 1 : Math.max(2, ultima + 1);
@@ -203,10 +204,6 @@ Deno.serve(async (req) => {
     let novos = 0, atualizados = 0, capas = 0, falhasCapas = 0, semMapeamento = 0, semPendencias = 0, traduzidos = 0, totalPaginas: number | null = null;
     if (mode === "enrich") {
       // Percorre o catálogo em ordem de MAL ID, página por página, completando o que falta.
-      if (page === 1) {
-        const { count } = await banco.from("anime_catalog").select("*", { count: "exact", head: true });
-        totalPaginas = count ? Math.ceil(count / TAMANHO_PAGINA) : 0;
-      }
       const offset = (page - 1) * TAMANHO_PAGINA;
       const { data: linhas, error: erroLinhas } = await banco.from("anime_catalog")
         .select("mal_id,title,title_english,title_japanese,synopsis,synopsis_pt,score,scored_by,rank,popularity,members,episodes,status,type,rating,year,season,image_url,local_image_url")
@@ -216,44 +213,46 @@ Deno.serve(async (req) => {
       semPendencias = (linhas ?? []).length - pendentes.length;
       // Mapeia cada MAL ID para o Kitsu pelo serviço externo.
       const vinculos = await emGrupos(pendentes, 5, async (linha) => ({ mal_id: linha.mal_id as number, kitsu: await mapearId("myanimelist", linha.mal_id as number) }));
-      for (const v of vinculos) if (!v.kitsu) { semMapeamento++; diagnostico("sem_mapeamento", { mal_id: v.mal_id, modo: mode }); }
-      const comVinculo = vinculos.filter(v => v.kitsu) as { mal_id: number; kitsu: number }[];
+      for (const v of vinculos) if (!v.kitsu) { semMapeamento++; diagnostico("sem_mapeamento", { mal_id: v.mal_id, modo: mode, pagina: page }); }
+      const comVinculo = vinculos.filter((v): v is { mal_id: number; kitsu: number } => typeof v.kitsu === "number");
       const animes = await buscarKitsu(comVinculo.map(v => v.kitsu));
       // Preenche somente campos vazios de cada anime; capas apenas para quem não tem nenhuma imagem.
       let baixadas = 0;
+      const preenchidos: number[] = [];
       for (const v of comVinculo) {
         const anime = animes.get(v.kitsu);
-        if (!anime || !permitirAnimeKitsu(anime)) continue;
         const linha = pendentes.find(p => p.mal_id === v.mal_id);
-        if (!linha) continue;
-        const registro = mapearAnimeKitsu(anime, linha as never);
-        const capa = registro.image_url as string | null ?? null;
+        if (!anime || !permitirAnimeKitsu(anime) || !linha) continue;
+        const registro = mapearAnimeKitsu(anime, linha as unknown as TextosExistentesKitsu);
+        const capa = (registro.image_url as string | null) ?? null;
         if (Object.keys(registro).length === 0) { semPendencias++; continue; }
         const { error: erroSalvar } = await banco.from("anime_catalog").update(registro).eq("mal_id", v.mal_id);
         if (erroSalvar) throw erroSalvar;
         atualizados++;
+        preenchidos.push(v.mal_id);
         if (capa && baixadas < MAX_CAPAS_POR_PAGINA) {
           baixadas++;
           try {
-            const local = await salvarCapa(banco, urlBackend, v.mal_id, capa);
+            const local = await salvarCapa(banco, v.mal_id, capa);
             const { error: erroCapa } = await banco.from("anime_catalog").update({ local_image_url: local }).eq("mal_id", v.mal_id);
             if (erroCapa) throw erroCapa;
             capas++;
-          } catch (falhaCapa) { falhasCapas++; diagnostico("falha_capa", { mal_id: v.mal_id, erro: falhaCapa instanceof Error ? falhaCapa.message : "desconhecido" }); }
+          } catch (falhaCapa) { falhasCapas++; diagnostico("falha_capa", { mal_id: v.mal_id, erro: falhaCapa instanceof Error ? falhaCapa.message : "desconhecido", pagina: page }); }
         }
       }
       // Sugestões de tradução para as sinopses recém-preenchidas; falhas não interrompem.
       try {
-        const alvos = comVinculo.map(v => pendentes.find(p => p.mal_id === v.mal_id)).filter(Boolean) as Record<string, unknown>[];
-        const candidatos = alvos.map(l => ({ mal_id: l.mal_id as number, title: l.title as string, synopsis: (l.synopsis ?? null) as string | null, synopsis_pt: (l.synopsis_pt ?? null) as string | null }));
-        traduzidos = await gerarSugestoes(banco, candidatos, "import");
-      } catch (e) { diagnostico("erro_traducao", { pagina: page, erro: e instanceof Error ? e.message : "Falha na tradução" }); }
+        const { data: lidas } = preenchidos.length
+          ? await banco.from("anime_catalog").select("mal_id,title,synopsis,synopsis_pt").in("mal_id", preenchidos)
+          : { data: [] };
+        traduzidos = await gerarSugestoes(banco, (lidas ?? []) as { mal_id: number; title: string; synopsis: string | null; synopsis_pt: string | null }[], "import");
+      } catch (e) { diagnostico("erro_traducao", { pagina: page, erro: e instanceof Error ? e.message : "Falha na tradução", modo: mode }); }
     } else {
       // Descobre animes novos entre os mais populares do Kitsu (reserva quando o Jikan não funciona).
       const url = `${KITSU_BASE}?sort=-userCount&filter%5Bsubtype%5D=TV,movie,OVA,ONA,special&page%5Blimit%5D=${TAMANHO_PAGINA}&page%5Boffset%5D=${(page - 1) * TAMANHO_PAGINA}`;
       diagnostico("consulta_iniciada", { fonte: "kitsu", pagina: page, modo: mode });
       const resposta = await fetch(url, { signal: AbortSignal.timeout(15000) });
-      diagnostico("consulta_respondida", { base: "kitsu", status: resposta.status, pagina: page });
+      diagnostico("consulta_respondida", { base: "kitsu", status: resposta.status, pagina: page, modo: mode });
       if (resposta.status === 429 || resposta.status >= 500) throw new ErroImportacao(`O Kitsu está ocupado (${resposta.status}). A importação será retomada automaticamente.`, true, resposta.status === 429 ? 60000 : 15000);
       if (!resposta.ok) throw new ErroImportacao(`Kitsu indisponível (${resposta.status}).`, false, 0, 422);
       const resultado = await resposta.json().catch(() => null);
@@ -263,35 +262,37 @@ Deno.serve(async (req) => {
       const candidatos = (resultado.data as AnimeKitsu[]).filter(permitirAnimeKitsu);
       // Mapeia cada id do Kitsu para o MAL; sem vínculo, o anime não pode entrar no catálogo.
       const vinculos = await emGrupos(candidatos, 5, async (anime) => ({ anime, mal_id: await mapearId("kitsu", Number(anime.id)) }));
-      for (const v of vinculos) if (!v.mal_id) { semMapeamento++; diagnostico("sem_mapeamento", { kitsu_id: v.anime.id, modo: mode }); }
+      for (const v of vinculos) if (!v.mal_id) { semMapeamento++; diagnostico("sem_mapeamento", { kitsu_id: v.anime.id, modo: mode, pagina: page }); }
       const idsValidos = vinculos.map(v => v.mal_id).filter(Number.isInteger) as number[];
       const { data: existentes } = idsValidos.length ? await banco.from("anime_catalog").select("mal_id").in("mal_id", idsValidos) : { data: [] };
       const jaCatalogados = new Set((existentes ?? []).map(e => e.mal_id));
       let baixadas = 0;
+      const criados: { mal_id: number; anime: AnimeKitsu }[] = [];
       for (const v of vinculos) {
         if (!v.mal_id || jaCatalogados.has(v.mal_id)) continue;
         const registro = { mal_id: v.mal_id, ...mapearAnimeKitsu(v.anime) };
-        const capa = registro.image_url as string | null ?? null;
+        const capa = (registro.image_url as string | null) ?? null;
         const { error: erroSalvar } = await banco.from("anime_catalog").upsert(registro, { onConflict: "mal_id", ignoreDuplicates: true });
         if (erroSalvar) throw erroSalvar;
         novos++;
+        criados.push({ mal_id: v.mal_id, anime: v.anime });
         if (capa && baixadas < MAX_CAPAS_POR_PAGINA) {
           baixadas++;
           try {
-            const local = await salvarCapa(banco, urlBackend, v.mal_id, capa);
+            const local = await salvarCapa(banco, v.mal_id, capa);
             const { error: erroCapa } = await banco.from("anime_catalog").update({ local_image_url: local }).eq("mal_id", v.mal_id);
             if (erroCapa) throw erroCapa;
             capas++;
-          } catch (falhaCapa) { falhasCapas++; diagnostico("falha_capa", { mal_id: v.mal_id, erro: falhaCapa instanceof Error ? falhaCapa.message : "desconhecido" }); }
+          } catch (falhaCapa) { falhasCapas++; diagnostico("falha_capa", { mal_id: v.mal_id, erro: falhaCapa instanceof Error ? falhaCapa.message : "desconhecido", pagina: page }); }
         }
       }
-      // Sugestões de tradução para os animes recém-criados.
+      // Sugestões de tradução para as sinopses dos animes recém-criados.
       try {
-        const candidatosTraducao = vinculos.filter(v => v.mal_id && !jaCatalogados.has(v.mal_id)).map(v => ({ mal_id: v.mal_id as number, title: v.anime.attributes.canonicalTitle ?? "", synopsis: v.anime.attributes.synopsis ?? null, synopsis_pt: null }));
+        const candidatosTraducao = criados.map(c => ({ mal_id: c.mal_id, title: c.anime.attributes.canonicalTitle ?? "", synopsis: c.anime.attributes.synopsis ?? null, synopsis_pt: null as string | null }));
         traduzidos = await gerarSugestoes(banco, candidatosTraducao, "import");
-      } catch (e) { diagnostico("erro_traducao", { pagina: page, erro: e instanceof Error ? e.message : "Falha na tradução" }); }
+      } catch (e) { diagnostico("erro_traducao", { pagina: page, erro: e instanceof Error ? e.message : "Falha na tradução", modo: mode }); }
     }
-    // Definir se há continuação: no modo enrich usa o total do catálogo; no discover, o total do Kitsu.
+    // Total de páginas: no enrich usa o tamanho do catálogo; no discover, o total informado pelo Kitsu.
     if (totalPaginas === null) {
       if (page === 1) {
         const { count } = await banco.from("anime_catalog").select("*", { count: "exact", head: true });
@@ -304,10 +305,10 @@ Deno.serve(async (req) => {
     if (erroFinal) throw erroFinal;
     if (!confirmado?.length) throw new ErroImportacao("A execução anterior expirou; consultando o progresso salvo.", true, 5000, 409);
     await registrarHistorico({ status: "success", created_count: novos, updated_count: atualizados, covers_count: capas, cover_failures: falhasCapas });
-    diagnostico("pagina_concluida", { pagina: page, modo: mode, novos, atualizados, capas, falhasCapas, traducoes: traduzidos, semMapeamento, duracao_ms: Date.now() - inicio });
+    diagnostico("pagina_concluida", { pagina: page, modo: mode, novos, atualizados, capas, falhasCapas, traducoes: traduzidos, semMapeamento, semPendencias, duracao_ms: Date.now() - inicio });
     // Erros pendentes são resolvidos quando uma página volta a ser concluída.
-    const { data: pendentesErro } = await banco.from("kitsu_import_history").select("id,finished_at").eq("status", "error").eq("mode", mode).eq("page", page).is("resolved_at", null);
-    for (const p of pendentesErro ?? []) {
+    const { data: errosPendentes } = await banco.from("kitsu_import_history").select("id,finished_at").eq("status", "error").eq("mode", mode).eq("page", page).is("resolved_at", null);
+    for (const p of errosPendentes ?? []) {
       await banco.from("kitsu_import_history").update({ resolved_at: new Date().toISOString(), resolved_after_ms: Date.now() - new Date(p.finished_at).getTime() }).eq("id", p.id);
     }
     return responder({ success: true, continue: continuar, page, totalPages: totalPaginas, processed: total, stats: { novos, atualizados, capas, falhasCapas, traducoes: traduzidos, semMapeamento, semPendencias } });

@@ -32,9 +32,37 @@ class ErroImportacao extends Error {
   }
 }
 
-/** Registra eventos de diagnóstico em formato estruturado para consulta nos registros da função. */
+/** Cliente privado usado só para gravar os logs de diagnóstico (criado sob demanda). */
+let bancoLogs: ReturnType<typeof createClient> | null = null;
+function obterBancoLogs() {
+  const url = Deno.env.get("SUPABASE_URL"), chave = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!bancoLogs && url && chave) bancoLogs = createClient(url, chave);
+  return bancoLogs;
+}
+
+/** Classifica o evento em resultado: sucesso, aviso, erro ou info. */
+function classificarResultado(evento: string, detalhes: Record<string, unknown>) {
+  if (evento === "pagina_concluida") return "sucesso";
+  if (evento === "consulta_respondida") return Number(detalhes.status) < 400 ? "sucesso" : "erro";
+  if (evento === "fallback_acionado" || evento === "falha_capa") return "aviso";
+  if (evento === "consulta_iniciada") return "info";
+  return "erro";
+}
+
+/** Registra eventos de diagnóstico nos registros da função e na tabela consultável pelo painel. */
 function diagnostico(evento: string, detalhes: Record<string, unknown> = {}) {
   console.log(JSON.stringify({ fonte: "import-jikan", evento, ...detalhes }));
+  const base = typeof detalhes.base === "string" ? detalhes.base : typeof detalhes.de === "string" ? detalhes.de : null;
+  const ehPublica = base ? base.includes("api.jikan.moe") : null;
+  // Grava sem bloquear a importação; falhas de log nunca interrompem o fluxo.
+  obterBancoLogs()?.from("jikan_import_logs").insert({
+    evento,
+    base: base === null ? null : ehPublica ? "publica" : "propria",
+    resultado: classificarResultado(evento, detalhes),
+    pagina: typeof detalhes.pagina === "number" ? detalhes.pagina : null,
+    modo: typeof detalhes.modo === "string" ? detalhes.modo : null,
+    detalhes,
+  }).then(({ error }) => { if (error) console.error("falha ao gravar log", error.message); });
 }
 
 /** Devolve respostas JSON com CORS inclusive nos erros. */

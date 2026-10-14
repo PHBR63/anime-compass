@@ -795,6 +795,63 @@ export type Database = {
         }
         Relationships: []
       }
+      kitsu_import_history: {
+        Row: {
+          cover_failures: number
+          covers_count: number
+          created_count: number
+          duration_ms: number
+          error_message: string | null
+          finished_at: string
+          id: string
+          mode: string
+          page: number
+          resolved_after_ms: number | null
+          resolved_at: string | null
+          retryable: boolean | null
+          started_at: string
+          status: string
+          triggered_by: string | null
+          updated_count: number
+        }
+        Insert: {
+          cover_failures?: number
+          covers_count?: number
+          created_count?: number
+          duration_ms: number
+          error_message?: string | null
+          finished_at: string
+          id?: string
+          mode: string
+          page: number
+          resolved_after_ms?: number | null
+          resolved_at?: string | null
+          retryable?: boolean | null
+          started_at: string
+          status: string
+          triggered_by?: string | null
+          updated_count?: number
+        }
+        Update: {
+          cover_failures?: number
+          covers_count?: number
+          created_count?: number
+          duration_ms?: number
+          error_message?: string | null
+          finished_at?: string
+          id?: string
+          mode?: string
+          page?: number
+          resolved_after_ms?: number | null
+          resolved_at?: string | null
+          retryable?: boolean | null
+          started_at?: string
+          status?: string
+          triggered_by?: string | null
+          updated_count?: number
+        }
+        Relationships: []
+      }
       list_items: {
         Row: {
           anime_entry_id: string

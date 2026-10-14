@@ -29,6 +29,13 @@
       "when": 1791943922158,
       "tag": "0003_jikan_import_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791949226696,
+      "tag": "0004_create_kitsu_import_history",
+      "breakpoints": true
     }
   ]
 }

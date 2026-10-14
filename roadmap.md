@@ -8,4 +8,4 @@
 - [ ] Confirmar importação real e leitura das capas — bloqueado pela indisponibilidade do Jikan (timeout também na consulta direta).
 - [x] Integrar o Kitsu (sucessor do Hummingbird) como fonte complementar: completar dados faltantes, sinopses ausentes via DeepL, capas reserva e animes novos com vínculo no MAL (Anime Relations Map); painel Admin → Catálogo → Kitsu.
 - [ ] Executar uma primeira varredura do Kitsu no catálogo e conferir resultados no painel — depende da execução pelo administrador no painel.
-- [x] Pesquisar e apresentar opções de tradução automática, sem ativar serviços pagos ou IA externa.
+- [x] Pesquisar e apresentar opções de tradução automática, sem ativar serviços pagos ou IA externa.- [x] Descobrir: consulta única com total exato, facetas globais, filtros na URL, layout compacto e enriquecimento Kitsu de gênero/estúdio/temporada.

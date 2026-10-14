@@ -92,6 +92,9 @@ export type Database = {
           genres: Json | null
           id: string
           image_url: string | null
+          kitsu_id: number | null
+          kitsu_link_checked_at: string | null
+          kitsu_link_status: string | null
           kitsu_metadata_checked_at: string | null
           kitsu_metadata_result: string | null
           last_synced_at: string | null
@@ -122,6 +125,9 @@ export type Database = {
           genres?: Json | null
           id?: string
           image_url?: string | null
+          kitsu_id?: number | null
+          kitsu_link_checked_at?: string | null
+          kitsu_link_status?: string | null
           kitsu_metadata_checked_at?: string | null
           kitsu_metadata_result?: string | null
           last_synced_at?: string | null
@@ -152,6 +158,9 @@ export type Database = {
           genres?: Json | null
           id?: string
           image_url?: string | null
+          kitsu_id?: number | null
+          kitsu_link_checked_at?: string | null
+          kitsu_link_status?: string | null
           kitsu_metadata_checked_at?: string | null
           kitsu_metadata_result?: string | null
           last_synced_at?: string | null
@@ -1665,6 +1674,9 @@ export type Database = {
           genres: Json | null
           id: string
           image_url: string | null
+          kitsu_id: number | null
+          kitsu_link_checked_at: string | null
+          kitsu_link_status: string | null
           kitsu_metadata_checked_at: string | null
           kitsu_metadata_result: string | null
           last_synced_at: string | null
@@ -1725,6 +1737,13 @@ export type Database = {
         Returns: boolean
       }
       is_moderator_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      kitsu_link_candidates: {
+        Args: { p_limit?: number }
+        Returns: {
+          mal_id: number
+          remaining: number
+        }[]
+      }
       kitsu_metadata_candidates: {
         Args: { p_limit?: number }
         Returns: {
@@ -1764,6 +1783,10 @@ export type Database = {
           p_test_function: string
         }
         Returns: string
+      }
+      set_kitsu_link: {
+        Args: { p_kitsu_id: number; p_mal_id: number; p_status: string }
+        Returns: undefined
       }
     }
     Enums: {

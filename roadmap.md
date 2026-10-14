@@ -6,4 +6,6 @@
 - [x] Integrar capas e controles administrativos com pausa e retomada.
 - [x] Testar preservação de textos e painel autenticado em 320, 390, 768 e 1280 px.
 - [ ] Confirmar importação real e leitura das capas — bloqueado pela indisponibilidade do Jikan (timeout também na consulta direta).
+- [x] Integrar o Kitsu (sucessor do Hummingbird) como fonte complementar: completar dados faltantes, sinopses ausentes via DeepL, capas reserva e animes novos com vínculo no MAL (Anime Relations Map); painel Admin → Catálogo → Kitsu.
+- [ ] Executar uma primeira varredura do Kitsu no catálogo e conferir resultados no painel — depende da execução pelo administrador no painel.
 - [x] Pesquisar e apresentar opções de tradução automática, sem ativar serviços pagos ou IA externa.

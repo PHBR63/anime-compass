@@ -207,8 +207,9 @@ Deno.serve(async (req) => {
     try {
       const { data: candidatos } = ids.length ? await banco.from("anime_catalog").select("mal_id,title,synopsis,synopsis_pt").in("mal_id", ids) : { data: [] };
       traducoes = await gerarSugestoes(banco, candidatos ?? [], "import");
-    } catch (e) { erroTraducao = e instanceof Error ? e.message : "Falha na tradução"; console.error("tradução automática", e); }
+    } catch (e) { erroTraducao = e instanceof Error ? e.message : "Falha na tradução"; console.error("tradução automática", e); diagnostico("erro_traducao", { pagina: page, erro: erroTraducao }); }
     await registrarHistorico({ status: "success", created_count: novos, updated_count: atualizados, covers_count: capas, cover_failures: falhasCapas });
+    diagnostico("pagina_concluida", { pagina: page, modo: mode, novos, atualizados, capas, falhasCapas, traducoes, duracao_ms: Date.now() - inicio });
     // Erros pendentes são resolvidos quando uma página volta a ser concluída.
     const { data: pendentes } = await banco.from("jikan_import_history").select("id,finished_at").eq("status", "error").is("resolved_at", null);
     for (const p of pendentes ?? []) {

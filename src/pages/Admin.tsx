@@ -72,7 +72,9 @@ export default function Admin() {
           <Aba valor="system" icone={FlaskConical}>Sistema</Aba>
         </AbasRolaveis>
 
-        <TabsContent value="overview" className="mt-4 sm:mt-6">
+        <TabsContent value="overview" className="mt-4 sm:mt-6 space-y-4">
+          {/* Aviso quando a importação automática do Jikan falha ou termina com erros */}
+          <JikanImportAlerts />
           <ErrorLogs />
         </TabsContent>
 

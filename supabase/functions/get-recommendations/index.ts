@@ -94,21 +94,29 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-/** Busca com retry e tratamento de rate limit */
-async function fetchWithRetry(url: string, retries = 3): Promise<Response> {
+// Disjuntor: quando o Jikan falha por timeout/rede, as próximas consultas desta execução são puladas,
+// evitando que dezenas de chamadas esperem e estourem o limite de 150 s da função.
+let jikanIndisponivel = false;
+
+/** Busca com retry, tempo limite por consulta e tratamento de rate limit */
+async function fetchWithRetry(url: string, retries = 2): Promise<Response> {
+  if (jikanIndisponivel) throw new Error('Jikan indisponível nesta execução');
   for (let i = 0; i < retries; i++) {
     try {
-      const response = await fetch(url);
+      // Cada consulta tem no máximo 6 s para responder.
+      const response = await fetch(url, { signal: AbortSignal.timeout(6000) });
       if (response.status === 429) {
         console.log(`[Jikan] Rate limited, aguardando 2s antes de retry ${i + 1}/${retries}`);
         await delay(2000);
         continue;
       }
+      if (response.status >= 500) jikanIndisponivel = true;
       return response;
     } catch (error) {
       console.warn(`[Jikan] Erro na requisição (tentativa ${i + 1}):`, error);
-      if (i === retries - 1) throw error;
-      await delay(1000);
+      // Timeout ou falha de rede: marca o Jikan como fora do ar e desiste imediatamente.
+      jikanIndisponivel = true;
+      throw error;
     }
   }
   throw new Error('Max retries exceeded');

@@ -60,11 +60,12 @@ Deno.serve(async (req) => {
     }
     // Compare-and-swap impede importações simultâneas em abas diferentes.
     const reiniciando = page === 1 || estado.mode !== mode;
-    const { data: bloqueio, error: erroBloqueio } = await banco.from("sync_state").update({ is_running: true, mode, ...(reiniciando ? { current_page: 0, total_synced: 0, max_page: null } : {}), updated_at: agora }).eq("id", chaveEstado).eq("updated_at", estado.updated_at).select("id");
+    const { data: bloqueio, error: erroBloqueio } = await banco.from("sync_state").update({ is_running: true, mode, ...(reiniciando ? { current_page: 0, total_synced: 0, max_page: null } : {}), updated_at: agora }).eq("id", chaveEstado).eq("updated_at", estado.updated_at).select("id,updated_at");
     if (erroBloqueio) throw erroBloqueio;
     if (!bloqueio?.length) return responder({ error: "Outra importação iniciou; aguardando a liberação.", retryable: true, retryAfterMs: 5000 }, 409);
     possuiBloqueio = true;
-    concessao = agora;
+    // Usa o valor retornado pelo banco: o gatilho atualiza o horário com precisão própria.
+    concessao = bloqueio[0].updated_at;
     // Intervalo conservador: uma página a cada 1,2 s, abaixo de 60 consultas/minuto.
     const intervalo = Date.now() - new Date(estado.updated_at).getTime();
     if (intervalo < 1200) await new Promise(resolve => setTimeout(resolve, 1200 - intervalo));
@@ -134,6 +135,6 @@ Deno.serve(async (req) => {
       ? "O Jikan demorou demais para responder. Aguarde e retome a importação; nenhum progresso será perdido."
       : erro instanceof Error ? erro.message : "Falha na importação";
     if (possuiBloqueio) await banco.from("sync_state").update({ is_running: false, last_error: mensagem, updated_at: new Date().toISOString() }).eq("id", chaveEstado).eq("updated_at", concessao);
-    return responder({ success: false, error: mensagem, retryable: erro instanceof ErroImportacao ? erro.temporario : false, retryAfterMs: erro instanceof ErroImportacao ? erro.esperaMs : 0 }, erro instanceof ErroImportacao ? erro.status : 500);
+    return responder({ success: false, error: mensagem, retryable: erro instanceof ErroImportacao ? erro.temporario : erro instanceof Error && ["TimeoutError", "AbortError"].includes(erro.name), retryAfterMs: erro instanceof ErroImportacao ? erro.esperaMs : 0 }, erro instanceof ErroImportacao ? erro.status : 500);
   }
 });

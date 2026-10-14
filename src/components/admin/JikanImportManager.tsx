@@ -69,6 +69,7 @@ export function JikanImportManager() {
       return { ...(await chamarJikan({ action: "status" })).data, adminId: usuario.user.id };
     },
     retry: false,
+    refetchInterval: consulta => consulta.state.data?.is_running ? 10000 : false,
   });
   const chave = estado?.adminId ? `jikan-retomada:${estado.adminId}` : "";
 

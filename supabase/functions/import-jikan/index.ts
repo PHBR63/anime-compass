@@ -42,6 +42,13 @@ Deno.serve(async (req) => {
   const banco = createClient(urlBackend, chavePrivada);
   let possuiBloqueio = false;
   let concessao = "";
+  // Marca o início para medir a duração de cada página no histórico.
+  const inicio = Date.now();
+  /** Registra a execução no histórico sem interromper a importação em caso de falha. */
+  const registrarHistorico = async (dados: Record<string, unknown>) => {
+    const { error } = await banco.from("jikan_import_history").insert({ mode, page, started_at: new Date(inicio).toISOString(), finished_at: new Date().toISOString(), duration_ms: Date.now() - inicio, triggered_by: usuario.user?.id, ...dados });
+    if (error) console.error("histórico Jikan", error);
+  };
   try {
     // Garante uma linha inicial sem substituir progresso de outra execução.
     const { error: erroInicial } = await banco.from("sync_state").upsert({ id: chaveEstado, mode: "full", current_page: 0, is_running: false }, { onConflict: "id", ignoreDuplicates: true });
@@ -129,11 +136,18 @@ Deno.serve(async (req) => {
     const { data: confirmado, error: erroFinal } = await banco.from("sync_state").update({ mode, current_page: page, max_page: resultado.pagination.last_visible_page, total_synced: total, is_running: false, last_error: null, last_run_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", chaveEstado).eq("updated_at", concessao).select("id");
     if (erroFinal) throw erroFinal;
     if (!confirmado?.length) throw new ErroImportacao("A execução anterior expirou; consultando o progresso salvo.", true, 5000, 409);
+    await registrarHistorico({ status: "success", created_count: novos, updated_count: atualizados, covers_count: capas, cover_failures: falhasCapas });
+    // Erros pendentes são resolvidos quando uma página volta a ser concluída.
+    const { data: pendentes } = await banco.from("jikan_import_history").select("id,finished_at").eq("status", "error").is("resolved_at", null);
+    for (const p of pendentes ?? []) {
+      await banco.from("jikan_import_history").update({ resolved_at: new Date().toISOString(), resolved_after_ms: Date.now() - new Date(p.finished_at).getTime() }).eq("id", p.id);
+    }
     return responder({ success: true, continue: continuar, page, totalPages: resultado.pagination.last_visible_page, processed: total, stats: { novos, atualizados, capas, falhasCapas, filtrados: resultado.data.length - animes.length } });
   } catch (erro) {
     const mensagem = erro instanceof Error && (erro.name === "TimeoutError" || erro.name === "AbortError")
       ? "O Jikan demorou demais para responder. Aguarde e retome a importação; nenhum progresso será perdido."
       : erro instanceof Error ? erro.message : "Falha na importação";
+    if (possuiBloqueio) await registrarHistorico({ status: "error", error_message: mensagem, retryable: erro instanceof ErroImportacao ? erro.temporario : true });
     if (possuiBloqueio) await banco.from("sync_state").update({ is_running: false, last_error: mensagem, updated_at: new Date().toISOString() }).eq("id", chaveEstado).eq("updated_at", concessao);
     return responder({ success: false, error: mensagem, retryable: erro instanceof ErroImportacao ? erro.temporario : erro instanceof Error && ["TimeoutError", "AbortError"].includes(erro.name), retryAfterMs: erro instanceof ErroImportacao ? erro.esperaMs : 0 }, erro instanceof ErroImportacao ? erro.status : 500);
   }

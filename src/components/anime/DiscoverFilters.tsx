@@ -1,509 +1,200 @@
 /**
- * Componente de filtros avançados para a página Descobrir
- * Permite filtrar por gênero, estúdio, ano, tipo e ordenação
+ * Filtros da Descobrir: gaveta com rascunho (só aplica ao confirmar) e chips removíveis.
+ * Opções vêm das facetas globais do catálogo elegível; contagens rotuladas como "no catálogo".
  */
-
-import { useState } from 'react';
-import { 
-  SlidersHorizontal, 
-  X, 
-  Calendar, 
-  Film, 
-  Building2, 
-  Star,
-  ArrowUpDown,
-  ChevronDown,
-  EyeOff
-} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { SlidersHorizontal, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetFooter,
-} from '@/components/ui/sheet';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { useAnimeGenres, useAnimeStudios } from '@/hooks/useAnimeApi';
-import { 
-  type DiscoverFilters, 
-  type DiscoverSort,
-  ANIME_TYPES, 
-  ANIME_STATUSES,
-  getAvailableYears 
-} from '@/hooks/useAdvancedAnimeFilters';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import {
+  STATUS_OPTIONS, TYPE_LABELS, activeChips, clearFilters, removeChip, validateYearRange,
+  type DiscoverState,
+} from '@/lib/discoverParams';
+import type { DiscoverFacets, FacetItem } from '@/hooks/useDiscover';
 
-interface DiscoverFiltersProps {
-  filters: DiscoverFilters;
-  sort: DiscoverSort;
-  onFiltersChange: (filters: DiscoverFilters) => void;
-  onSortChange: (sort: DiscoverSort) => void;
-  onClear: () => void;
+// Valor sentinela: o Radix Select não aceita value="" em SelectItem.
+const QUALQUER = '__qualquer';
+
+interface SheetProps {
+  state: DiscoverState;
+  facets: DiscoverFacets | undefined;
+  hideInList: boolean;
+  canHide: boolean;
+  onApply: (next: DiscoverState, hideInList: boolean) => void;
 }
 
-// Rótulos para ordenação
-const sortLabels: Record<string, string> = {
-  score: 'Nota',
-  popularity: 'Popularidade',
-  year: 'Ano',
-  title: 'Título',
-};
+/** Lista pesquisável de facetas (gênero/estúdio) com seleção única e contagem global. */
+function FacetPicker({ id, label, items, value, onChange }: {
+  id: string; label: string; items: FacetItem[]; value: string | null; onChange: (v: string | null) => void;
+}) {
+  const [busca, setBusca] = useState('');
+  // Busca em todos os itens (sem corte), normalizando acentos.
+  const filtrados = useMemo(() => {
+    const n = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const q = n(busca.trim());
+    return q ? items.filter(i => n(i.name).includes(q)) : items;
+  }, [items, busca]);
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium">{label}</legend>
+      <Input id={id} value={busca} onChange={e => setBusca(e.target.value)} placeholder={`Buscar ${label.toLowerCase()}…`} aria-label={`Buscar ${label.toLowerCase()}`} className="h-9" />
+      <div role="radiogroup" aria-label={label} className="max-h-48 overflow-y-auto rounded-md border border-border/60 divide-y divide-border/40">
+        <button type="button" role="radio" aria-checked={value === null} onClick={() => onChange(null)}
+          className={`w-full flex justify-between px-3 py-2 text-sm text-left focus-visible:outline-none focus-visible:bg-accent ${value === null ? 'bg-primary/15 text-primary' : 'hover:bg-muted'}`}>
+          Qualquer
+        </button>
+        {filtrados.map(i => (
+          <button key={i.name} type="button" role="radio" aria-checked={value === i.name} onClick={() => onChange(i.name)}
+            className={`w-full flex justify-between gap-2 px-3 py-2 text-sm text-left focus-visible:outline-none focus-visible:bg-accent ${value === i.name ? 'bg-primary/15 text-primary' : 'hover:bg-muted'}`}>
+            <span className="truncate">{i.name}</span>
+            <span className="text-xs text-muted-foreground shrink-0">{i.count.toLocaleString('pt-BR')}</span>
+          </button>
+        ))}
+        {filtrados.length === 0 && <p className="px-3 py-2 text-sm text-muted-foreground">Nada encontrado.</p>}
+      </div>
+      <p className="text-[11px] text-muted-foreground">Números = títulos no catálogo inteiro ({items.length.toLocaleString('pt-BR')} opções).</p>
+    </fieldset>
+  );
+}
 
-/**
- * Componente de filtros avançados em sheet (drawer)
- */
-export function DiscoverFiltersSheet({
-  filters,
-  sort,
-  onFiltersChange,
-  onSortChange,
-  onClear,
-}: DiscoverFiltersProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [genreOpen, setGenreOpen] = useState(true);
-  const [studioOpen, setStudioOpen] = useState(false);
-  const [yearOpen, setYearOpen] = useState(false);
-  const [typeOpen, setTypeOpen] = useState(false);
+/** Gaveta de filtros. Edita um rascunho e só altera a busca ao clicar em "Aplicar". */
+export function DiscoverFiltersSheet({ state, facets, hideInList, canHide, onApply }: SheetProps) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(state);
+  const [draftHide, setDraftHide] = useState(hideInList);
+  // Ao abrir, o rascunho parte do estado aplicado atual.
+  useEffect(() => { if (open) { setDraft(state); setDraftHide(hideInList); } }, [open, state, hideInList]);
 
-  // Buscar gêneros e estúdios do catálogo
-  const { data: genres = [] } = useAnimeGenres();
-  const { data: studios = [] } = useAnimeStudios();
-  const years = getAvailableYears();
+  const erroAno = validateYearRange(draft.yearMin, draft.yearMax);
+  const anos = facets?.years ?? [];
+  const tipos = (facets?.types ?? []).filter(t => t.value !== '__sem_tipo');
+  const ativos = activeChips(state).filter(c => c.key !== 'search').length + (hideInList ? 1 : 0);
 
-  // Conta filtros ativos
-  const activeFiltersCount = [
-    filters.genre,
-    filters.studio,
-    filters.yearMin || filters.yearMax,
-    filters.type,
-    filters.status,
-    filters.scoreMin,
-    filters.hideInList,
-  ].filter(Boolean).length;
-
-  // Encontra nomes dos filtros selecionados
-  const selectedGenreName = genres.find(g => g.mal_id === filters.genre)?.name;
-  const selectedStudioName = studios.find(s => s.mal_id === filters.studio)?.name;
-  const selectedTypeName = ANIME_TYPES.find(t => t.value === filters.type)?.label;
-  const selectedStatusName = ANIME_STATUSES.find(s => s.value === filters.status)?.label;
+  const set = <K extends keyof DiscoverState>(k: K, v: DiscoverState[K]) => setDraft(d => ({ ...d, [k]: v }));
 
   return (
-    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 relative">
+        <Button variant="outline" className="h-11 gap-2 shrink-0" aria-label={`Abrir filtros${ativos ? ` (${ativos} ativos)` : ''}`}>
           <SlidersHorizontal className="h-4 w-4" />
           <span className="hidden sm:inline">Filtros</span>
-          {activeFiltersCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center font-medium">
-              {activeFiltersCount}
-            </span>
-          )}
+          {ativos > 0 && <Badge className="h-5 min-w-5 px-1.5">{ativos}</Badge>}
         </Button>
       </SheetTrigger>
-
-      <SheetContent className="w-full sm:max-w-md p-0 flex flex-col">
-        <SheetHeader className="px-4 py-3 border-b">
-          <SheetTitle className="flex items-center gap-2">
-            <SlidersHorizontal className="h-5 w-5" />
-            Filtros Avançados
-          </SheetTitle>
+      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col p-0">
+        <SheetHeader className="px-5 pt-5">
+          <SheetTitle>Filtros</SheetTitle>
+          <SheetDescription>As mudanças só valem depois de clicar em Aplicar.</SheetDescription>
         </SheetHeader>
-
-        <ScrollArea className="flex-1 px-4">
-          <div className="py-4 space-y-4">
-            {/* Toggle para ocultar animes já na lista */}
-            <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border border-border/50">
-              <Label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-                <EyeOff className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <span>Ocultar animes da minha lista</span>
-                  <p className="text-xs text-muted-foreground font-normal">
-                    Esconde animes que você já adicionou
-                  </p>
-                </div>
-              </Label>
-              <Switch
-                checked={filters.hideInList || false}
-                onCheckedChange={(checked) => onFiltersChange({ ...filters, hideInList: checked })}
-              />
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="f-tipo">Formato</Label>
+              <Select value={draft.type ?? QUALQUER} onValueChange={v => set('type', v === QUALQUER ? null : v)}>
+                <SelectTrigger id="f-tipo"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={QUALQUER}>Qualquer</SelectItem>
+                  {tipos.map(t => <SelectItem key={t.value} value={t.value}>{TYPE_LABELS[t.value] ?? t.value}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-
-            {/* Ordenação */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2 text-sm font-medium">
-                <ArrowUpDown className="h-4 w-4" />
-                Ordenar por
-              </Label>
-              <div className="flex gap-2">
-                <Select
-                  value={sort.field}
-                  onValueChange={(value) => onSortChange({ ...sort, field: value as DiscoverSort['field'] })}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
+            {state.mode === 'catalog' && (
+              <div className="space-y-1.5">
+                <Label htmlFor="f-status">Situação</Label>
+                <Select value={draft.status ?? QUALQUER} onValueChange={v => set('status', v === QUALQUER ? null : v as DiscoverState['status'])}>
+                  <SelectTrigger id="f-status"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {Object.entries(sortLabels).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={sort.order}
-                  onValueChange={(value) => onSortChange({ ...sort, order: value as 'asc' | 'desc' })}
-                >
-                  <SelectTrigger className="w-28">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="desc">Maior</SelectItem>
-                    <SelectItem value="asc">Menor</SelectItem>
+                    <SelectItem value={QUALQUER}>Qualquer</SelectItem>
+                    {STATUS_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="f-de">Ano inicial</Label>
+              <Select value={draft.yearMin !== null ? String(draft.yearMin) : QUALQUER} onValueChange={v => set('yearMin', v === QUALQUER ? null : Number(v))}>
+                <SelectTrigger id="f-de"><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value={QUALQUER}>Qualquer</SelectItem>
+                  {anos.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-
-            {/* Nota mínima */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-2 text-sm font-medium">
-                  <Star className="h-4 w-4" />
-                  Nota mínima
-                </Label>
-                <span className="text-sm text-muted-foreground">
-                  {filters.scoreMin ? `${filters.scoreMin}+` : 'Qualquer'}
-                </span>
-              </div>
-              <Slider
-                value={[filters.scoreMin || 0]}
-                onValueChange={([value]) => onFiltersChange({ ...filters, scoreMin: value || undefined })}
-                max={9}
-                step={1}
-                className="py-2"
-              />
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Qualquer</span>
-                <span>9+</span>
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="f-ate">Ano final</Label>
+              <Select value={draft.yearMax !== null ? String(draft.yearMax) : QUALQUER} onValueChange={v => set('yearMax', v === QUALQUER ? null : Number(v))}>
+                <SelectTrigger id="f-ate" aria-invalid={!!erroAno}><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  <SelectItem value={QUALQUER}>Qualquer</SelectItem>
+                  {anos.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-
-            {/* Gêneros */}
-            <Collapsible open={genreOpen} onOpenChange={setGenreOpen}>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between px-0 hover:bg-transparent">
-                  <span className="flex items-center gap-2 font-medium">
-                    <Film className="h-4 w-4" />
-                    Gênero
-                    {selectedGenreName && (
-                      <Badge variant="secondary" className="ml-1 text-xs">
-                        {selectedGenreName}
-                      </Badge>
-                    )}
-                  </span>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${genreOpen ? 'rotate-180' : ''}`} />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2">
-                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
-                  {genres.slice(0, 30).map((genre) => (
-                    <Badge
-                      key={genre.mal_id}
-                      variant={filters.genre === genre.mal_id ? "default" : "outline"}
-                      className="cursor-pointer text-xs"
-                      onClick={() => onFiltersChange({ 
-                        ...filters, 
-                        genre: filters.genre === genre.mal_id ? undefined : genre.mal_id 
-                      })}
-                    >
-                      {genre.name}
-                      {genre.count && <span className="ml-1 opacity-60">({genre.count})</span>}
-                    </Badge>
-                  ))}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Estúdios */}
-            <Collapsible open={studioOpen} onOpenChange={setStudioOpen}>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between px-0 hover:bg-transparent">
-                  <span className="flex items-center gap-2 font-medium">
-                    <Building2 className="h-4 w-4" />
-                    Estúdio
-                    {selectedStudioName && (
-                      <Badge variant="secondary" className="ml-1 text-xs">
-                        {selectedStudioName}
-                      </Badge>
-                    )}
-                  </span>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${studioOpen ? 'rotate-180' : ''}`} />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2">
-                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
-                  {studios.slice(0, 50).map((studio) => (
-                    <Badge
-                      key={studio.mal_id}
-                      variant={filters.studio === studio.mal_id ? "default" : "outline"}
-                      className="cursor-pointer text-xs"
-                      onClick={() => onFiltersChange({ 
-                        ...filters, 
-                        studio: filters.studio === studio.mal_id ? undefined : studio.mal_id 
-                      })}
-                    >
-                      {studio.name}
-                    </Badge>
-                  ))}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Ano */}
-            <Collapsible open={yearOpen} onOpenChange={setYearOpen}>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between px-0 hover:bg-transparent">
-                  <span className="flex items-center gap-2 font-medium">
-                    <Calendar className="h-4 w-4" />
-                    Ano
-                    {(filters.yearMin || filters.yearMax) && (
-                      <Badge variant="secondary" className="ml-1 text-xs">
-                        {filters.yearMin && filters.yearMax 
-                          ? `${filters.yearMin} - ${filters.yearMax}`
-                          : filters.yearMin 
-                            ? `${filters.yearMin}+` 
-                            : `Até ${filters.yearMax}`
-                        }
-                      </Badge>
-                    )}
-                  </span>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${yearOpen ? 'rotate-180' : ''}`} />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2">
-                <div className="flex gap-2">
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs text-muted-foreground">De</Label>
-                    <Select
-                      value={filters.yearMin?.toString() || ''}
-                      onValueChange={(value) => onFiltersChange({ ...filters, yearMin: value ? Number(value) : undefined })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Qualquer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Qualquer</SelectItem>
-                        {years.map((year) => (
-                          <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs text-muted-foreground">Até</Label>
-                    <Select
-                      value={filters.yearMax?.toString() || ''}
-                      onValueChange={(value) => onFiltersChange({ ...filters, yearMax: value ? Number(value) : undefined })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Qualquer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Qualquer</SelectItem>
-                        {years.map((year) => (
-                          <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-
-            {/* Tipo e Status */}
-            <Collapsible open={typeOpen} onOpenChange={setTypeOpen}>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between px-0 hover:bg-transparent">
-                  <span className="flex items-center gap-2 font-medium">
-                    <Film className="h-4 w-4" />
-                    Tipo / Status
-                    {(selectedTypeName || selectedStatusName) && (
-                      <Badge variant="secondary" className="ml-1 text-xs">
-                        {[selectedTypeName, selectedStatusName].filter(Boolean).join(', ')}
-                      </Badge>
-                    )}
-                  </span>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${typeOpen ? 'rotate-180' : ''}`} />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2 space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Tipo</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {ANIME_TYPES.map((type) => (
-                      <Badge
-                        key={type.value}
-                        variant={filters.type === type.value ? "default" : "outline"}
-                        className="cursor-pointer text-xs"
-                        onClick={() => onFiltersChange({ 
-                          ...filters, 
-                          type: filters.type === type.value ? undefined : type.value 
-                        })}
-                      >
-                        {type.label}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">Status</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {ANIME_STATUSES.map((status) => (
-                      <Badge
-                        key={status.value}
-                        variant={filters.status === status.value ? "default" : "outline"}
-                        className="cursor-pointer text-xs"
-                        onClick={() => onFiltersChange({ 
-                          ...filters, 
-                          status: filters.status === status.value ? undefined : status.value 
-                        })}
-                      >
-                        {status.label}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
+            <div className="space-y-1.5 col-span-2">
+              <Label htmlFor="f-nota">Nota mínima</Label>
+              <Select value={draft.scoreMin !== null ? String(draft.scoreMin) : QUALQUER} onValueChange={v => set('scoreMin', v === QUALQUER ? null : Number(v))}>
+                <SelectTrigger id="f-nota"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={QUALQUER}>Qualquer</SelectItem>
+                  {[9, 8, 7, 6, 5].map(n => <SelectItem key={n} value={String(n)}>{n}+</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </ScrollArea>
-
-        <SheetFooter className="px-4 py-3 border-t gap-2">
-          {activeFiltersCount > 0 && (
-            <Button variant="outline" onClick={onClear} className="flex-1 gap-2">
-              <X className="h-4 w-4" />
-              Limpar Filtros
-            </Button>
+          {erroAno && <p role="alert" className="text-sm text-destructive">{erroAno}</p>}
+          <FacetPicker id="f-genero" label="Gênero" items={facets?.genres ?? []} value={draft.genre} onChange={v => set('genre', v)} />
+          <FacetPicker id="f-estudio" label="Estúdio" items={facets?.studios ?? []} value={draft.studio} onChange={v => set('studio', v)} />
+          {canHide && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 p-3">
+              <Label htmlFor="f-ocultar" className="text-sm">Ocultar animes que já estão na minha lista</Label>
+              <Switch id="f-ocultar" checked={draftHide} onCheckedChange={setDraftHide} />
+            </div>
           )}
-          <Button onClick={() => setIsOpen(false)} className="flex-1">
-            Aplicar
-          </Button>
+        </div>
+        <SheetFooter className="px-5 pb-5 pt-3 border-t border-border/50 flex-row gap-2">
+          <Button variant="ghost" className="flex-1" onClick={() => { setDraft(clearFilters(draft)); setDraftHide(false); }}>Limpar</Button>
+          <Button className="flex-1" disabled={!!erroAno} onClick={() => { onApply(draft, draftHide); setOpen(false); }}>Aplicar</Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>
   );
 }
 
-/**
- * Componente de badges com filtros ativos
- */
-export function ActiveFiltersBadges({
-  filters,
-  onFiltersChange,
-}: {
-  filters: DiscoverFilters;
-  onFiltersChange: (filters: DiscoverFilters) => void;
+/** Chips dos filtros aplicados, cada um removível, mais "Limpar tudo". */
+export function ActiveFilterChips({ state, hideInList, onChange, onHideChange }: {
+  state: DiscoverState; hideInList: boolean;
+  onChange: (s: DiscoverState) => void; onHideChange: (v: boolean) => void;
 }) {
-  const { data: genres = [] } = useAnimeGenres();
-  const { data: studios = [] } = useAnimeStudios();
-
-  const selectedGenreName = genres.find(g => g.mal_id === filters.genre)?.name;
-  const selectedStudioName = studios.find(s => s.mal_id === filters.studio)?.name;
-  const selectedTypeName = ANIME_TYPES.find(t => t.value === filters.type)?.label;
-  const selectedStatusName = ANIME_STATUSES.find(s => s.value === filters.status)?.label;
-
-  const hasFilters = filters.genre || filters.studio || filters.yearMin || 
-    filters.yearMax || filters.type || filters.status || filters.scoreMin || filters.hideInList;
-
-  if (!hasFilters) return null;
-
+  const chips = activeChips(state);
+  if (!chips.length && !hideInList) return null;
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {selectedGenreName && (
-        <Badge variant="secondary" className="gap-1 text-xs">
-          {selectedGenreName}
-          <X 
-            className="h-3 w-3 cursor-pointer hover:text-destructive" 
-            onClick={() => onFiltersChange({ ...filters, genre: undefined })}
-          />
+    <div className="flex flex-wrap items-center gap-2" aria-label="Filtros aplicados">
+      {chips.map(c => (
+        <Badge key={c.key} variant="secondary" className="gap-1 pr-1 py-1 max-w-full">
+          <span className="truncate">{c.label}</span>
+          <button type="button" onClick={() => onChange(removeChip(state, c.key))} aria-label={`Remover ${c.label}`}
+            className="rounded-full p-0.5 hover:bg-background/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <X className="h-3 w-3" />
+          </button>
+        </Badge>
+      ))}
+      {hideInList && (
+        <Badge variant="secondary" className="gap-1 pr-1 py-1">
+          Ocultando minha lista
+          <button type="button" onClick={() => onHideChange(false)} aria-label="Mostrar também animes da minha lista"
+            className="rounded-full p-0.5 hover:bg-background/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <X className="h-3 w-3" />
+          </button>
         </Badge>
       )}
-      {selectedStudioName && (
-        <Badge variant="secondary" className="gap-1 text-xs">
-          {selectedStudioName}
-          <X 
-            className="h-3 w-3 cursor-pointer hover:text-destructive" 
-            onClick={() => onFiltersChange({ ...filters, studio: undefined })}
-          />
-        </Badge>
-      )}
-      {(filters.yearMin || filters.yearMax) && (
-        <Badge variant="secondary" className="gap-1 text-xs">
-          {filters.yearMin && filters.yearMax 
-            ? `${filters.yearMin} - ${filters.yearMax}`
-            : filters.yearMin 
-              ? `${filters.yearMin}+` 
-              : `Até ${filters.yearMax}`
-          }
-          <X 
-            className="h-3 w-3 cursor-pointer hover:text-destructive" 
-            onClick={() => onFiltersChange({ ...filters, yearMin: undefined, yearMax: undefined })}
-          />
-        </Badge>
-      )}
-      {selectedTypeName && (
-        <Badge variant="secondary" className="gap-1 text-xs">
-          {selectedTypeName}
-          <X 
-            className="h-3 w-3 cursor-pointer hover:text-destructive" 
-            onClick={() => onFiltersChange({ ...filters, type: undefined })}
-          />
-        </Badge>
-      )}
-      {selectedStatusName && (
-        <Badge variant="secondary" className="gap-1 text-xs">
-          {selectedStatusName}
-          <X 
-            className="h-3 w-3 cursor-pointer hover:text-destructive" 
-            onClick={() => onFiltersChange({ ...filters, status: undefined })}
-          />
-        </Badge>
-      )}
-      {filters.scoreMin && (
-        <Badge variant="secondary" className="gap-1 text-xs">
-          Nota {filters.scoreMin}+
-          <X 
-            className="h-3 w-3 cursor-pointer hover:text-destructive" 
-            onClick={() => onFiltersChange({ ...filters, scoreMin: undefined })}
-          />
-        </Badge>
-      )}
-      {filters.hideInList && (
-        <Badge variant="secondary" className="gap-1 text-xs bg-primary/20">
-          <EyeOff className="h-3 w-3" />
-          Ocultos da lista
-          <X 
-            className="h-3 w-3 cursor-pointer hover:text-destructive" 
-            onClick={() => onFiltersChange({ ...filters, hideInList: undefined })}
-          />
-        </Badge>
-      )}
+      <Button variant="link" size="sm" className="h-7 px-1" onClick={() => { onChange(clearFilters(state)); onHideChange(false); }}>
+        Limpar tudo
+      </Button>
     </div>
   );
 }

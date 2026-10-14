@@ -177,3 +177,66 @@ export function mapearAnimeKitsu(anime: AnimeKitsu, existente?: TextosExistentes
 
   return registro;
 }
+
+/**
+ * Estima a temporada de estreia (padrão MAL) a partir da data de estreia do Kitsu.
+ * Regra documentada: jan–mar = winter, abr–jun = spring, jul–set = summer, out–dez = fall.
+ * Datas ausentes ou inválidas retornam null (ausência, nunca chute).
+ */
+export function estimarTemporada(dataEstreia: string | null | undefined): { season: string; year: number } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dataEstreia ?? ""));
+  if (!m) return null;
+  const ano = Number(m[1]), mes = Number(m[2]);
+  if (!Number.isInteger(ano) || mes < 1 || mes > 12) return null;
+  const season = mes <= 3 ? "winter" : mes <= 6 ? "spring" : mes <= 9 ? "summer" : "fall";
+  return { season, year: ano };
+}
+
+/** Item incluído na resposta JSON:API (genres, animeProductions, producers). */
+interface IncluidoKitsu {
+  id: string;
+  type: string;
+  attributes?: Record<string, unknown>;
+  relationships?: Record<string, { data?: { id: string; type: string } | null }>;
+}
+
+/** Metadados oficiais de um anime do Kitsu, apenas com nomes (sem IDs MAL inventados). */
+export interface MetadadosKitsu {
+  genres: { name: string }[];
+  studios: { name: string }[];
+  startDate: string | null;
+}
+
+/**
+ * Extrai gêneros e estúdios (papel "studio") de uma resposta em lote do Kitsu
+ * com include=genres,animeProductions.producer. Nomes são deduplicados sem
+ * aproximação: só o texto oficial retornado pela fonte é usado.
+ */
+export function extrairMetadadosKitsu(resposta: { data?: unknown[]; included?: IncluidoKitsu[] }): Map<number, MetadadosKitsu> {
+  const incluidos = new Map<string, IncluidoKitsu>();
+  for (const i of resposta.included ?? []) incluidos.set(`${i.type}:${i.id}`, i);
+  const resultado = new Map<number, MetadadosKitsu>();
+  for (const bruto of (resposta.data ?? []) as { id: string; attributes?: { startDate?: string | null }; relationships?: Record<string, { data?: { id: string; type: string }[] }> }[]) {
+    const id = Number(bruto.id);
+    if (!Number.isInteger(id)) continue;
+    const nomesGenero = new Set<string>();
+    for (const ref of bruto.relationships?.genres?.data ?? []) {
+      const nome = incluidos.get(`genres:${ref.id}`)?.attributes?.name;
+      if (typeof nome === "string" && nome.trim()) nomesGenero.add(nome.trim());
+    }
+    const nomesEstudio = new Set<string>();
+    for (const ref of bruto.relationships?.animeProductions?.data ?? []) {
+      const producao = incluidos.get(`animeProductions:${ref.id}`);
+      if (producao?.attributes?.role !== "studio") continue;
+      const produtor = producao.relationships?.producer?.data;
+      const nome = produtor ? incluidos.get(`producers:${produtor.id}`)?.attributes?.name : null;
+      if (typeof nome === "string" && nome.trim()) nomesEstudio.add(nome.trim());
+    }
+    resultado.set(id, {
+      genres: [...nomesGenero].map(name => ({ name })),
+      studios: [...nomesEstudio].map(name => ({ name })),
+      startDate: bruto.attributes?.startDate ?? null,
+    });
+  }
+  return resultado;
+}

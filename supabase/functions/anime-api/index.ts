@@ -120,7 +120,12 @@ serve(async (req) => {
     } else if (id || malId) {
       response = await handleGetById(supabase, id, malId);
     } else {
-      response = await handleList(supabase, params);
+      // Listagem usa a mesma função SQL da Descobrir (números idênticos entre banco, API e app).
+      // Cliente com a chave pública + JWT do chamador: auth.uid() vem do token validado, nunca de user_id no pedido.
+      const clientePublico = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+        global: { headers: { Authorization: req.headers.get('Authorization') ?? `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}` } },
+      });
+      response = await handleList(clientePublico, params);
     }
 
     const duration = Date.now() - startTime;
@@ -134,147 +139,33 @@ serve(async (req) => {
 });
 
 /**
- * Listar animes com filtros, busca, ordenação e paginação
+ * Lista animes pela função SQL discover_catalog: filtros, total exato, desempate por mal_id
+ * e exclusão da lista do usuário (hide_in_list) feita no banco antes de paginar/contar.
  */
 async function handleList(supabase: any, params: URLSearchParams): Promise<Response> {
-  // Paginação
   const page = Math.max(1, parseNumber(params.get('page'), 1));
-  const limit = Math.min(100, Math.max(1, parseNumber(params.get('limit'), 24)));
-  const offset = (page - 1) * limit;
-
-  // Ordenação
-  const sortField = params.get('sort') || 'score';
-  const sortOrder = params.get('order') === 'asc';
-  const validSortFields = ['score', 'popularity', 'year', 'title', 'rank', 'members', 'created_at', 'updated_at'];
-  const actualSortField = validSortFields.includes(sortField) ? sortField : 'score';
-
-  // Tipos bloqueados que nunca devem aparecer nos resultados
-  const BLOCKED_TYPES = ['Music', 'CM', 'PV'];
-
-  // Construir query
-  let query = supabase
-    .from('anime_catalog')
-    .select('*', { count: 'exact' })
-    // Excluir tipos bloqueados (comerciais, músicas, previews)
-    .not('type', 'in', `(${BLOCKED_TYPES.join(',')})`)
-
-  // Filtro de busca por texto (sanitizado para evitar injeção)
-  const search = params.get('search');
-  if (search) {
-    const sanitized = sanitizeSearchTerm(search);
-    if (sanitized) {
-      const searchTerm = `%${sanitized}%`;
-      query = query.or(`title.ilike.${searchTerm},title_english.ilike.${searchTerm},title_japanese.ilike.${searchTerm}`);
-    }
+  const limit = Math.min(60, Math.max(1, parseNumber(params.get('limit'), 24)));
+  const filtros: Record<string, unknown> = {};
+  // Parâmetros aceitos (nomes iguais aos do app).
+  for (const chave of ['search', 'genre', 'studio', 'type', 'status', 'season', 'season_year', 'year_min', 'year_max', 'score_min', 'hide_in_list']) {
+    const valor = params.get(chave);
+    if (valor !== null && valor !== '') filtros[chave] = chave === 'search' ? sanitizeSearchTerm(valor) : valor;
   }
-
-  // Filtro de status (separado por vírgula)
-  const status = params.get('status');
-  if (status) {
-    const statuses = status.split(',').map(s => s.trim());
-    query = query.in('status', statuses);
-  }
-
-  // Filtro de tipo (separado por vírgula)
-  const type = params.get('type');
-  if (type) {
-    const types = type.split(',').map(t => t.trim());
-    query = query.in('type', types);
-  }
-
-  // Filtro de temporada (separado por vírgula)
-  const season = params.get('season');
-  if (season) {
-    const seasons = season.split(',').map(s => s.trim().toLowerCase());
-    query = query.in('season', seasons);
-  }
-
-  // Range de anos
-  const yearMin = parseNumber(params.get('year_min'), 0);
-  const yearMax = parseNumber(params.get('year_max'), 0);
-  if (yearMin > 0) {
-    query = query.gte('year', yearMin);
-  }
-  if (yearMax > 0) {
-    query = query.lte('year', yearMax);
-  }
-
-  // Range de notas
-  const scoreMin = parseFloatValue(params.get('score_min'), null);
-  const scoreMax = parseFloatValue(params.get('score_max'), null);
-  if (scoreMin !== null) {
-    query = query.gte('score', scoreMin);
-  }
-  if (scoreMax !== null) {
-    query = query.lte('score', scoreMax);
-  }
-
-  // Filtro por gênero (nome ou mal_id)
-  const genre = params.get('genre');
-  if (genre) {
-    const genreId = parseInt(genre, 10);
-    if (!isNaN(genreId)) {
-      query = query.contains('genres', [{ mal_id: genreId }]);
-    } else {
-      query = query.contains('genres', [{ name: genre }]);
-    }
-  }
-
-  // Filtro por estúdio (nome ou mal_id)
-  const studio = params.get('studio');
-  if (studio) {
-    const studioId = parseInt(studio, 10);
-    if (!isNaN(studioId)) {
-      query = query.contains('studios', [{ mal_id: studioId }]);
-    } else {
-      query = query.contains('studios', [{ name: studio }]);
-    }
-  }
-
-  // Filtro por imagem disponível
-  const hasImage = params.get('has_image');
-  if (hasImage === 'true') {
-    query = query.not('image_url', 'is', null);
-  } else if (hasImage === 'false') {
-    query = query.is('image_url', null);
-  }
-
-  // Filtro por sinopse PT-BR disponível
-  const hasSynopsisPt = params.get('has_synopsis_pt');
-  if (hasSynopsisPt === 'true') {
-    query = query.not('synopsis_pt', 'is', null);
-  } else if (hasSynopsisPt === 'false') {
-    query = query.is('synopsis_pt', null);
-  }
-
-  // Aplicar ordenação e paginação
-  query = query
-    .order(actualSortField, { ascending: sortOrder, nullsFirst: false })
-    .range(offset, offset + limit - 1);
-
-  const { data, error, count } = await query;
-
+  const { data, error } = await supabase.rpc('discover_catalog', {
+    p: filtros, p_sort: params.get('sort') || 'score', p_order: params.get('order') || 'desc', p_page: page, p_limit: limit,
+  });
   if (error) {
+    if (error.message?.includes('intervalo_ano_invalido')) return errorResponse('INVALID_RANGE', 'year_min deve ser menor ou igual a year_max', 400);
     console.error('[anime-api] Database error:', error);
     return errorResponse('DATABASE_ERROR', error.message, 500);
   }
-
-  const total = count || 0;
+  const total = Number(data.total) || 0;
   const totalPages = Math.ceil(total / limit);
-
-  const pagination: PaginationMeta = {
-    page,
-    limit,
-    total,
-    total_pages: totalPages,
-    has_next: page < totalPages,
-    has_prev: page > 1,
-  };
-
   return jsonResponse({
     success: true,
-    data: data || [],
-    pagination,
+    data: data.items || [],
+    pagination: { page, limit, total, total_pages: totalPages, has_next: Boolean(data.has_next), has_prev: page > 1 },
+    meta: { hide_in_list_applied: data.hide_in_list_applied },
   });
 }
 
@@ -337,87 +228,18 @@ async function handleStats(supabase: any): Promise<Response> {
 }
 
 /**
- * Listar todos os gêneros únicos
+ * Gêneros do catálogo elegível inteiro, agregados no SQL (sem limite de 1000 linhas).
+ * Contagens são globais (escopo "catalogo_elegivel"); itens podem não ter ID MAL.
  */
 async function handleGenres(supabase: any): Promise<Response> {
-  const { data, error } = await supabase
-    .from('anime_catalog')
-    .select('genres');
-
-  if (error) {
-    console.error('[anime-api] Database error:', error);
-    return errorResponse('DATABASE_ERROR', error.message, 500);
-  }
-
-  // Extrair gêneros únicos
-  const genreMap = new Map<number, { mal_id: number; name: string; count: number }>();
-
-  if (data) {
-    for (const anime of data) {
-      if (anime.genres && Array.isArray(anime.genres)) {
-        for (const genre of anime.genres) {
-          if (genre.mal_id && genre.name) {
-            const existing = genreMap.get(genre.mal_id);
-            if (existing) {
-              existing.count++;
-            } else {
-              genreMap.set(genre.mal_id, { mal_id: genre.mal_id, name: genre.name, count: 1 });
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Ordenar por nome
-  const genres = Array.from(genreMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-
-  return jsonResponse({
-    success: true,
-    data: genres,
-    meta: { total: genres.length },
-  });
+  const { data, error } = await supabase.rpc('discover_facets');
+  if (error) return errorResponse('DATABASE_ERROR', error.message, 500);
+  return jsonResponse({ success: true, data: data.genres, meta: { total: data.genres.length, scope: data.scope } });
 }
 
-/**
- * Listar todos os estúdios únicos
- */
+/** Estúdios do catálogo elegível inteiro (mesma origem e escopo dos gêneros). */
 async function handleStudios(supabase: any): Promise<Response> {
-  const { data, error } = await supabase
-    .from('anime_catalog')
-    .select('studios');
-
-  if (error) {
-    console.error('[anime-api] Database error:', error);
-    return errorResponse('DATABASE_ERROR', error.message, 500);
-  }
-
-  // Extrair estúdios únicos
-  const studioMap = new Map<number, { mal_id: number; name: string; count: number }>();
-
-  if (data) {
-    for (const anime of data) {
-      if (anime.studios && Array.isArray(anime.studios)) {
-        for (const studio of anime.studios) {
-          if (studio.mal_id && studio.name) {
-            const existing = studioMap.get(studio.mal_id);
-            if (existing) {
-              existing.count++;
-            } else {
-              studioMap.set(studio.mal_id, { mal_id: studio.mal_id, name: studio.name, count: 1 });
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Ordenar por nome
-  const studios = Array.from(studioMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-
-  return jsonResponse({
-    success: true,
-    data: studios,
-    meta: { total: studios.length },
-  });
+  const { data, error } = await supabase.rpc('discover_facets');
+  if (error) return errorResponse('DATABASE_ERROR', error.message, 500);
+  return jsonResponse({ success: true, data: data.studios, meta: { total: data.studios.length, scope: data.scope } });
 }

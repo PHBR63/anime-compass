@@ -109,3 +109,41 @@ describe("mapearAnimeKitsu", () => {
     expect(obterCapaKitsu(suspeito)).toBeNull();
   });
 });
+
+import { estimarTemporada, extrairMetadadosKitsu, mapearStatusKitsu as statusKitsu } from "./kitsu.ts";
+
+import { test } from "bun:test";
+describe("metadados Kitsu", () => {
+  // Temporada estimada pela data de estreia segue a regra documentada.
+  test("estima temporada por mês e diferencia ausência", () => {
+    expect(estimarTemporada("2024-01-05")).toEqual({ season: "winter", year: 2024 });
+    expect(estimarTemporada("2024-04-01")).toEqual({ season: "spring", year: 2024 });
+    expect(estimarTemporada("2024-09-30")).toEqual({ season: "summer", year: 2024 });
+    expect(estimarTemporada("2024-12-31")).toEqual({ season: "fall", year: 2024 });
+    expect(estimarTemporada(null)).toBeNull();
+    expect(estimarTemporada("2024")).toBeNull();
+  });
+  // Status "current" do Kitsu é gravado no padrão canônico do Jikan.
+  test("normaliza status em exibição", () => {
+    expect(statusKitsu("current")).toBe("Currently Airing");
+  });
+  // Só estúdios com papel "studio" entram; gêneros vêm só pelos nomes oficiais, sem IDs MAL.
+  test("extrai gêneros e estúdios sem inventar IDs", () => {
+    const mapa = extrairMetadadosKitsu({
+      data: [{ id: "2", attributes: { startDate: "2001-09-01" }, relationships: {
+        genres: { data: [{ id: "1", type: "genres" }, { id: "1", type: "genres" }] },
+        animeProductions: { data: [{ id: "a", type: "animeProductions" }, { id: "b", type: "animeProductions" }] } } } as never],
+      included: [
+        { id: "1", type: "genres", attributes: { name: "Action" } },
+        { id: "a", type: "animeProductions", attributes: { role: "producer" }, relationships: { producer: { data: { id: "9", type: "producers" } } } },
+        { id: "b", type: "animeProductions", attributes: { role: "studio" }, relationships: { producer: { data: { id: "4", type: "producers" } } } },
+        { id: "9", type: "producers", attributes: { name: "Bandai" } },
+        { id: "4", type: "producers", attributes: { name: "BONES" } },
+      ],
+    });
+    const m = mapa.get(2)!;
+    expect(m.genres).toEqual([{ name: "Action" }]);
+    expect(m.studios).toEqual([{ name: "BONES" }]);
+    expect(JSON.stringify(m)).not.toContain("mal_id");
+  });
+});

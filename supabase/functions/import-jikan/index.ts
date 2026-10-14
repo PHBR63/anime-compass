@@ -32,6 +32,11 @@ class ErroImportacao extends Error {
   }
 }
 
+/** Registra eventos de diagnóstico em formato estruturado para consulta nos registros da função. */
+function diagnostico(evento: string, detalhes: Record<string, unknown> = {}) {
+  console.log(JSON.stringify({ fonte: "import-jikan", evento, ...detalhes }));
+}
+
 /** Devolve respostas JSON com CORS inclusive nos erros. */
 function responder(dados: unknown, status = 200) {
   return new Response(JSON.stringify(dados), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });

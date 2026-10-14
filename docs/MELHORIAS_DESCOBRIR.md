@@ -52,3 +52,12 @@ Como administrador: `supabase.functions.invoke('import-kitsu', { body: { action:
 - **Títulos antigos sem vínculo**: quando não há candidatos com vínculo, a ação `metadata` chama `kitsu_link_candidates` (gênero ou estúdio vazio, sem checkpoint) e consulta o ARM (`source=myanimelist`) em lotes de 40, 5 simultâneos. Resultado em `set_kitsu_link`: `vinculado` (grava `kitsu_id`), `sem_vinculo` (ARM sem correspondência) ou `indisponivel` (falha da fonte; volta à fila após 1 h). Os vinculados entram na próxima rodada de metadados.
 - Só campos vazios são preenchidos (`apply_kitsu_metadata`); traduções, listas e valores já preenchidos não mudam.
 - Teste seguro: `select count(*) from anime_catalog where kitsu_link_status is null and kitsu_metadata_checked_at is null and (genres='[]' or studios='[]')` deve tender a zero; ausências ficam em `kitsu_metadata_result` e `kitsu_link_status`.
+
+## Compatibilidade da API e atualização das contagens
+
+- `useDiscover.ts`: chave de cache por usuário, para separar os resultados de ocultar a lista entre contas; atualização das contagens a cada minuto.
+- `anime-api/index.ts`: ficha completa na API anterior e filtros `score_max`, `has_image` e `has_synopsis_pt`; entradas numéricas inválidas retornam HTTP 400.
+- `20261014200000_discover_api_compatibility.sql`: resolve IDs de gênero/estúdio pelos vínculos existentes, preserva aliases e múltiplos valores, acrescenta IDs conhecidos às facetas e mantém a projeção pequena da tela.
+- Fluxo: Descobrir → hooks → RPC SQL → catálogo/lista da conta autenticada. Clientes anteriores → anime-api → mesma RPC, com ficha completa. Contagem e página são calculadas na mesma consulta; a identidade vem do JWT.
+- Testes: 23 testes de parâmetros/metadados; TypeScript e build; SQL isolado com 2.400 títulos, IDs numéricos, duas páginas, arquivados, identidade, projeções e permissões.
+- Complemento confirmado em produção em 14/10/2026: 22.243 títulos elegíveis; 5.989 ganharam metadados; ainda faltam gênero em 1.852, estúdio em 7.616 e temporada em 10.510. Ausência na fonte não é convertida em informação inventada.

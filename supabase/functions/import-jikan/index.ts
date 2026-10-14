@@ -131,18 +131,24 @@ Deno.serve(async (req) => {
     // Só aceita instância própria em HTTPS válido; caso contrário usa apenas a pública.
     const bases = /^https:\/\/[^\s]+$/i.test(basePropria) && basePropria.replace(/\/+$/, "") !== BASE_PUBLICA ? [basePropria, BASE_PUBLICA] : [BASE_PUBLICA];
     let resposta: Response | null = null;
+    diagnostico("consulta_iniciada", { pagina: page, modo: mode, bases: bases.length });
     // Tenta a instância própria primeiro; em falha de rede ou erro 5xx/429, recorre à API pública.
     for (const [indice, base] of bases.entries()) {
       const ultima = indice === bases.length - 1;
+      const inicioConsulta = Date.now();
       try {
         const r = await fetch(montarEndereco(base), { signal: AbortSignal.timeout(ultima ? 20000 : 12000) });
-        if (!ultima && (r.status >= 500 || r.status === 429 || r.status === 408)) { console.warn(`Instância própria do Jikan falhou (${r.status}); usando a API pública.`); await r.body?.cancel(); continue; }
+        diagnostico("consulta_respondida", { base, status: r.status, duracao_ms: Date.now() - inicioConsulta, pagina: page });
+        if (!ultima && (r.status >= 500 || r.status === 429 || r.status === 408)) { diagnostico("fallback_acionado", { motivo: `status_${r.status}`, de: base, para: BASE_PUBLICA, pagina: page }); await r.body?.cancel(); continue; }
         resposta = r; break;
-      } catch {
-        if (!ultima) { console.warn("Instância própria do Jikan não respondeu; usando a API pública."); continue; }
+      } catch (falha) {
+        const nome = falha instanceof Error ? falha.name : "desconhecido";
+        // Timeout e falha de rede da instância própria acionam a reserva pública.
+        diagnostico(nome === "TimeoutError" || nome === "AbortError" ? "timeout_consulta" : "erro_rede_consulta", { base, erro: nome, duracao_ms: Date.now() - inicioConsulta, pagina: page });
+        if (!ultima) { diagnostico("fallback_acionado", { motivo: nome === "TimeoutError" || nome === "AbortError" ? "timeout" : "erro_rede", de: base, para: BASE_PUBLICA, pagina: page }); continue; }
       }
     }
-    if (!resposta) throw new ErroImportacao("O Jikan não respondeu. A importação será retomada automaticamente.", true);
+    if (!resposta) { diagnostico("todas_bases_falharam", { pagina: page, modo: mode }); throw new ErroImportacao("O Jikan não respondeu. A importação será retomada automaticamente.", true); }
     if (!resposta.ok) {
       const detalhes = await resposta.text();
       console.error(`Jikan [${resposta.status}]: ${detalhes}`);

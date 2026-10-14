@@ -12,6 +12,7 @@ import { JikanImportHistory } from "@/components/admin/JikanImportHistory";
 import { JikanImportLogs } from "@/components/admin/JikanImportLogs";
 import { ScrollText } from "lucide-react";
 import { JikanImportAlerts } from "@/components/admin/JikanImportAlerts";
+import { JikanRecurringAlerts } from "@/components/admin/JikanRecurringAlerts";
 import { DeeplTranslationReview } from "@/components/admin/DeeplTranslationReview";
 import { CatalogImageSync } from "@/components/admin/CatalogImageSync";
 import { CatalogOverview } from "@/components/admin/CatalogOverview";
@@ -77,6 +78,7 @@ export default function Admin() {
         <TabsContent value="overview" className="mt-4 sm:mt-6 space-y-4">
           {/* Aviso quando a importação automática do Jikan falha ou termina com erros */}
           <JikanImportAlerts />
+          <JikanRecurringAlerts />
           <ErrorLogs />
         </TabsContent>
 

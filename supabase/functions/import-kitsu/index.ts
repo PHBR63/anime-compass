@@ -434,6 +434,13 @@ async function enriquecerMetadados(banco: SupabaseClient) {
     const { data: candidatos, error } = await banco.rpc("kitsu_metadata_candidates", { p_limit: 30 });
     if (error) throw error;
     const lista = (candidatos ?? []) as { mal_id: number; kitsu_id: number; remaining: number }[];
+    // Sem vínculos pendentes: mapeia títulos antigos MAL→Kitsu pelo ARM (nunca por nome), em lote limitado.
+    if (!lista.length) {
+      const vinculos = await mapearVinculosAntigos(banco);
+      await liberar({ last_error: null });
+      diagnostico("pagina_concluida", { modo: "metadata_vinculos", ...vinculos });
+      return responder({ success: true, phase: "vinculos", continue: vinculos.restantes > 0 || vinculos.vinculados > 0, remaining: vinculos.restantes, stats: vinculos });
+    }
     for (let i = 0; i < lista.length; i += 10) {
       const grupo = lista.slice(i, i + 10);
       const ids = grupo.map(g => g.kitsu_id).join(",");
@@ -479,4 +486,30 @@ async function enriquecerMetadados(banco: SupabaseClient) {
     await liberar({ last_error: mensagem });
     return responder({ success: false, error: mensagem, retryable: erro instanceof Error && (erro.name === "TimeoutError"), stats: contagem }, 200);
   }
+}
+
+/**
+ * Mapeia títulos antigos sem vínculo conhecido (gênero/estúdio vazio) do MAL para o Kitsu via ARM.
+ * - Lotes de 40, grupos de 5 simultâneos com pausa curta; só grava kitsu_id/estado do vínculo.
+ * - 404/sem correspondência vira "sem_vinculo"; falha da fonte vira "indisponivel" (retomado após 1 h).
+ */
+async function mapearVinculosAntigos(banco: SupabaseClient) {
+  const contagem = { consultados: 0, vinculados: 0, semVinculo: 0, indisponiveis: 0, restantes: 0 };
+  const { data, error } = await banco.rpc("kitsu_link_candidates", { p_limit: 40 });
+  if (error) throw error;
+  const lista = (data ?? []) as { mal_id: number; remaining: number }[];
+  for (let i = 0; i < lista.length; i += 5) {
+    await Promise.all(lista.slice(i, i + 5).map(async ({ mal_id }) => {
+      contagem.consultados++;
+      let kitsuId: number | null = null; let estado = "sem_vinculo";
+      try { kitsuId = await mapearId("myanimelist", mal_id); if (kitsuId) estado = "vinculado"; }
+      catch { estado = "indisponivel"; }
+      const { error: erro } = await banco.rpc("set_kitsu_link", { p_mal_id: mal_id, p_kitsu_id: kitsuId, p_status: estado });
+      if (erro) { diagnostico("erro_salvar_anime", { mal_id, modo: "metadata_vinculos", erro: erro.message }); return; }
+      if (estado === "vinculado") contagem.vinculados++; else if (estado === "sem_vinculo") contagem.semVinculo++; else contagem.indisponiveis++;
+    }));
+    if (i + 5 < lista.length) await new Promise(r => setTimeout(r, 400));
+  }
+  contagem.restantes = Math.max(0, Number(lista[0]?.remaining ?? 0) - contagem.consultados + contagem.indisponiveis);
+  return contagem;
 }

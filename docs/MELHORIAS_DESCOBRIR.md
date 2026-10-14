@@ -44,3 +44,11 @@ Como administrador: `supabase.functions.invoke('import-kitsu', { body: { action:
 - `bun test ./tests/discoverParams.test.ts` e `bun test supabase/functions/import-kitsu/kitsu.test.ts`.
 - SQL: `tests/sql/discover-checks.sql` (total > 1000, aliases, ocultar sem JWT, intervalo, paginação sem duplicatas).
 - Manual: `/discover?q=naruto&genero=Action&ordem=title` → recarregar e voltar mantêm os filtros; abrir "Ano inicial" lista de 2029 a 1907; celular mostra 2 colunas.
+
+## Complemento: títulos antigos e "ocultar minha lista"
+
+- **Ocultar minha lista** (`discover_filtered`, migração `0011`): esconde só entradas ativas (`is_archived = false`), igual ao contexto da Minha Lista. Identidade sempre via `auth.uid()`; `user_id` no corpo é ignorado.
+- **Vínculos existentes** (migração `0012`): `kitsu_metadata_candidates` aceita qualquer vínculo verificado — itens `criado` e `completado` de `kitsu_import_items` e `anime_catalog.kitsu_id` com `kitsu_link_status = 'vinculado'`. Nada é ligado por nome.
+- **Títulos antigos sem vínculo**: quando não há candidatos com vínculo, a ação `metadata` chama `kitsu_link_candidates` (gênero ou estúdio vazio, sem checkpoint) e consulta o ARM (`source=myanimelist`) em lotes de 40, 5 simultâneos. Resultado em `set_kitsu_link`: `vinculado` (grava `kitsu_id`), `sem_vinculo` (ARM sem correspondência) ou `indisponivel` (falha da fonte; volta à fila após 1 h). Os vinculados entram na próxima rodada de metadados.
+- Só campos vazios são preenchidos (`apply_kitsu_metadata`); traduções, listas e valores já preenchidos não mudam.
+- Teste seguro: `select count(*) from anime_catalog where kitsu_link_status is null and kitsu_metadata_checked_at is null and (genres='[]' or studios='[]')` deve tender a zero; ausências ficam em `kitsu_metadata_result` e `kitsu_link_status`.

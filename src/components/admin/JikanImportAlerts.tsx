@@ -83,6 +83,20 @@ export function JikanImportAlerts() {
         <p className="text-muted-foreground">
           A importação tenta de novo sozinha na próxima execução agendada ou ao retomar pelo painel.
         </p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-2"
+          onClick={tentarNovamente}
+          disabled={tentando}
+        >
+          {tentando ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RotateCcw className="mr-2 h-4 w-4" />
+          )}
+          {tentando ? "Tentando..." : "Tentar novamente"}
+        </Button>
       </AlertDescription>
     </Alert>
   );

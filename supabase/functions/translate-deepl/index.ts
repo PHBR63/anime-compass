@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     const { data: animes, error } = await consulta.range(offset, offset + tamanho - 1);
     if (error) throw error;
     const criadas = await gerarSugestoes(banco, animes ?? [], "manual");
-    const proximo = scope === "missing" ? offset : offset + tamanho;
+    const proximo = offset + tamanho;
     return responder({ success: true, created: criadas, nextOffset: proximo, done: (animes?.length ?? 0) < tamanho });
   } catch (e) {
     if (e instanceof ErroDeepl) return responder({ error: e.message }, e.status);

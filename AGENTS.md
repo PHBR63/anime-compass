@@ -6,3 +6,4 @@
 - Jikan updates omit translated fields and populated text fields, and retain existing genre/studio names; source refreshes must not replace editorial content.
 - Authenticate Jikan ingestion server-side with `has_role` and serialize page execution through `sync_state`; administrative UI alone is not authorization.
 - Download Jikan covers in bounded batches to the existing image bucket; failed downloads retain the original URL and previous local cover for later recovery.
+- Keep Jikan retry intent scoped to the authenticated administrator in browser storage; reconcile each retry with server checkpoints and fence writes with the acquired lease to avoid duplicate progress and stale workers.

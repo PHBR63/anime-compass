@@ -5,7 +5,7 @@ O painel administrativo, na aba **Importação**, oferece uma fonte Jikan indepe
 - **Catálogo completo:** varredura paginada por identificador MAL, com 25 registros por página.
 - **Temporada atual:** consulta `/seasons/now` para inserir e atualizar títulos da temporada.
 - **Importar uma página:** executa apenas um lote; **Retomar** continua a partir da última página salva.
-- **Pausar:** conclui a página em andamento antes de interromper. Fechar a tela também impede novas páginas.
+- **Pausar:** conclui a página em andamento antes de interromper e cancela a retomada automática. Fechar a tela impede novas chamadas; ao voltar ao painel, a execução interrompida é retomada automaticamente para o mesmo administrador.
 - **Reiniciar progresso:** não apaga registros do catálogo.
 
 O Jikan não oferece um feed de alterações equivalente ao delta da fonte legada. Atualizar aqui significa consultar novamente o catálogo completo ou a temporada atual; não há remoção automática de títulos ausentes.
@@ -18,9 +18,11 @@ As capas HTTPS do CDN do MAL são baixadas em grupos limitados e salvas no armaz
 
 ## Segurança e execução
 
-Todas as ações exigem sessão válida e papel de administrador verificado no servidor. O estado `jikan_import` é separado da importação legada. A aquisição condicional do estado impede páginas simultâneas. Uma chamada do Jikan por página, com intervalo mínimo conservador de 1,2 segundo, respeita os limites documentados de 3 consultas/segundo e 60/minuto. Erros interrompem a sequência sem repetição automática infinita.
+Todas as ações exigem sessão válida e papel de administrador verificado no servidor. O estado `jikan_import` é separado da importação legada. A aquisição condicional do estado impede páginas simultâneas; gravações finais exigem o mesmo bloqueio, para impedir que chamadas antigas sobrescrevam execuções novas. Uma chamada do Jikan por página, com intervalo mínimo conservador de 1,2 segundo, respeita os limites documentados de 3 consultas/segundo e 60/minuto.
 
-Uma importação completa somente continua enquanto a tela estiver aberta. A retomada é manual após interrupção, indisponibilidade ou limite de consultas. Não foi adicionado agendamento automático.
+Falhas temporárias de rede, tempo limite, HTTP 408/429 e erros 5xx geram tentativas com esperas de 5, 10, 20, 40, 80, 160 e até 300 segundos. O limite 429 respeita pelo menos 60 segundos e o cabeçalho `Retry-After`, quando presente. A última falha, número da tentativa e contagem regressiva aparecem no painel. Erros permanentes, de permissão ou parâmetros encerram a retomada automática.
+
+O navegador guarda a intenção de execução, modo, página e prazo por administrador; o servidor mantém a última página confirmada e o erro. Antes de cada tentativa, o painel consulta esse progresso para recuperar inclusive chamadas que concluíram após perda da resposta. Bloqueios abandonados expiram após dois minutos. Não há chamadas em segundo plano com a tela fechada, nem agendamento recorrente: a retomada acontece ao retornar ao painel, e pode ser cancelada em **Pausar**.
 
 ## Opções de tradução automática pesquisadas
 

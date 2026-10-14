@@ -1,5 +1,7 @@
 # Tarefas
 
+- [ ] Implementar espera progressiva, retomada automática persistida e status de falhas no painel Jikan.
+- [ ] Validar recuperação, pausa e responsividade com falhas temporárias e importação real.
 - [x] Adicionar importação e atualização paginada pelo Jikan com preservação dos textos existentes.
 - [x] Integrar capas e controles administrativos com pausa e retomada.
 - [x] Testar preservação de textos e painel autenticado em 320, 390, 768 e 1280 px.

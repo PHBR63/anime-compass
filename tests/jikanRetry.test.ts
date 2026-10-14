@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { calcularEsperaJikan, lerRetomadaJikan } from "./jikanRetry";
+import { calcularEsperaJikan, lerRetomadaJikan } from "../src/lib/jikanRetry";
 
 describe("retomada do Jikan", () => {
   test("aumenta a espera e limita em cinco minutos", () => {

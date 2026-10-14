@@ -8,10 +8,10 @@ import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "npm:zod@3";
 import { gerarSugestoes } from "../_shared/deepl.ts";
-import { mapearAnimeKitsu, permitirAnimeKitsu, type AnimeKitsu, type TextosExistentesKitsu } from "./kitsu.ts";
+import { estimarTemporada, extrairMetadadosKitsu, mapearAnimeKitsu, permitirAnimeKitsu, type AnimeKitsu, type TextosExistentesKitsu } from "./kitsu.ts";
 
 const esquema = z.object({
-  action: z.enum(["status", "process", "reset"]).default("status"),
+  action: z.enum(["status", "process", "reset", "metadata"]).default("status"),
   mode: z.enum(["enrich", "discover", "recent"]).default("enrich"),
   page: z.number().int().min(1).max(100000).default(1),
 });
@@ -142,10 +142,13 @@ Deno.serve(async (req) => {
   const banco = createClient(urlBackend, chavePrivada);
   const tokenAgendamento = req.headers.get("x-cron-token");
   let idUsuario: string | null = null;
-  let action: "status" | "process" | "reset", mode: "enrich" | "discover" | "recent", page: number;
+  let action: "status" | "process" | "reset" | "metadata", mode: "enrich" | "discover" | "recent", page: number;
   if (tokenAgendamento) {
     // Agendamento: compara o hash da senha exclusiva guardada no banco (nome separado do Jikan).
     const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(tokenAgendamento)))).map(b => b.toString(16).padStart(2, "0")).join("");
+    // Senha exclusiva do enriquecimento de metadados (kitsu_metadata) só permite a ação "metadata".
+    const { data: senhaMetadados } = await banco.from("cron_token_hashes").select("token_hash").eq("name", "kitsu_metadata").maybeSingle();
+    if (senhaMetadados && senhaMetadados.token_hash === hash) return await enriquecerMetadados(banco);
     const { data: registro } = await banco.from("cron_token_hashes").select("token_hash").eq("name", "kitsu_daily").maybeSingle();
     if (!registro || registro.token_hash !== hash) return responder({ error: "Agendamento não autorizado" }, 401);
     // Agendamento usa por padrão a checagem de lançamentos recentes (pode pedir outro modo no corpo).
@@ -168,6 +171,8 @@ Deno.serve(async (req) => {
     ({ action, mode, page } = entrada.data);
     idUsuario = usuario.user.id;
   }
+  // Enriquecimento de metadados (gênero/estúdio/temporada) dos animes criados pelo Kitsu.
+  if (action === "metadata") return await enriquecerMetadados(banco);
   let possuiBloqueio = false;
   let concessao = "";
   const inicio = Date.now();
@@ -406,3 +411,72 @@ Deno.serve(async (req) => {
     return responder({ success: false, error: mensagem, retryable: temporario, retryAfterMs: erro instanceof ErroImportacao ? erro.esperaMs : 0 }, temporario ? 200 : erro instanceof ErroImportacao ? erro.status : 500);
   }
 });
+
+/**
+ * Completa gênero, estúdio e temporada dos animes criados pelo Kitsu, em lotes limitados.
+ * - Usa o kitsu_id já registrado na criação (vínculo MAL verificado pelo ARM), nunca título.
+ * - Grava só campos vazios via apply_kitsu_metadata (atômico, com proveniência).
+ * - Cada anime consultado recebe checkpoint (kitsu_metadata_checked_at), evitando retries infinitos.
+ * - Bloqueio por compare-and-swap em sync_state (id kitsu_metadata); 429 devolve espera.
+ */
+async function enriquecerMetadados(banco: SupabaseClient) {
+  const chave = "kitsu_metadata";
+  await banco.from("sync_state").upsert({ id: chave, mode: "metadata", current_page: 0, is_running: false }, { onConflict: "id", ignoreDuplicates: true });
+  const { data: estado } = await banco.from("sync_state").select("*").eq("id", chave).single();
+  if (estado?.is_running && Date.now() - new Date(estado.updated_at).getTime() < 120000) {
+    return responder({ success: false, error: "Enriquecimento já em andamento.", retryable: true, retryAfterMs: 10000 });
+  }
+  const { data: trava } = await banco.from("sync_state").update({ is_running: true, updated_at: new Date().toISOString() }).eq("id", chave).eq("updated_at", estado!.updated_at).select("updated_at");
+  if (!trava?.length) return responder({ success: false, error: "Outra execução iniciou.", retryable: true, retryAfterMs: 5000 });
+  const liberar = (extra: Record<string, unknown> = {}) => banco.from("sync_state").update({ is_running: false, updated_at: new Date().toISOString(), last_run_at: new Date().toISOString(), ...extra }).eq("id", chave);
+  const contagem = { consultados: 0, preenchidos: 0, generos: 0, estudios: 0, temporadas: 0, anos: 0, semDados: 0, ausentes: 0 };
+  try {
+    const { data: candidatos, error } = await banco.rpc("kitsu_metadata_candidates", { p_limit: 30 });
+    if (error) throw error;
+    const lista = (candidatos ?? []) as { mal_id: number; kitsu_id: number; remaining: number }[];
+    for (let i = 0; i < lista.length; i += 10) {
+      const grupo = lista.slice(i, i + 10);
+      const ids = grupo.map(g => g.kitsu_id).join(",");
+      const url = `${KITSU_BASE}?filter%5Bid%5D=${ids}&include=genres,animeProductions.producer&fields%5Banime%5D=startDate,genres,animeProductions&fields%5Bgenres%5D=name&fields%5BanimeProductions%5D=role,producer&fields%5Bproducers%5D=name&page%5Blimit%5D=10`;
+      const resposta = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (resposta.status === 429 || resposta.status >= 500) {
+        const espera = Number(resposta.headers.get("retry-after")) * 1000 || (resposta.status === 429 ? 60000 : 15000);
+        await resposta.text();
+        await liberar({ last_error: `Kitsu ${resposta.status}` });
+        return responder({ success: false, error: `O Kitsu está ocupado (${resposta.status}).`, retryable: true, retryAfterMs: espera, stats: contagem });
+      }
+      if (!resposta.ok) throw new ErroImportacao(`Kitsu indisponível (${resposta.status}).`, false, 0, 422);
+      const metadados = extrairMetadadosKitsu(await resposta.json());
+      for (const g of grupo) {
+        contagem.consultados++;
+        const m = metadados.get(g.kitsu_id);
+        const temporada = estimarTemporada(m?.startDate);
+        const semDados = !m || (!m.genres.length && !m.studios.length && !temporada);
+        const { data: aplicado, error: erroAplicar } = await banco.rpc("apply_kitsu_metadata", {
+          p_mal_id: g.mal_id,
+          p_genres: m?.genres ?? [], p_studios: m?.studios ?? [],
+          p_season: temporada?.season ?? null, p_year: temporada?.year ?? null,
+          p_result: !m ? "ausente_na_fonte" : semDados ? "sem_dados_na_fonte" : "nada_a_preencher",
+        });
+        if (erroAplicar) { diagnostico("erro_salvar_anime", { mal_id: g.mal_id, modo: "metadata", erro: erroAplicar.message }); continue; }
+        const campos = ((aplicado as { campos?: string[] })?.campos) ?? [];
+        if (!m) contagem.ausentes++; else if (!campos.length) contagem.semDados++;
+        if (campos.length) contagem.preenchidos++;
+        if (campos.includes("genres")) contagem.generos++;
+        if (campos.includes("studios")) contagem.estudios++;
+        if (campos.includes("season")) contagem.temporadas++;
+        if (campos.includes("year")) contagem.anos++;
+      }
+      if (i + 10 < lista.length) await new Promise(r => setTimeout(r, 1200));
+    }
+    const restantes = Math.max(0, Number(lista[0]?.remaining ?? 0) - contagem.consultados);
+    await liberar({ last_error: null, total_synced: (estado?.total_synced ?? 0) + contagem.consultados });
+    diagnostico("pagina_concluida", { modo: "metadata", ...contagem, restantes });
+    return responder({ success: true, continue: restantes > 0, remaining: restantes, stats: contagem });
+  } catch (erro) {
+    const mensagem = erro instanceof Error ? erro.message : (erro as { message?: string })?.message ?? "Falha no enriquecimento";
+    diagnostico("erro_importacao", { modo: "metadata", erro: mensagem });
+    await liberar({ last_error: mensagem });
+    return responder({ success: false, error: mensagem, retryable: erro instanceof Error && (erro.name === "TimeoutError"), stats: contagem }, 200);
+  }
+}

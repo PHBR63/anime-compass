@@ -92,10 +92,13 @@ export type Database = {
           genres: Json | null
           id: string
           image_url: string | null
+          kitsu_metadata_checked_at: string | null
+          kitsu_metadata_result: string | null
           last_synced_at: string | null
           local_image_url: string | null
           mal_id: number
           members: number | null
+          metadata_sources: Json
           popularity: number | null
           rank: number | null
           rating: string | null
@@ -119,10 +122,13 @@ export type Database = {
           genres?: Json | null
           id?: string
           image_url?: string | null
+          kitsu_metadata_checked_at?: string | null
+          kitsu_metadata_result?: string | null
           last_synced_at?: string | null
           local_image_url?: string | null
           mal_id: number
           members?: number | null
+          metadata_sources?: Json
           popularity?: number | null
           rank?: number | null
           rating?: string | null
@@ -146,10 +152,13 @@ export type Database = {
           genres?: Json | null
           id?: string
           image_url?: string | null
+          kitsu_metadata_checked_at?: string | null
+          kitsu_metadata_result?: string | null
           last_synced_at?: string | null
           local_image_url?: string | null
           mal_id?: number
           members?: number | null
+          metadata_sources?: Json
           popularity?: number | null
           rank?: number | null
           rating?: string | null
@@ -1618,6 +1627,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      apply_kitsu_metadata: {
+        Args: {
+          p_genres: Json
+          p_mal_id: number
+          p_result: string
+          p_season: string
+          p_studios: Json
+          p_year: number
+        }
+        Returns: Json
+      }
       can_add_conversation_participant: {
         Args: { _conversation_id: string; _role: string; _user_id: string }
         Returns: boolean
@@ -1625,6 +1645,56 @@ export type Database = {
       check_and_unlock_achievements: {
         Args: { p_user_id: string }
         Returns: undefined
+      }
+      discover_catalog: {
+        Args: {
+          p: Json
+          p_limit?: number
+          p_order?: string
+          p_page?: number
+          p_sort?: string
+        }
+        Returns: Json
+      }
+      discover_facets: { Args: never; Returns: Json }
+      discover_filtered: {
+        Args: { p: Json }
+        Returns: {
+          created_at: string | null
+          episodes: number | null
+          genres: Json | null
+          id: string
+          image_url: string | null
+          kitsu_metadata_checked_at: string | null
+          kitsu_metadata_result: string | null
+          last_synced_at: string | null
+          local_image_url: string | null
+          mal_id: number
+          members: number | null
+          metadata_sources: Json
+          popularity: number | null
+          rank: number | null
+          rating: string | null
+          score: number | null
+          scored_by: number | null
+          season: string | null
+          status: string | null
+          studios: Json | null
+          synopsis: string | null
+          synopsis_pt: string | null
+          title: string
+          title_english: string | null
+          title_japanese: string | null
+          type: string | null
+          updated_at: string | null
+          year: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "anime_catalog"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_catalog_stats: { Args: never; Returns: Json }
       get_public_list_owner_info: {
@@ -1655,6 +1725,14 @@ export type Database = {
         Returns: boolean
       }
       is_moderator_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      kitsu_metadata_candidates: {
+        Args: { p_limit?: number }
+        Returns: {
+          kitsu_id: number
+          mal_id: number
+          remaining: number
+        }[]
+      }
       log_audit_action: {
         Args: {
           p_action: string

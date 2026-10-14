@@ -9,3 +9,6 @@
 - Download Jikan covers in bounded batches to the existing image bucket; failed downloads retain the original URL and previous local cover for later recovery.
 - Keep Jikan retry intent scoped to the authenticated administrator in browser storage; reconcile each retry with server checkpoints and fence writes with the acquired lease to avoid duplicate progress and stale workers.- Authenticate scheduled Jikan runs with a vault-held token compared by hash in a service-only table; schedulers cannot hold admin sessions.
 - Jikan: optional self-hosted base URL via JIKAN_BASE_URL secret, public API as fallback; keeps imports working when either source is down.
+- Discover reads only through SQL `discover_catalog`/`discover_facets` (also used by `anime-api`); counts, filters and list exclusion (via `auth.uid()`) must stay server-side so app and API numbers match.
+- Discover state lives in the URL (`src/lib/discoverParams.ts`); never add parallel per-tab queries.
+- Kitsu metadata enrichment writes only through `apply_kitsu_metadata` (empty fields only, provenance in `metadata_sources`, checkpoint per anime); genres/studios are stored by name without invented MAL ids.

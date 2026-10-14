@@ -1,536 +1,198 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Search, TrendingUp, Filter, Tv, Loader2, ChevronDown, Database } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Search, Loader2, ChevronDown, Database, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AdaptiveAnimeGrid } from '@/components/anime/VirtualizedAnimeGrid';
-import { 
-  useTopAnimes, 
-  useSeasonAnimes, 
-  useAnimeGenres,
-  useCatalogStatus,
-  POPULAR_GENRES
-} from '@/hooks/useAnimeApi';
-import { useAdvancedAnimeSearch, type DiscoverFilters, type DiscoverSort } from '@/hooks/useAdvancedAnimeFilters';
-import { DiscoverFiltersSheet, ActiveFiltersBadges } from '@/components/anime/DiscoverFilters';
-import { CatalogCoverageBadge } from '@/components/anime/CatalogCoverageIndicator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AnimeDetailModal } from '@/components/anime/AnimeDetailModal';
+import { DiscoverAnimeCard } from '@/components/anime/DiscoverAnimeCard';
+import { DiscoverFiltersSheet, ActiveFilterChips } from '@/components/anime/DiscoverFilters';
 import { SakuraPetals, WavePattern } from '@/components/backgrounds';
-import { AnimatedContent, NeonText } from '@/components/animations';
-import { useAnimeEntriesContext } from '@/contexts/AnimeEntriesContext';
-import type { CatalogAnime } from '@/types/catalog';
+import { NeonText } from '@/components/animations';
+import { useAuth } from '@/hooks/useAuth';
+import { useDiscoverCatalog, useDiscoverFacets, dedupeByMalId } from '@/hooks/useDiscover';
+import {
+  SEASONS, SORT_OPTIONS, hideInListStorageKey, parseDiscoverParams, seasonOf, sortOrderOf,
+  toDiscoverParams, toRpcFilters, type DiscoverMode, type DiscoverState, type SeasonName,
+} from '@/lib/discoverParams';
+
+// Modos visíveis no topo.
+const MODES: { value: DiscoverMode; label: string }[] = [
+  { value: 'catalog', label: 'Catálogo' },
+  { value: 'season', label: 'Temporada' },
+  { value: 'airing', label: 'Em exibição' },
+  { value: 'upcoming', label: 'Próximos lançamentos' },
+];
 
 /**
- * Página de descoberta de animes com scroll infinito
- * Usa API própria do catálogo local (mais rápida e sem rate limit)
+ * Página Descobrir: uma consulta ativa por vez, total exato do banco,
+ * estado completo na URL (voltar/recarregar mantêm filtros) e paginação por "Carregar mais".
  */
 export default function Discover() {
-  // Estados de pesquisa e filtros
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'season' | 'top'>('season');
-  const [selectedAnime, setSelectedAnime] = useState<CatalogAnime | null>(null);
-  
-  // Estados de filtros avançados - com persistência do hideInList
-  const [advancedFilters, setAdvancedFilters] = useState<DiscoverFilters>(() => {
-    const savedHideInList = localStorage.getItem('discover-hide-in-list');
-    return { hideInList: savedHideInList === 'true' };
-  });
-  const [advancedSort, setAdvancedSort] = useState<DiscoverSort>({ field: 'score', order: 'desc' });
-  
-  // Ref para observar scroll infinito
-  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const state = useMemo(() => parseDiscoverParams(searchParams), [searchParams]);
+  const { user } = useAuth();
+  const [selectedMalId, setSelectedMalId] = useState<number | null>(null);
 
-  // Debounce da pesquisa
+  // Preferência "ocultar minha lista" salva por conta (não vaza entre usuários do mesmo aparelho).
+  const storageKey = hideInListStorageKey(user?.id);
+  const [hideInList, setHideInList] = useState(false);
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+    setHideInList(storageKey ? localStorage.getItem(storageKey) === 'true' : false);
+  }, [storageKey]);
+  const changeHide = useCallback((v: boolean) => {
+    setHideInList(v);
+    if (storageKey) localStorage.setItem(storageKey, String(v));
+  }, [storageKey]);
 
-  // Sincroniza busca de texto com filtros avançados
+  /** Grava o novo estado na URL (entra no histórico do navegador). */
+  const commit = useCallback((next: DiscoverState, replace = false) => {
+    setSearchParams(toDiscoverParams(next), { replace });
+  }, [setSearchParams]);
+
+  // Campo de busca local com debounce de 400 ms antes de ir para a URL.
+  const [searchInput, setSearchInput] = useState(state.search);
+  useEffect(() => { setSearchInput(state.search); }, [state.search]);
   useEffect(() => {
-    if (debouncedQuery.length >= 2) {
-      setAdvancedFilters(prev => ({ ...prev, search: debouncedQuery }));
-    } else {
-      setAdvancedFilters(prev => {
-        const { search, ...rest } = prev;
-        return rest;
-      });
-    }
-  }, [debouncedQuery]);
+    if (searchInput === state.search) return;
+    const t = setTimeout(() => commit({ ...state, search: searchInput }, true), 400);
+    return () => clearTimeout(t);
+  }, [searchInput, state, commit]);
 
-  // Buscar gêneros disponíveis do catálogo
-  const { data: catalogGenres } = useAnimeGenres();
-  
-  // Verificar status do catálogo (se está vazio ou populado)
-  const { data: catalogStatus, isLoading: loadingStatus } = useCatalogStatus();
+  const { data: facets } = useDiscoverFacets();
+  const filters = useMemo(() => toRpcFilters(state, hideInList && !!user), [state, hideInList, user]);
+  const query = useDiscoverCatalog(filters, state.sort, sortOrderOf(state.sort));
 
-  // Hook para verificar se anime está na lista do usuário
-  const { isInList } = useAnimeEntriesContext();
+  const items = useMemo(() => dedupeByMalId(query.data?.pages.flatMap(p => p.items) ?? []), [query.data]);
+  const total = query.data?.pages[0]?.total ?? null;
+  const anos = facets?.years ?? [];
+  const atual = seasonOf(new Date());
 
-  // Verifica se há filtros ativos (excluindo hideInList da contagem para exibição)
-  const hasActiveFilters = useMemo(() => Boolean(
-    advancedFilters.search ||
-    advancedFilters.genre ||
-    advancedFilters.studio ||
-    advancedFilters.yearMin ||
-    advancedFilters.yearMax ||
-    advancedFilters.type ||
-    advancedFilters.status ||
-    advancedFilters.scoreMin
-  ), [advancedFilters]);
-
-  // Hook de busca avançada
-  const {
-    data: advancedSearchData,
-    fetchNextPage: fetchNextAdvanced,
-    hasNextPage: hasNextAdvanced,
-    isFetchingNextPage: isFetchingAdvanced,
-    isLoading: loadingAdvanced
-  } = useAdvancedAnimeSearch(advancedFilters, advancedSort);
-
-  // Hooks de dados padrão com paginação infinita
-  const {
-    data: topAnimesData,
-    fetchNextPage: fetchNextTop,
-    hasNextPage: hasNextTop,
-    isFetchingNextPage: isFetchingTop,
-    isLoading: loadingTop
-  } = useTopAnimes();
-
-  const {
-    data: seasonAnimesData,
-    fetchNextPage: fetchNextSeason,
-    hasNextPage: hasNextSeason,
-    isFetchingNextPage: isFetchingSeason,
-    isLoading: loadingSeason
-  } = useSeasonAnimes();
-
-  // Função memoizada para remover duplicatas por mal_id
-  const removeDuplicates = useCallback((animes: CatalogAnime[]): CatalogAnime[] => {
-    const seen = new Set<number>();
-    return animes.filter((anime) => {
-      if (seen.has(anime.mal_id)) {
-        return false;
-      }
-      seen.add(anime.mal_id);
-      return true;
-    });
-  }, []);
-
-  // Função para filtrar animes que já estão na lista do usuário
-  const filterInList = useCallback((animes: CatalogAnime[]): CatalogAnime[] => {
-    if (!advancedFilters.hideInList) return animes;
-    return animes.filter((anime) => !isInList(anime.mal_id));
-  }, [advancedFilters.hideInList, isInList]);
-
-  // Flatten dos dados paginados, remoção de duplicatas e filtro de lista - MEMOIZADO
-  const advancedAnimes = useMemo(() => 
-    filterInList(removeDuplicates(advancedSearchData?.pages.flatMap(page => page.data) || [])),
-    [advancedSearchData, removeDuplicates, filterInList]
-  );
-
-  const topAnimes = useMemo(() => 
-    filterInList(removeDuplicates(topAnimesData?.pages.flatMap(page => page.data) || [])),
-    [topAnimesData, removeDuplicates, filterInList]
-  );
-  
-  const seasonAnimes = useMemo(() => 
-    filterInList(removeDuplicates(seasonAnimesData?.pages.flatMap(page => page.data) || [])),
-    [seasonAnimesData, removeDuplicates, filterInList]
-  );
-
-  // Determina qual função de carregar mais usar - MEMOIZADO
-  const loadMoreConfig = useMemo(() => {
-    if (hasActiveFilters) {
-      return { fetch: fetchNextAdvanced, hasNext: hasNextAdvanced, isFetching: isFetchingAdvanced };
-    }
-    if (activeTab === 'top') {
-      return { fetch: fetchNextTop, hasNext: hasNextTop, isFetching: isFetchingTop };
-    }
-    return { fetch: fetchNextSeason, hasNext: hasNextSeason, isFetching: isFetchingSeason };
-  }, [
-    hasActiveFilters, activeTab,
-    fetchNextAdvanced, hasNextAdvanced, isFetchingAdvanced,
-    fetchNextTop, hasNextTop, isFetchingTop,
-    fetchNextSeason, hasNextSeason, isFetchingSeason
-  ]);
-
-  // Observer para scroll infinito
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && loadMoreConfig.hasNext && !loadMoreConfig.isFetching) {
-          loadMoreConfig.fetch();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [loadMoreConfig]);
-
-  // Gêneros para exibir nos filtros rápidos
-  const displayGenres = useMemo(() => {
-    if (catalogGenres && catalogGenres.length > 0) {
-      return catalogGenres.slice(0, 8).map(g => ({ id: g.mal_id, name: g.name }));
-    }
-    return POPULAR_GENRES.slice(0, 8).map(g => ({ id: g.mal_id, name: g.name }));
-  }, [catalogGenres]);
-
-  // Funções de controle - MEMOIZADAS
-  const handleGenreClick = useCallback((genreId: number) => {
-    setAdvancedFilters(prev => ({
-      ...prev,
-      genre: prev.genre === genreId ? undefined : genreId
-    }));
-    // Limpa busca por texto ao selecionar gênero
-    if (advancedFilters.genre !== genreId) {
-      setSearchQuery('');
-      setDebouncedQuery('');
-    }
-  }, [advancedFilters.genre]);
-
-  const clearFilters = useCallback(() => {
-    // Mantém a preferência de hideInList ao limpar filtros
-    const savedHideInList = localStorage.getItem('discover-hide-in-list') === 'true';
-    setAdvancedFilters({ hideInList: savedHideInList });
-    setSearchQuery('');
-    setDebouncedQuery('');
-  }, []);
-
-  // Persiste a preferência de hideInList no localStorage
-  const handleFiltersChange = useCallback((newFilters: DiscoverFilters) => {
-    if (newFilters.hideInList !== undefined) {
-      localStorage.setItem('discover-hide-in-list', String(newFilters.hideInList));
-    }
-    setAdvancedFilters(newFilters);
-  }, []);
-
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  }, []);
-
-  const handleSelectAnime = useCallback((anime: CatalogAnime) => {
-    setSelectedAnime(anime);
-  }, []);
-
-  const handleCloseModal = useCallback((open: boolean) => {
-    if (!open) setSelectedAnime(null);
-  }, []);
-
-  // Skeleton de loading - MEMOIZADO
-  const LoadingSkeleton = useMemo(() => ({ count = 12 }: { count?: number }) => (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="space-y-2">
-          <Skeleton className="aspect-[3/4] rounded-xl" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-3 w-1/2" />
-        </div>
-      ))}
-    </div>
-  ), []);
-
-  // Botão de carregar mais
-  const LoadMoreButton = useCallback(() => {
-    if (!loadMoreConfig.hasNext) return null;
-    
-    return (
-      <div ref={loadMoreRef} className="flex justify-center py-8">
-        <Button
-          variant="outline"
-          onClick={() => loadMoreConfig.fetch()}
-          disabled={loadMoreConfig.isFetching}
-          className="gap-2"
-        >
-          {loadMoreConfig.isFetching ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Carregando...
-            </>
-          ) : (
-            <>
-              <ChevronDown className="h-4 w-4" />
-              Carregar Mais
-            </>
-          )}
-        </Button>
-      </div>
-    );
-  }, [loadMoreConfig]);
-
-  // Encontrar nome do gênero selecionado
-  const selectedGenreName = useMemo(() => {
-    if (!advancedFilters.genre) return null;
-    const genre = displayGenres.find(g => g.id === advancedFilters.genre);
-    return genre?.name || null;
-  }, [advancedFilters.genre, displayGenres]);
-
-  // Verifica se o catálogo está vazio
-  const isCatalogEmpty = catalogStatus && !catalogStatus.isPopulated;
-  const catalogCount = catalogStatus?.totalAnimes || 0;
-
-  // Título da seção baseado nos filtros
-  const sectionTitle = useMemo(() => {
-    if (advancedFilters.search) {
-      return `Resultados para "${advancedFilters.search}"`;
-    }
-    if (selectedGenreName) {
-      return `Animes de ${selectedGenreName}`;
-    }
-    if (hasActiveFilters) {
-      return 'Resultados da Busca';
-    }
-    return null;
-  }, [advancedFilters.search, selectedGenreName, hasActiveFilters]);
+  // Desloca a temporada para trás/frente (ano + trimestre explícitos).
+  const shiftSeason = (delta: number) => {
+    const idx = SEASONS.findIndex(s => s.value === state.season) + delta;
+    const year = state.seasonYear + Math.floor(idx / 4);
+    commit({ ...state, season: SEASONS[((idx % 4) + 4) % 4].value, seasonYear: year });
+  };
 
   return (
-    <div className="relative space-y-6 pt-12 md:pt-0 pb-8 min-h-screen">
-      {/* Backgrounds orientais */}
+    <div className="relative space-y-5 pt-12 md:pt-0 pb-8 min-h-screen">
       <div className="fixed inset-0 -z-10 pointer-events-none opacity-40">
         <SakuraPetals petalCount={15} opacity={0.5} colors={['hsl(350, 100%, 85%)', 'hsl(var(--primary))']} />
       </div>
-      <div className="fixed inset-0 -z-10 pointer-events-none">
-        <WavePattern opacity={0.08} />
+      <div className="fixed inset-0 -z-10 pointer-events-none"><WavePattern opacity={0.08} /></div>
+
+      <header className="text-center max-w-2xl mx-auto">
+        <h1 className="font-zen text-3xl md:text-4xl font-bold mb-1">
+          Descubra Novos <NeonText color="primary">Animes</NeonText>
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {facets ? `${facets.total.toLocaleString('pt-BR')} títulos disponíveis no catálogo` : 'Explore o catálogo'}
+        </p>
+      </header>
+
+      {/* Busca + ordenação + filtros */}
+      <div className="max-w-4xl mx-auto space-y-3">
+        <div className="flex gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Label htmlFor="discover-busca" className="sr-only">Buscar por título</Label>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden />
+            <Input id="discover-busca" type="search" placeholder="Buscar por título..." value={searchInput}
+              onChange={e => setSearchInput(e.target.value)} className="pl-9 h-11 bg-secondary/50 border-border/50 rounded-xl" />
+          </div>
+          <Select value={state.sort} onValueChange={v => commit({ ...state, sort: v as DiscoverState['sort'] })}>
+            <SelectTrigger className="h-11 w-[9.5rem] sm:w-44 shrink-0" aria-label="Ordenar por"><SelectValue /></SelectTrigger>
+            <SelectContent>{SORT_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+          </Select>
+          <DiscoverFiltersSheet state={state} facets={facets} hideInList={hideInList} canHide={!!user}
+            onApply={(next, hide) => { changeHide(hide); commit(next); }} />
+        </div>
+
+        {/* Modos */}
+        <div role="tablist" aria-label="Modo de navegação" className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+          {MODES.map(m => (
+            <Button key={m.value} role="tab" aria-selected={state.mode === m.value} size="sm"
+              variant={state.mode === m.value ? 'default' : 'outline'} className="shrink-0 rounded-full"
+              onClick={() => commit({ ...state, mode: m.value })}>
+              {m.label}
+            </Button>
+          ))}
+        </div>
+
+        {state.mode === 'season' && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Temporada anterior" onClick={() => shiftSeason(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+            <Select value={state.season} onValueChange={v => commit({ ...state, season: v as SeasonName })}>
+              <SelectTrigger className="h-9 w-48" aria-label="Trimestre"><SelectValue /></SelectTrigger>
+              <SelectContent>{SEASONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={String(state.seasonYear)} onValueChange={v => commit({ ...state, seasonYear: Number(v) })}>
+              <SelectTrigger className="h-9 w-24" aria-label="Ano da temporada"><SelectValue /></SelectTrigger>
+              <SelectContent className="max-h-72">
+                {(anos.includes(state.seasonYear) ? anos : [state.seasonYear, ...anos]).map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Próxima temporada" onClick={() => shiftSeason(1)}><ChevronRight className="h-4 w-4" /></Button>
+            {(state.season !== atual.season || state.seasonYear !== atual.year) && (
+              <Button variant="link" size="sm" onClick={() => commit({ ...state, season: atual.season, seasonYear: atual.year })}>Temporada atual</Button>
+            )}
+          </div>
+        )}
+
+        <ActiveFilterChips state={state} hideInList={hideInList && !!user} onChange={s => commit(s)} onHideChange={changeHide} />
       </div>
 
-      {/* Header */}
-      <AnimatedContent direction="down" duration={0.5}>
-        <div className="text-center max-w-2xl mx-auto">
-          <h1 className="font-zen text-3xl md:text-4xl font-bold mb-2">
-            Descubra Novos <NeonText color="primary">Animes</NeonText>
-          </h1>
-          <p className="text-muted-foreground">
-            Explore o catálogo com {catalogCount > 0 ? catalogCount.toLocaleString() : 'milhares de'} animes
-          </p>
-        </div>
-      </AnimatedContent>
+      {/* Resultados */}
+      <section aria-live="polite" aria-busy={query.isLoading}>
+        <p className="text-sm text-muted-foreground mb-4">
+          {total !== null
+            ? <>{total.toLocaleString('pt-BR')} resultado{total === 1 ? '' : 's'} · mostrando {items.length.toLocaleString('pt-BR')}</>
+            : query.isLoading ? 'Carregando…' : null}
+        </p>
 
-      {/* Indicador de cobertura */}
-      <AnimatedContent direction="up" delay={0.05}>
-        <div className="flex justify-center">
-          <CatalogCoverageBadge />
-        </div>
-      </AnimatedContent>
-
-      {/* Alerta de catálogo vazio */}
-      {isCatalogEmpty && !loadingStatus && (
-        <AnimatedContent direction="up" delay={0.1}>
-          <Alert className="max-w-2xl mx-auto border-warning/50 bg-warning/10">
-            <Database className="h-4 w-4 text-warning" />
-            <AlertTitle className="text-warning">Catálogo em Sincronização</AlertTitle>
-            <AlertDescription className="text-muted-foreground">
-              O catálogo de animes está sendo sincronizado. Em breve você poderá explorar milhares de títulos aqui.
+        {query.isError ? (
+          <Alert variant="destructive" className="max-w-xl mx-auto">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Não foi possível carregar</AlertTitle>
+            <AlertDescription className="space-y-3">
+              <p>Houve uma falha de conexão ou do servidor. Isso não significa que não há resultados.</p>
+              <Button variant="outline" size="sm" onClick={() => query.refetch()}>Tentar de novo</Button>
             </AlertDescription>
           </Alert>
-        </AnimatedContent>
-      )}
-
-      {/* Barra de pesquisa e filtros */}
-      <AnimatedContent direction="up" delay={0.1}>
-        <div className="max-w-3xl mx-auto space-y-3">
-          <div className="flex gap-2">
-            {/* Campo de busca */}
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por título..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="pl-12 h-12 text-base bg-secondary/50 border-border/50 rounded-xl"
-              />
-              {loadingAdvanced && debouncedQuery && (
-                <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-primary" />
-              )}
-            </div>
-            
-            {/* Botão de filtros avançados */}
-            <DiscoverFiltersSheet
-              filters={advancedFilters}
-              sort={advancedSort}
-              onFiltersChange={handleFiltersChange}
-              onSortChange={setAdvancedSort}
-              onClear={clearFilters}
-            />
+        ) : query.isLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="space-y-2"><Skeleton className="aspect-[3/4] rounded-xl" /><Skeleton className="h-4 w-3/4" /><Skeleton className="h-3 w-1/2" /></div>
+            ))}
           </div>
-
-          {/* Badges de filtros ativos */}
-          <ActiveFiltersBadges 
-            filters={advancedFilters} 
-            onFiltersChange={handleFiltersChange}
-          />
-        </div>
-      </AnimatedContent>
-
-      {/* Filtros rápidos de gênero */}
-      <AnimatedContent direction="up" delay={0.2}>
-        <div className="flex flex-wrap justify-center gap-2">
-          {displayGenres.map((genre) => (
-            <Badge
-              key={genre.id}
-              variant={advancedFilters.genre === genre.id ? "default" : "outline"}
-              className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
-                advancedFilters.genre === genre.id 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'hover:bg-primary/10 hover:border-primary/50'
-              }`}
-              onClick={() => handleGenreClick(genre.id)}
-            >
-              {genre.name}
-            </Badge>
-          ))}
-          {hasActiveFilters && (
-            <Badge
-              variant="secondary"
-              className="px-3 py-1.5 text-sm cursor-pointer hover:bg-destructive/20"
-              onClick={clearFilters}
-            >
-              Limpar Filtros
-            </Badge>
-          )}
-        </div>
-      </AnimatedContent>
-
-      {/* Resultados com filtros */}
-      {hasActiveFilters && (
-        <section>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <Filter className="h-5 w-5 text-primary" />
-              <h2 className="font-zen text-xl font-semibold">
-                {sectionTitle}
-              </h2>
-            </div>
-            <span className="text-sm text-muted-foreground">
-              {advancedAnimes.length} encontrados
-            </span>
+        ) : items.length === 0 ? (
+          <div className="text-center py-12">
+            <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+            <p className="text-muted-foreground">Nenhum anime encontrado com esses filtros.</p>
           </div>
-          
-          {loadingAdvanced ? (
-            <LoadingSkeleton count={12} />
-          ) : advancedAnimes.length > 0 ? (
-            <>
-              <AdaptiveAnimeGrid
-                animes={advancedAnimes}
-                onEndReached={() => loadMoreConfig.fetch()}
-                isLoadingMore={loadMoreConfig.isFetching}
-              />
-              {loadMoreConfig.hasNext && !loadMoreConfig.isFetching && advancedAnimes.length < 50 && (
-                <LoadMoreButton />
-              )}
-            </>
-          ) : (
-            <div className="text-center py-12">
-              <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-              <p className="text-muted-foreground">
-                Nenhum anime encontrado com esses filtros
-              </p>
-              <Button variant="outline" onClick={clearFilters} className="mt-4">
-                Limpar Filtros
-              </Button>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {items.map(a => <DiscoverAnimeCard key={a.mal_id} anime={a} onOpen={setSelectedMalId} />)}
             </div>
-          )}
-        </section>
-      )}
-
-      {/* Seções padrão (quando não há filtros ativos) */}
-      {!hasActiveFilters && (
-        <>
-          {/* Tabs de navegação */}
-          <div className="flex justify-center gap-2">
-            <Button
-              variant={activeTab === 'season' ? 'default' : 'outline'}
-              onClick={() => setActiveTab('season')}
-              className="gap-2"
-            >
-              <Tv className="h-4 w-4" />
-              Temporada Atual
-            </Button>
-            <Button
-              variant={activeTab === 'top' ? 'default' : 'outline'}
-              onClick={() => setActiveTab('top')}
-              className="gap-2"
-            >
-              <TrendingUp className="h-4 w-4" />
-              Top Animes
-            </Button>
-          </div>
-
-          {/* Conteúdo baseado na tab ativa */}
-          {activeTab === 'season' ? (
-            <section>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <Tv className="h-5 w-5 text-accent" />
-                  <h2 className="font-zen text-xl font-semibold">Temporada Atual</h2>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  {seasonAnimes.length} animes
-                </span>
-              </div>
-              
-              {loadingSeason ? (
-                <LoadingSkeleton count={12} />
+            <div className="flex justify-center py-8">
+              {query.hasNextPage ? (
+                <Button variant="outline" onClick={() => query.fetchNextPage()} disabled={query.isFetchingNextPage} className="gap-2">
+                  {query.isFetchingNextPage ? <><Loader2 className="h-4 w-4 animate-spin" />Carregando…</> : <><ChevronDown className="h-4 w-4" />Carregar mais</>}
+                </Button>
               ) : (
-                <>
-                  <AdaptiveAnimeGrid
-                    animes={seasonAnimes}
-                    onEndReached={() => loadMoreConfig.fetch()}
-                    isLoadingMore={loadMoreConfig.isFetching}
-                  />
-                  {loadMoreConfig.hasNext && !loadMoreConfig.isFetching && seasonAnimes.length < 50 && (
-                    <LoadMoreButton />
-                  )}
-                </>
+                <p className="text-sm text-muted-foreground">Fim dos resultados.</p>
               )}
-            </section>
-          ) : (
-            <section>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                  <h2 className="font-zen text-xl font-semibold">Top Animes de Todos os Tempos</h2>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  {topAnimes.length} animes
-                </span>
-              </div>
-              
-              {loadingTop ? (
-                <LoadingSkeleton count={12} />
-              ) : (
-                <>
-                  <AdaptiveAnimeGrid
-                    animes={topAnimes}
-                    showRanking
-                    onEndReached={() => loadMoreConfig.fetch()}
-                    isLoadingMore={loadMoreConfig.isFetching}
-                  />
-                  {loadMoreConfig.hasNext && !loadMoreConfig.isFetching && topAnimes.length < 50 && (
-                    <LoadMoreButton />
-                  )}
-                </>
-              )}
-            </section>
-          )}
-        </>
-      )}
+            </div>
+          </>
+        )}
+      </section>
 
-      {/* Modal de detalhes */}
-      <AnimeDetailModal
-        catalogAnime={selectedAnime || undefined}
-        open={!!selectedAnime}
-        onOpenChange={handleCloseModal}
-      />
+      {/* Ficha completa buscada só ao abrir */}
+      <AnimeDetailModal open={selectedMalId !== null} onOpenChange={o => { if (!o) setSelectedMalId(null); }} malId={selectedMalId ?? undefined} />
     </div>
   );
 }

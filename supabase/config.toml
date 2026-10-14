@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.sync-airing-episodes]
 verify_jwt = false
+
+[functions.import-kitsu]
+verify_jwt = false

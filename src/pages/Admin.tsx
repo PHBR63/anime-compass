@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Shield, LayoutDashboard, Users, FileText, FlaskConical, Download, HardDrive, BarChart3, Library, History, Languages, Archive, type LucideIcon } from "lucide-react";
+import { Shield, LayoutDashboard, Users, FileText, FlaskConical, Download, HardDrive, BarChart3, Library, History, Languages, Archive, Sparkles, type LucideIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminStats } from "@/components/admin/AdminStats";
 import { UsersManagement } from "@/components/admin/UsersManagement";
@@ -9,6 +9,8 @@ import { SystemTests } from "@/components/admin/SystemTests";
 import { CatalogImportManager } from "@/components/admin/CatalogImportManager";
 import { JikanImportManager } from "@/components/admin/JikanImportManager";
 import { JikanImportHistory } from "@/components/admin/JikanImportHistory";
+import { KitsuImportManager } from "@/components/admin/KitsuImportManager";
+import { KitsuImportHistory } from "@/components/admin/KitsuImportHistory";
 import { JikanImportLogs } from "@/components/admin/JikanImportLogs";
 import { ScrollText } from "lucide-react";
 import { JikanImportAlerts } from "@/components/admin/JikanImportAlerts";
@@ -87,6 +89,7 @@ export default function Admin() {
           <Tabs defaultValue="import" className="w-full">
             <AbasRolaveis>
               <Aba valor="import" icone={Download}>Importar</Aba>
+              <Aba valor="kitsu" icone={Sparkles}>Kitsu</Aba>
               <Aba valor="history" icone={History}>Histórico</Aba>
               <Aba valor="logs" icone={ScrollText}>Logs</Aba>
               <Aba valor="translations" icone={Languages}>Traduções</Aba>
@@ -95,6 +98,7 @@ export default function Admin() {
               <Aba valor="legacy" icone={Archive}>Importação antiga</Aba>
             </AbasRolaveis>
             <TabsContent value="import" className="mt-4 min-w-0"><JikanImportManager /></TabsContent>
+            <TabsContent value="kitsu" className="mt-4 min-w-0 space-y-4"><KitsuImportManager /><KitsuImportHistory /></TabsContent>
             <TabsContent value="history" className="mt-4 min-w-0"><JikanImportHistory /></TabsContent>
             <TabsContent value="logs" className="mt-4 min-w-0"><JikanImportLogs /></TabsContent>
             <TabsContent value="translations" className="mt-4 min-w-0"><DeeplTranslationReview /></TabsContent>

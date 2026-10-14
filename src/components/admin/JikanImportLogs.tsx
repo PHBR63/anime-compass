@@ -20,6 +20,7 @@ const EVENTOS: Record<string, string> = {
   pagina_concluida: "Página concluída",
   timeout_importacao: "Tempo esgotado na importação",
   erro_importacao: "Erro na importação",
+  sem_mapeamento: "Sem vínculo com o MAL",
 };
 const PERIODOS: Record<string, number> = { "1h": 1, "24h": 24, "7d": 168, "30d": 720 };
 const CORES: Record<string, "default" | "secondary" | "destructive" | "outline"> = { sucesso: "default", aviso: "secondary", erro: "destructive", info: "outline" };
@@ -86,6 +87,7 @@ export function JikanImportLogs() {
             <SelectContent>
               <SelectItem value="todas">Todas as fontes</SelectItem>
               <SelectItem value="publica">API pública</SelectItem><SelectItem value="propria">Servidor próprio</SelectItem>
+              <SelectItem value="kitsu">Kitsu</SelectItem>
             </SelectContent>
           </Select>
           <Select value={resultado} onValueChange={setResultado}>
@@ -104,7 +106,7 @@ export function JikanImportLogs() {
               <div className="flex flex-wrap items-center gap-1.5">
                 <Badge variant={CORES[log.resultado] ?? "outline"}>{RESULTADOS[log.resultado] ?? log.resultado}</Badge>
                 <span className="font-medium">{EVENTOS[log.evento] ?? log.evento}</span>
-                {log.base && <Badge variant="outline">{log.base === "publica" ? "API pública" : "Servidor próprio"}</Badge>}
+                {log.base && <Badge variant="outline">{log.base === "publica" ? "API pública" : log.base === "kitsu" ? "Kitsu" : "Servidor próprio"}</Badge>}
                 {log.pagina !== null && <span className="text-muted-foreground">pág. {log.pagina}</span>}
                 <span className="ml-auto text-muted-foreground">{new Date(log.created_at).toLocaleString("pt-BR")}</span>
               </div>

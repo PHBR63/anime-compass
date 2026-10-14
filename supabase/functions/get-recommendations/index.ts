@@ -335,6 +335,8 @@ async function fetchCatalogEntries(supabase: any, malIds: number[]): Promise<Map
 
 // Edge function principal
 serve(async (req) => {
+  // Cada requisição começa com o disjuntor do Jikan zerado.
+  jikanIndisponivel = false;
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

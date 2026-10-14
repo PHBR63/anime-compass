@@ -99,7 +99,7 @@ export default function Admin() {
               <Aba valor="legacy" icone={Archive}>Importação antiga</Aba>
             </AbasRolaveis>
             <TabsContent value="import" className="mt-4 min-w-0"><JikanImportManager /></TabsContent>
-            <TabsContent value="kitsu" className="mt-4 min-w-0 space-y-4"><KitsuImportManager /><KitsuImportHistory /></TabsContent>
+            <TabsContent value="kitsu" className="mt-4 min-w-0 space-y-4"><KitsuImportManager /><KitsuImportHistory /><KitsuImportItems /></TabsContent>
             <TabsContent value="history" className="mt-4 min-w-0"><JikanImportHistory /></TabsContent>
             <TabsContent value="logs" className="mt-4 min-w-0"><JikanImportLogs /></TabsContent>
             <TabsContent value="translations" className="mt-4 min-w-0"><DeeplTranslationReview /></TabsContent>

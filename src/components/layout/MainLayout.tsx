@@ -29,6 +29,10 @@ export function MainLayout({ children }: MainLayoutProps) {
       <main className="md:pl-64 min-h-screen">
         <div className="container px-4 md:px-6 py-4 md:py-8 max-w-7xl mx-auto">
           {children}
+          <footer className="mt-8 text-xs text-muted-foreground">
+            Metadados complementares: anime-offline-database (ODbL).{' '}
+            <a href="/metadata/aod/index.html" className="underline underline-offset-4">Fontes, licença e download</a>
+          </footer>
         </div>
       </main>
 

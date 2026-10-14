@@ -9,6 +9,8 @@ import { SystemTests } from "@/components/admin/SystemTests";
 import { CatalogImportManager } from "@/components/admin/CatalogImportManager";
 import { JikanImportManager } from "@/components/admin/JikanImportManager";
 import { JikanImportHistory } from "@/components/admin/JikanImportHistory";
+import { JikanImportLogs } from "@/components/admin/JikanImportLogs";
+import { ScrollText } from "lucide-react";
 import { JikanImportAlerts } from "@/components/admin/JikanImportAlerts";
 import { DeeplTranslationReview } from "@/components/admin/DeeplTranslationReview";
 import { CatalogImageSync } from "@/components/admin/CatalogImageSync";
@@ -84,6 +86,7 @@ export default function Admin() {
             <AbasRolaveis>
               <Aba valor="import" icone={Download}>Importar</Aba>
               <Aba valor="history" icone={History}>Histórico</Aba>
+              <Aba valor="logs" icone={ScrollText}>Logs</Aba>
               <Aba valor="translations" icone={Languages}>Traduções</Aba>
               <Aba valor="images" icone={HardDrive}>Imagens</Aba>
               <Aba valor="stats" icone={BarChart3}>Números</Aba>
@@ -91,6 +94,7 @@ export default function Admin() {
             </AbasRolaveis>
             <TabsContent value="import" className="mt-4 min-w-0"><JikanImportManager /></TabsContent>
             <TabsContent value="history" className="mt-4 min-w-0"><JikanImportHistory /></TabsContent>
+            <TabsContent value="logs" className="mt-4 min-w-0"><JikanImportLogs /></TabsContent>
             <TabsContent value="translations" className="mt-4 min-w-0"><DeeplTranslationReview /></TabsContent>
             <TabsContent value="images" className="mt-4 min-w-0"><CatalogImageSync /></TabsContent>
             <TabsContent value="stats" className="mt-4 min-w-0"><CatalogOverview /></TabsContent>

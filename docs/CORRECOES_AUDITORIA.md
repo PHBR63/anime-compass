@@ -132,3 +132,7 @@ UAT ainda necessário no ambiente implantado:
 - Background Sync com app fechado e entrega real de push precisam de implementação e validação próprias.
 - DeepL exige configuração/cota válida e teste de sugestão/aprovação; textos PT-BR continuam preservados.
 - Os erros antigos de hooks/any no lint e a suíte operacional desatualizada não foram reescritos neste pacote.
+
+## Ajuste identificado na validação de produção
+
+CatalogImageSync e sync-images passam a contar apenas referências do storage atual, tratar as antigas como pendentes e mostrar conclusão somente quando todas as capas estiverem locais. A cobertura tem duas casas decimais. O reset usa a sessão autenticada pelo SDK. tests/image-reset.node.test.ts valida transporte, parâmetro de reset e token com o SDK real e fetch isolado. Nenhuma migration adicional é necessária.

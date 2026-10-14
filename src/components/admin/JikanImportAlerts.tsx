@@ -1,14 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, Loader2, RotateCcw, XCircle } from "lucide-react";
+import { toast } from "sonner";
 
 /**
  * Alertas de importação automática do Jikan.
  * Mostra um aviso no topo do painel quando a última execução agendada
- * falhou ou terminou com erros ainda não resolvidos.
+ * falhou ou terminou com erros ainda não resolvidos, com botão para
+ * tentar novamente sem abrir o Histórico.
  */
 export function JikanImportAlerts() {
+  const [tentando, setTentando] = useState(false);
+  const cliente = useQueryClient();
   const { data = [] } = useQuery({
     queryKey: ["jikan-import-alerts"],
     queryFn: async () => {

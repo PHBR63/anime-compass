@@ -1,4 +1,5 @@
-import { Shield, LayoutDashboard, Users, FileText, AlertTriangle, FlaskConical, Download, HardDrive, BarChart3 } from "lucide-react";
+import type { ReactNode } from "react";
+import { Shield, LayoutDashboard, Users, FileText, FlaskConical, Download, HardDrive, BarChart3, Library, History, Languages, Archive, type LucideIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminStats } from "@/components/admin/AdminStats";
 import { UsersManagement } from "@/components/admin/UsersManagement";
@@ -12,6 +13,25 @@ import { DeeplTranslationReview } from "@/components/admin/DeeplTranslationRevie
 import { CatalogImageSync } from "@/components/admin/CatalogImageSync";
 import { CatalogOverview } from "@/components/admin/CatalogOverview";
 import { motion } from "framer-motion";
+
+/** Lista de abas com rolagem horizontal em telas pequenas. */
+function AbasRolaveis({ children }: { children: ReactNode }) {
+  return (
+    <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none">
+      <TabsList className="inline-flex w-max sm:w-auto h-auto p-1 gap-0.5 sm:gap-1">{children}</TabsList>
+    </div>
+  );
+}
+
+/** Aba padronizada com ícone e texto compactos no celular. */
+function Aba({ valor, icone: Icone, children }: { valor: string; icone: LucideIcon; children: ReactNode }) {
+  return (
+    <TabsTrigger value={valor} className="gap-1 sm:gap-2 text-[11px] sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
+      <Icone className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+      {children}
+    </TabsTrigger>
+  );
+}
 
 /**
  * Página do painel administrativo
@@ -33,7 +53,7 @@ export default function Admin() {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Painel Admin</h1>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Gerencie usuários, logs e catálogo
+            Catálogo, usuários e saúde do sistema
           </p>
         </div>
       </div>
@@ -41,61 +61,38 @@ export default function Admin() {
       {/* Estatísticas */}
       <AdminStats />
 
-      {/* Tabs com scroll horizontal em mobile */}
+      {/* Abas principais organizadas por tarefa; scroll horizontal no celular */}
       <Tabs defaultValue="overview" className="w-full">
-        <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 scrollbar-none">
-          <TabsList className="inline-flex w-max sm:w-auto h-auto p-1 gap-0.5 sm:gap-1">
-            <TabsTrigger value="overview" className="gap-1 sm:gap-2 text-[11px] sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
-              <LayoutDashboard className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-              Geral
-            </TabsTrigger>
-            <TabsTrigger value="import" className="gap-1 sm:gap-2 text-[11px] sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
-              <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-              Importação
-            </TabsTrigger>
-            <TabsTrigger value="images" className="gap-1 sm:gap-2 text-[11px] sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
-              <HardDrive className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-              Imagens
-            </TabsTrigger>
-            <TabsTrigger value="stats" className="gap-1 sm:gap-2 text-[11px] sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
-              <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-              Estatísticas
-            </TabsTrigger>
-            <TabsTrigger value="users" className="gap-1 sm:gap-2 text-[11px] sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
-              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-              Usuários
-            </TabsTrigger>
-            <TabsTrigger value="audit" className="gap-1 sm:gap-2 text-[11px] sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
-              <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-              Auditoria
-            </TabsTrigger>
-            <TabsTrigger value="system" className="gap-1 sm:gap-2 text-[11px] sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 whitespace-nowrap">
-              <FlaskConical className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-              Sistema
-            </TabsTrigger>
-          </TabsList>
-        </div>
+        <AbasRolaveis>
+          <Aba valor="overview" icone={LayoutDashboard}>Geral</Aba>
+          <Aba valor="catalog" icone={Library}>Catálogo</Aba>
+          <Aba valor="users" icone={Users}>Usuários</Aba>
+          <Aba valor="audit" icone={FileText}>Auditoria</Aba>
+          <Aba valor="system" icone={FlaskConical}>Sistema</Aba>
+        </AbasRolaveis>
 
-        <TabsContent value="overview" className="mt-4 sm:mt-6 space-y-4 sm:space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            <AuditLogs />
-            <ErrorLogs />
-          </div>
+        <TabsContent value="overview" className="mt-4 sm:mt-6">
+          <ErrorLogs />
         </TabsContent>
 
-        <TabsContent value="import" className="mt-4 sm:mt-6 space-y-4 min-w-0">
-          <JikanImportManager />
-          <JikanImportHistory />
-          <DeeplTranslationReview />
-          <CatalogImportManager />
-        </TabsContent>
-
-        <TabsContent value="images" className="mt-4 sm:mt-6">
-          <CatalogImageSync />
-        </TabsContent>
-
-        <TabsContent value="stats" className="mt-4 sm:mt-6">
-          <CatalogOverview />
+        {/* Tudo do catálogo em um só lugar, separado por etapa */}
+        <TabsContent value="catalog" className="mt-4 sm:mt-6 min-w-0">
+          <Tabs defaultValue="import" className="w-full">
+            <AbasRolaveis>
+              <Aba valor="import" icone={Download}>Importar</Aba>
+              <Aba valor="history" icone={History}>Histórico</Aba>
+              <Aba valor="translations" icone={Languages}>Traduções</Aba>
+              <Aba valor="images" icone={HardDrive}>Imagens</Aba>
+              <Aba valor="stats" icone={BarChart3}>Números</Aba>
+              <Aba valor="legacy" icone={Archive}>Importação antiga</Aba>
+            </AbasRolaveis>
+            <TabsContent value="import" className="mt-4 min-w-0"><JikanImportManager /></TabsContent>
+            <TabsContent value="history" className="mt-4 min-w-0"><JikanImportHistory /></TabsContent>
+            <TabsContent value="translations" className="mt-4 min-w-0"><DeeplTranslationReview /></TabsContent>
+            <TabsContent value="images" className="mt-4 min-w-0"><CatalogImageSync /></TabsContent>
+            <TabsContent value="stats" className="mt-4 min-w-0"><CatalogOverview /></TabsContent>
+            <TabsContent value="legacy" className="mt-4 min-w-0"><CatalogImportManager /></TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="users" className="mt-4 sm:mt-6">

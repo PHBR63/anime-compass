@@ -1069,6 +1069,7 @@ export type Database = {
           username: string | null
           warn_count: number | null
           warned_at: string | null
+          welcome_seen: boolean
         }
         Insert: {
           avatar_url?: string | null
@@ -1083,6 +1084,7 @@ export type Database = {
           username?: string | null
           warn_count?: number | null
           warned_at?: string | null
+          welcome_seen?: boolean
         }
         Update: {
           avatar_url?: string | null
@@ -1097,6 +1099,7 @@ export type Database = {
           username?: string | null
           warn_count?: number | null
           warned_at?: string | null
+          welcome_seen?: boolean
         }
         Relationships: []
       }

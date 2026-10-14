@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 // Interface para configuração de ajuda por página
 interface PageHelp {
@@ -188,9 +190,32 @@ export function HelpProvider({ children }: { children: ReactNode }) {
     return saved !== null ? JSON.parse(saved) : true;
   });
   
+  // Marcação local imediata (evita "piscar" o modal antes do perfil carregar)
   const [hasSeenWelcome, setHasSeenWelcome] = useState(() => {
     return localStorage.getItem('hasSeenWelcome') === 'true';
   });
+
+  // Usuário logado, para sincronizar a marcação com o perfil no banco
+  const { user } = useAuth();
+
+  // Ao carregar o usuário, consulta o perfil: se já viu a boas-vindas em
+  // qualquer aparelho, marca localmente e nunca mais mostra o modal
+  useEffect(() => {
+    if (!user) return;
+    let ativo = true;
+    supabase
+      .from('profiles')
+      .select('welcome_seen')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (ativo && data?.welcome_seen) {
+          setHasSeenWelcome(true);
+          localStorage.setItem('hasSeenWelcome', 'true');
+        }
+      });
+    return () => { ativo = false; };
+  }, [user?.id]);
 
   // Atualiza o caminho atual baseado no pathname da URL
   useEffect(() => {
@@ -272,9 +297,18 @@ export function HelpProvider({ children }: { children: ReactNode }) {
     setCurrentTourStep(0);
   };
 
+  // Marca a boas-vindas como vista no navegador e no perfil (banco),
+  // garantindo que o modal não reapareça em outros aparelhos
   const markWelcomeSeen = () => {
     setHasSeenWelcome(true);
     localStorage.setItem('hasSeenWelcome', 'true');
+    if (user) {
+      supabase
+        .from('profiles')
+        .update({ welcome_seen: true })
+        .eq('id', user.id)
+        .then(() => {});
+    }
   };
 
   return (

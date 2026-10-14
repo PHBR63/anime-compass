@@ -43,6 +43,13 @@
       "when": 1791949550270,
       "tag": "0005_kitsu_import_items",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791977050761,
+      "tag": "0006_kitsu_items_realtime",
+      "breakpoints": true
     }
   ]
 }

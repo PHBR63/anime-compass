@@ -112,7 +112,9 @@ Deno.serve(async (req) => {
     if (erroFinal) throw erroFinal;
     return responder({ success: true, continue: continuar, page, totalPages: resultado.pagination.last_visible_page, processed: total, stats: { novos, atualizados, capas, falhasCapas, filtrados: resultado.data.length - animes.length } });
   } catch (erro) {
-    const mensagem = erro instanceof Error ? erro.message : "Falha na importação";
+    const mensagem = erro instanceof Error && (erro.name === "TimeoutError" || erro.name === "AbortError")
+      ? "O Jikan demorou demais para responder. Aguarde e retome a importação; nenhum progresso será perdido."
+      : erro instanceof Error ? erro.message : "Falha na importação";
     if (possuiBloqueio) await banco.from("sync_state").update({ is_running: false, last_error: mensagem, updated_at: new Date().toISOString() }).eq("id", chaveEstado);
     return responder({ success: false, error: mensagem }, 502);
   }

@@ -190,9 +190,32 @@ export function HelpProvider({ children }: { children: ReactNode }) {
     return saved !== null ? JSON.parse(saved) : true;
   });
   
+  // Marcação local imediata (evita "piscar" o modal antes do perfil carregar)
   const [hasSeenWelcome, setHasSeenWelcome] = useState(() => {
     return localStorage.getItem('hasSeenWelcome') === 'true';
   });
+
+  // Usuário logado, para sincronizar a marcação com o perfil no banco
+  const { user } = useAuth();
+
+  // Ao carregar o usuário, consulta o perfil: se já viu a boas-vindas em
+  // qualquer aparelho, marca localmente e nunca mais mostra o modal
+  useEffect(() => {
+    if (!user) return;
+    let ativo = true;
+    supabase
+      .from('profiles')
+      .select('welcome_seen')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (ativo && data?.welcome_seen) {
+          setHasSeenWelcome(true);
+          localStorage.setItem('hasSeenWelcome', 'true');
+        }
+      });
+    return () => { ativo = false; };
+  }, [user?.id]);
 
   // Atualiza o caminho atual baseado no pathname da URL
   useEffect(() => {

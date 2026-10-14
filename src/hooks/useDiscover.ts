@@ -62,7 +62,7 @@ export function useDiscoverCatalog(
 /** Facetas globais (contagens do catálogo elegível inteiro, não do resultado filtrado). */
 export function useDiscoverFacets() {
   return useQuery({
-    queryKey: ['discover-facets', 'complete-v2'],
+    queryKey: ['discover-facets', 'ann-20261014'],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('discover_facets');
       if (error) throw error;

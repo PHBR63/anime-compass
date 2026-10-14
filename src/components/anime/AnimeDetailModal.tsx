@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { StarRating } from './StarRating';
 import { ReviewsList } from './ReviewsList';
 import { ProgressHistory } from './ProgressHistory';
+import { AnimeMetadataCredit } from './AnimeMetadataCredit';
 import { DataSourceBadge, type DataSource } from './DataSourceBadge';
 import { useAnimeEntries, useAddAnimeEntry, useUpdateAnimeEntry } from '@/hooks/useAnimeEntries';
 import { useAddProgressHistory } from '@/hooks/useProgressHistory';
@@ -506,6 +507,9 @@ export const AnimeDetailModal = forwardRef<HTMLDivElement, AnimeDetailModalProps
                   <p className="text-sm leading-relaxed">{displayData.synopsis}</p>
                 </div>
               )}
+
+              {/* Origem e link da obra para os metadados complementados. */}
+              <AnimeMetadataCredit malId={displayData.mal_id} />
 
               {/* Histórico de progresso */}
               {entry && totalEpisodes && (

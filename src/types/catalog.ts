@@ -29,6 +29,7 @@ export interface CatalogAnime {
   members: number | null;
   genres: GenreItem[];
   studios: StudioItem[];
+  metadata_sources?: Record<string, unknown>;
   last_synced_at: string;
   created_at: string;
   updated_at: string;

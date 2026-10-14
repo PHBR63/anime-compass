@@ -297,9 +297,18 @@ export function HelpProvider({ children }: { children: ReactNode }) {
     setCurrentTourStep(0);
   };
 
+  // Marca a boas-vindas como vista no navegador e no perfil (banco),
+  // garantindo que o modal não reapareça em outros aparelhos
   const markWelcomeSeen = () => {
     setHasSeenWelcome(true);
     localStorage.setItem('hasSeenWelcome', 'true');
+    if (user) {
+      supabase
+        .from('profiles')
+        .update({ welcome_seen: true })
+        .eq('id', user.id)
+        .then(() => {});
+    }
   };
 
   return (

@@ -237,6 +237,27 @@ export type Database = {
           },
         ]
       }
+      anime_image_url_repair_backup: {
+        Row: {
+          mal_id: number
+          new_url: string
+          old_url: string
+          repaired_at: string
+        }
+        Insert: {
+          mal_id: number
+          new_url: string
+          old_url: string
+          repaired_at?: string
+        }
+        Update: {
+          mal_id?: number
+          new_url?: string
+          old_url?: string
+          repaired_at?: string
+        }
+        Relationships: []
+      }
       anime_recommendations: {
         Row: {
           anime_image: string | null

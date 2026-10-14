@@ -19,15 +19,22 @@ interface Resultado {
   stats: { novos: number; atualizados: number; capas: number; falhasCapas: number; filtrados: number };
 }
 
+/** Converte falhas de tempo limite em uma orientação legível em português. */
+function traduzirErro(mensagem: string): string {
+  return /timed out|timeout|aborted/i.test(mensagem)
+    ? "O Jikan não respondeu a tempo. Aguarde e tente novamente; os textos cadastrados permanecem preservados."
+    : mensagem;
+}
+
 /** Executa ações administrativas e apresenta o erro real devolvido pelo serviço. */
 async function chamarJikan(body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke("import-jikan", { body });
   if (error) {
     if (error instanceof FunctionsHttpError) {
       const detalhes = await error.context.json().catch(() => null);
-      throw new Error(detalhes?.error ?? error.message);
+      throw new Error(traduzirErro(detalhes?.error ?? error.message));
     }
-    throw error;
+    throw new Error(traduzirErro(error.message));
   }
   if (!data?.success) throw new Error(data?.error ?? "Falha na importação");
   return data;
@@ -107,7 +114,7 @@ export function JikanImportManager() {
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm"><span className="flex items-center gap-2">{executando && <Loader2 className="h-4 w-4 animate-spin" />}Página {pagina} / {total || "—"}</span><span>{(resultado?.processed ?? estado?.total_synced ?? 0).toLocaleString("pt-BR")} processados</span></div>
           <Progress value={total ? pagina / total * 100 : 0} />
         </div>}
-        {(mensagem || estado?.last_error) && <p role="alert" className="break-words text-sm text-destructive">{mensagem || estado.last_error}</p>}
+        {(mensagem || estado?.last_error) && <p role="alert" className="break-words text-sm text-destructive">{traduzirErro(mensagem || estado.last_error)}</p>}
         {logs.length > 0 && <div role="log" aria-label="Resultados da importação Jikan" className="max-h-48 overflow-y-auto rounded-md bg-muted p-3 text-xs text-muted-foreground space-y-1">{logs.map((log, indice) => <p className="break-words" key={indice}>{log}</p>)}</div>}
       </CardContent>
     </Card>

@@ -7,6 +7,7 @@ import { ErrorLogs } from "@/components/admin/ErrorLogs";
 import { SystemTests } from "@/components/admin/SystemTests";
 import { CatalogImportManager } from "@/components/admin/CatalogImportManager";
 import { JikanImportManager } from "@/components/admin/JikanImportManager";
+import { DeeplTranslationReview } from "@/components/admin/DeeplTranslationReview";
 import { CatalogImageSync } from "@/components/admin/CatalogImageSync";
 import { CatalogOverview } from "@/components/admin/CatalogOverview";
 import { motion } from "framer-motion";
@@ -83,6 +84,7 @@ export default function Admin() {
 
         <TabsContent value="import" className="mt-4 sm:mt-6 space-y-4 min-w-0">
           <JikanImportManager />
+          <DeeplTranslationReview />
           <CatalogImportManager />
         </TabsContent>
 

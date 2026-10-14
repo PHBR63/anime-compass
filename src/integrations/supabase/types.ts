@@ -741,6 +741,39 @@ export type Database = {
         }
         Relationships: []
       }
+      jikan_import_logs: {
+        Row: {
+          base: string | null
+          created_at: string
+          detalhes: Json | null
+          evento: string
+          id: string
+          modo: string | null
+          pagina: number | null
+          resultado: string
+        }
+        Insert: {
+          base?: string | null
+          created_at?: string
+          detalhes?: Json | null
+          evento: string
+          id?: string
+          modo?: string | null
+          pagina?: number | null
+          resultado?: string
+        }
+        Update: {
+          base?: string | null
+          created_at?: string
+          detalhes?: Json | null
+          evento?: string
+          id?: string
+          modo?: string | null
+          pagina?: number | null
+          resultado?: string
+        }
+        Relationships: []
+      }
       list_items: {
         Row: {
           anime_entry_id: string

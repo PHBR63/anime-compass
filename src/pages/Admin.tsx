@@ -6,6 +6,7 @@ import { AuditLogs } from "@/components/admin/AuditLogs";
 import { ErrorLogs } from "@/components/admin/ErrorLogs";
 import { SystemTests } from "@/components/admin/SystemTests";
 import { CatalogImportManager } from "@/components/admin/CatalogImportManager";
+import { JikanImportManager } from "@/components/admin/JikanImportManager";
 import { CatalogImageSync } from "@/components/admin/CatalogImageSync";
 import { CatalogOverview } from "@/components/admin/CatalogOverview";
 import { motion } from "framer-motion";
@@ -80,7 +81,8 @@ export default function Admin() {
           </div>
         </TabsContent>
 
-        <TabsContent value="import" className="mt-4 sm:mt-6">
+        <TabsContent value="import" className="mt-4 sm:mt-6 space-y-4 min-w-0">
+          <JikanImportManager />
           <CatalogImportManager />
         </TabsContent>
 

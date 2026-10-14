@@ -1299,6 +1299,48 @@ export type Database = {
           },
         ]
       }
+      translation_suggestions: {
+        Row: {
+          created_at: string
+          current_pt: string | null
+          id: string
+          mal_id: number
+          origin: string
+          reason: string
+          reviewed_at: string | null
+          source_text: string
+          status: string
+          suggested_text: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          current_pt?: string | null
+          id?: string
+          mal_id: number
+          origin?: string
+          reason?: string
+          reviewed_at?: string | null
+          source_text: string
+          status?: string
+          suggested_text: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          current_pt?: string | null
+          id?: string
+          mal_id?: number
+          origin?: string
+          reason?: string
+          reviewed_at?: string | null
+          source_text?: string
+          status?: string
+          suggested_text?: string
+          title?: string
+        }
+        Relationships: []
+      }
       user_achievements: {
         Row: {
           achievement_id: string

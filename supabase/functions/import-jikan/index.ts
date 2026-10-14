@@ -32,6 +32,11 @@ class ErroImportacao extends Error {
   }
 }
 
+/** Registra eventos de diagnóstico em formato estruturado para consulta nos registros da função. */
+function diagnostico(evento: string, detalhes: Record<string, unknown> = {}) {
+  console.log(JSON.stringify({ fonte: "import-jikan", evento, ...detalhes }));
+}
+
 /** Devolve respostas JSON com CORS inclusive nos erros. */
 function responder(dados: unknown, status = 200) {
   return new Response(JSON.stringify(dados), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -126,21 +131,28 @@ Deno.serve(async (req) => {
     // Só aceita instância própria em HTTPS válido; caso contrário usa apenas a pública.
     const bases = /^https:\/\/[^\s]+$/i.test(basePropria) && basePropria.replace(/\/+$/, "") !== BASE_PUBLICA ? [basePropria, BASE_PUBLICA] : [BASE_PUBLICA];
     let resposta: Response | null = null;
+    diagnostico("consulta_iniciada", { pagina: page, modo: mode, bases: bases.length });
     // Tenta a instância própria primeiro; em falha de rede ou erro 5xx/429, recorre à API pública.
     for (const [indice, base] of bases.entries()) {
       const ultima = indice === bases.length - 1;
+      const inicioConsulta = Date.now();
       try {
         const r = await fetch(montarEndereco(base), { signal: AbortSignal.timeout(ultima ? 20000 : 12000) });
-        if (!ultima && (r.status >= 500 || r.status === 429 || r.status === 408)) { console.warn(`Instância própria do Jikan falhou (${r.status}); usando a API pública.`); await r.body?.cancel(); continue; }
+        diagnostico("consulta_respondida", { base, status: r.status, duracao_ms: Date.now() - inicioConsulta, pagina: page });
+        if (!ultima && (r.status >= 500 || r.status === 429 || r.status === 408)) { diagnostico("fallback_acionado", { motivo: `status_${r.status}`, de: base, para: BASE_PUBLICA, pagina: page }); await r.body?.cancel(); continue; }
         resposta = r; break;
-      } catch {
-        if (!ultima) { console.warn("Instância própria do Jikan não respondeu; usando a API pública."); continue; }
+      } catch (falha) {
+        const nome = falha instanceof Error ? falha.name : "desconhecido";
+        // Timeout e falha de rede da instância própria acionam a reserva pública.
+        diagnostico(nome === "TimeoutError" || nome === "AbortError" ? "timeout_consulta" : "erro_rede_consulta", { base, erro: nome, duracao_ms: Date.now() - inicioConsulta, pagina: page });
+        if (!ultima) { diagnostico("fallback_acionado", { motivo: nome === "TimeoutError" || nome === "AbortError" ? "timeout" : "erro_rede", de: base, para: BASE_PUBLICA, pagina: page }); continue; }
       }
     }
-    if (!resposta) throw new ErroImportacao("O Jikan não respondeu. A importação será retomada automaticamente.", true);
+    if (!resposta) { diagnostico("todas_bases_falharam", { pagina: page, modo: mode }); throw new ErroImportacao("O Jikan não respondeu. A importação será retomada automaticamente.", true); }
     if (!resposta.ok) {
       const detalhes = await resposta.text();
       console.error(`Jikan [${resposta.status}]: ${detalhes}`);
+      diagnostico("erro_http_jikan", { status: resposta.status, pagina: page, retry_after: resposta.headers.get("Retry-After") });
       const cabecalho = resposta.headers.get("Retry-After");
       const segundos = cabecalho ? Number(cabecalho) : NaN;
       const espera = cabecalho ? (Number.isFinite(segundos) ? segundos * 1000 : Date.parse(cabecalho) - Date.now()) : 0;
@@ -182,7 +194,7 @@ Deno.serve(async (req) => {
           const { error: erroCapa } = await banco.from("anime_catalog").update({ local_image_url: publica.publicUrl }).eq("mal_id", anime.mal_id);
           if (erroCapa) throw erroCapa;
           capas++;
-        } catch { falhasCapas++; /* Mantém URL original e a capa local anterior para posterior sincronização. */ }
+        } catch (falhaCapa) { falhasCapas++; diagnostico("falha_capa", { mal_id: anime.mal_id, erro: falhaCapa instanceof Error ? falhaCapa.message : "desconhecido" }); /* Mantém URL original e a capa local anterior para posterior sincronização. */ }
       }));
     }
     const continuar = resultado.pagination.has_next_page === true;
@@ -195,8 +207,9 @@ Deno.serve(async (req) => {
     try {
       const { data: candidatos } = ids.length ? await banco.from("anime_catalog").select("mal_id,title,synopsis,synopsis_pt").in("mal_id", ids) : { data: [] };
       traducoes = await gerarSugestoes(banco, candidatos ?? [], "import");
-    } catch (e) { erroTraducao = e instanceof Error ? e.message : "Falha na tradução"; console.error("tradução automática", e); }
+    } catch (e) { erroTraducao = e instanceof Error ? e.message : "Falha na tradução"; console.error("tradução automática", e); diagnostico("erro_traducao", { pagina: page, erro: erroTraducao }); }
     await registrarHistorico({ status: "success", created_count: novos, updated_count: atualizados, covers_count: capas, cover_failures: falhasCapas });
+    diagnostico("pagina_concluida", { pagina: page, modo: mode, novos, atualizados, capas, falhasCapas, traducoes, duracao_ms: Date.now() - inicio });
     // Erros pendentes são resolvidos quando uma página volta a ser concluída.
     const { data: pendentes } = await banco.from("jikan_import_history").select("id,finished_at").eq("status", "error").is("resolved_at", null);
     for (const p of pendentes ?? []) {
@@ -205,9 +218,12 @@ Deno.serve(async (req) => {
     if (tokenAgendamento && continuar && profundidade > 1) agendarProximo(`${urlBackend}/functions/v1/import-jikan`, tokenAgendamento, profundidade - 1);
     return responder({ success: true, continue: continuar, page, totalPages: resultado.pagination.last_visible_page, processed: total, stats: { novos, atualizados, capas, falhasCapas, traducoes, erroTraducao, filtrados: resultado.data.length - animes.length } });
   } catch (erro) {
-    const mensagem = erro instanceof Error && (erro.name === "TimeoutError" || erro.name === "AbortError")
+    const eTimeout = erro instanceof Error && (erro.name === "TimeoutError" || erro.name === "AbortError");
+    const mensagem = eTimeout
       ? "O Jikan demorou demais para responder. Aguarde e retome a importação; nenhum progresso será perdido."
       : erro instanceof Error ? erro.message : "Falha na importação";
+    // Registra o erro com o tipo para distinguir timeout de falhas definitivas nos registros.
+    diagnostico(eTimeout ? "timeout_importacao" : "erro_importacao", { pagina: page, modo: mode, erro: mensagem, tipo: erro instanceof Error ? erro.name : "desconhecido", duracao_ms: Date.now() - inicio });
     if (possuiBloqueio) await registrarHistorico({ status: "error", error_message: mensagem, retryable: erro instanceof ErroImportacao ? erro.temporario : true });
     if (possuiBloqueio) await banco.from("sync_state").update({ is_running: false, last_error: mensagem, updated_at: new Date().toISOString() }).eq("id", chaveEstado).eq("updated_at", concessao);
     return responder({ success: false, error: mensagem, retryable: erro instanceof ErroImportacao ? erro.temporario : erro instanceof Error && ["TimeoutError", "AbortError"].includes(erro.name), retryAfterMs: erro instanceof ErroImportacao ? erro.esperaMs : 0 }, erro instanceof ErroImportacao ? erro.status : 500);

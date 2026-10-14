@@ -238,36 +238,6 @@ export const LazyImage = React.memo(function LazyImage({
     return () => observer.disconnect();
   }, []);
 
-  return () => {
-      if (isFromCache && imageSrc?.startsWith('blob:')) {
-        URL.revokeObjectURL(imageSrc);
-      }
-    };
-  }, [isInView, effectiveSrc, localSrc, enableCache]);
-
-  // Handler para quando imagem carrega - adiciona ao cache em background
-  const handleLoad = useCallback(() => {
-    setIsLoaded(true);
-    
-    // Adiciona ao cache em background se habilitado e não veio do cache/local
-    if (enableCache && effectiveSrc && !isFromCache && !isLocalImage) {
-      cacheImage(effectiveSrc)
-        .then((cached) => {
-          if (cached) setIsCached(true);
-        })
-        .catch(() => {
-          // Silencia erros de cache - não afeta UX
-        });
-    }
-  }, [enableCache, effectiveSrc, isFromCache, isLocalImage]);
-
-  // Handler para erro de carregamento
-  const handleError = useCallback(() => {
-    setHasError(true);
-    setIsLoaded(true);
-    setImageSrc(fallback);
-  }, [fallback]);
-
   return (
     <div ref={containerRef} className={cn('relative overflow-hidden', containerClassName)}>
       {/* Skeleton animado de loading */}
@@ -346,36 +316,6 @@ export const AnimeCardImage = React.memo(function AnimeCardImage({
     }
 
     return () => observer.disconnect();
-  }, []);
-
-  return () => {
-      if (isFromCache && imageSrc?.startsWith('blob:')) {
-        URL.revokeObjectURL(imageSrc);
-      }
-    };
-  }, [isInView, effectiveSrc, localSrc, enableCache]);
-
-  // Handler de load com cache
-  const handleLoad = useCallback(() => {
-    setIsLoaded(true);
-    
-    // Adiciona ao cache em background se não veio do cache/local
-    if (enableCache && effectiveSrc && !isFromCache && !isLocalImage) {
-      cacheImage(effectiveSrc)
-        .then((cached) => {
-          if (cached) setIsCached(true);
-        })
-        .catch(() => {
-          // Silencia erros de cache - não afeta UX
-        });
-    }
-  }, [enableCache, effectiveSrc, isFromCache, isLocalImage]);
-
-  // Handler de erro
-  const handleError = useCallback(() => {
-    setHasError(true);
-    setIsLoaded(true);
-    setImageSrc('/placeholder.svg');
   }, []);
 
   return (

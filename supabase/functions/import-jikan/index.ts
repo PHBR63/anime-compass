@@ -218,9 +218,12 @@ Deno.serve(async (req) => {
     if (tokenAgendamento && continuar && profundidade > 1) agendarProximo(`${urlBackend}/functions/v1/import-jikan`, tokenAgendamento, profundidade - 1);
     return responder({ success: true, continue: continuar, page, totalPages: resultado.pagination.last_visible_page, processed: total, stats: { novos, atualizados, capas, falhasCapas, traducoes, erroTraducao, filtrados: resultado.data.length - animes.length } });
   } catch (erro) {
-    const mensagem = erro instanceof Error && (erro.name === "TimeoutError" || erro.name === "AbortError")
+    const eTimeout = erro instanceof Error && (erro.name === "TimeoutError" || erro.name === "AbortError");
+    const mensagem = eTimeout
       ? "O Jikan demorou demais para responder. Aguarde e retome a importação; nenhum progresso será perdido."
       : erro instanceof Error ? erro.message : "Falha na importação";
+    // Registra o erro com o tipo para distinguir timeout de falhas definitivas nos registros.
+    diagnostico(eTimeout ? "timeout_importacao" : "erro_importacao", { pagina: page, modo: mode, erro: mensagem, tipo: erro instanceof Error ? erro.name : "desconhecido", duracao_ms: Date.now() - inicio });
     if (possuiBloqueio) await registrarHistorico({ status: "error", error_message: mensagem, retryable: erro instanceof ErroImportacao ? erro.temporario : true });
     if (possuiBloqueio) await banco.from("sync_state").update({ is_running: false, last_error: mensagem, updated_at: new Date().toISOString() }).eq("id", chaveEstado).eq("updated_at", concessao);
     return responder({ success: false, error: mensagem, retryable: erro instanceof ErroImportacao ? erro.temporario : erro instanceof Error && ["TimeoutError", "AbortError"].includes(erro.name), retryAfterMs: erro instanceof ErroImportacao ? erro.esperaMs : 0 }, erro instanceof ErroImportacao ? erro.status : 500);

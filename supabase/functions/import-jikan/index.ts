@@ -10,6 +10,20 @@ const esquema = z.object({
   page: z.number().int().min(1).max(100000).default(1),
 });
 const chaveEstado = "jikan_import";
+// Agendamento: orçamento de páginas por execução diária, carregado a cada salto.
+const esquemaAgendamento = z.object({ depth: z.number().int().min(0).max(60).default(40) });
+
+/** Agenda o próximo salto do agendamento com pausa, somente se houver páginas restantes. */
+function agendarProximo(url: string, token: string, depth: number) {
+  const tarefa = (async () => {
+    await new Promise(r => setTimeout(r, 3000));
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "x-cron-token": token }, body: JSON.stringify({ depth }) });
+    if (!r.ok) console.error(`Agendamento Jikan [${r.status}]: ${await r.text()}`);
+    else await r.text();
+  })();
+  // @ts-ignore EdgeRuntime existe no ambiente das funções.
+  globalThis.EdgeRuntime?.waitUntil?.(tarefa);
+}
 
 /** Diferencia indisponibilidade temporária de falhas que exigem intervenção administrativa. */
 class ErroImportacao extends Error {
@@ -31,23 +45,44 @@ Deno.serve(async (req) => {
   const chavePublica = Deno.env.get("SUPABASE_ANON_KEY");
   const chavePrivada = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!urlBackend || !chavePublica || !chavePrivada) return responder({ error: "Configuração indisponível" }, 500);
-  const authorization = req.headers.get("Authorization") ?? "";
-  const clienteUsuario = createClient(urlBackend, chavePublica, { global: { headers: { Authorization: authorization } } });
-  const { data: usuario, error: erroUsuario } = await clienteUsuario.auth.getUser();
-  if (erroUsuario || !usuario.user) return responder({ error: "Entre na sua conta" }, 401);
-  const { data: administrador, error: erroPapel } = await clienteUsuario.rpc("has_role", { _user_id: usuario.user.id, _role: "admin" });
-  if (erroPapel || !administrador) return responder({ error: "Acesso restrito a administradores" }, 403);
-  const entrada = esquema.safeParse(await req.json().catch(() => null));
-  if (!entrada.success) return responder({ error: "Parâmetros inválidos", details: entrada.error.flatten() }, 400);
-  const { action, mode, page } = entrada.data;
   const banco = createClient(urlBackend, chavePrivada);
+  const tokenAgendamento = req.headers.get("x-cron-token");
+  let idUsuario: string | null = null;
+  let profundidade = 0;
+  let action: "status" | "process" | "reset", mode: "full" | "season", page: number;
+  if (tokenAgendamento) {
+    // Agendamento diário: compara o hash da senha exclusiva guardada no banco.
+    const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(tokenAgendamento)))).map(b => b.toString(16).padStart(2, "0")).join("");
+    const { data: registro } = await banco.from("cron_token_hashes").select("token_hash").eq("name", "jikan_daily").maybeSingle();
+    if (!registro || registro.token_hash !== hash) return responder({ error: "Agendamento não autorizado" }, 401);
+    const corpo = esquemaAgendamento.safeParse(await req.json().catch(() => ({})));
+    if (!corpo.success) return responder({ error: "Parâmetros inválidos" }, 400);
+    // Continua a varredura completa a partir da última página salva.
+    const { data: atual } = await banco.from("sync_state").select("current_page,mode,max_page").eq("id", chaveEstado).maybeSingle();
+    const ultima = atual?.mode === "full" ? atual.current_page ?? 0 : 0;
+    action = "process"; mode = "full";
+    page = atual?.max_page && ultima >= atual.max_page ? 1 : Math.max(2, ultima + 1);
+    if (ultima === 0) page = 1;
+    profundidade = corpo.data.depth;
+  } else {
+    const authorization = req.headers.get("Authorization") ?? "";
+    const clienteUsuario = createClient(urlBackend, chavePublica, { global: { headers: { Authorization: authorization } } });
+    const { data: usuario, error: erroUsuario } = await clienteUsuario.auth.getUser();
+    if (erroUsuario || !usuario.user) return responder({ error: "Entre na sua conta" }, 401);
+    const { data: administrador, error: erroPapel } = await clienteUsuario.rpc("has_role", { _user_id: usuario.user.id, _role: "admin" });
+    if (erroPapel || !administrador) return responder({ error: "Acesso restrito a administradores" }, 403);
+    const entrada = esquema.safeParse(await req.json().catch(() => null));
+    if (!entrada.success) return responder({ error: "Parâmetros inválidos", details: entrada.error.flatten() }, 400);
+    ({ action, mode, page } = entrada.data);
+    idUsuario = usuario.user.id;
+  }
   let possuiBloqueio = false;
   let concessao = "";
   // Marca o início para medir a duração de cada página no histórico.
   const inicio = Date.now();
   /** Registra a execução no histórico sem interromper a importação em caso de falha. */
   const registrarHistorico = async (dados: Record<string, unknown>) => {
-    const { error } = await banco.from("jikan_import_history").insert({ mode, page, started_at: new Date(inicio).toISOString(), finished_at: new Date().toISOString(), duration_ms: Date.now() - inicio, triggered_by: usuario.user?.id, ...dados });
+    const { error } = await banco.from("jikan_import_history").insert({ mode, page, started_at: new Date(inicio).toISOString(), finished_at: new Date().toISOString(), duration_ms: Date.now() - inicio, triggered_by: idUsuario, ...dados });
     if (error) console.error("histórico Jikan", error);
   };
   try {
@@ -149,6 +184,7 @@ Deno.serve(async (req) => {
     for (const p of pendentes ?? []) {
       await banco.from("jikan_import_history").update({ resolved_at: new Date().toISOString(), resolved_after_ms: Date.now() - new Date(p.finished_at).getTime() }).eq("id", p.id);
     }
+    if (tokenAgendamento && continuar && profundidade > 1) agendarProximo(`${urlBackend}/functions/v1/import-jikan`, tokenAgendamento, profundidade - 1);
     return responder({ success: true, continue: continuar, page, totalPages: resultado.pagination.last_visible_page, processed: total, stats: { novos, atualizados, capas, falhasCapas, traducoes, erroTraducao, filtrados: resultado.data.length - animes.length } });
   } catch (erro) {
     const mensagem = erro instanceof Error && (erro.name === "TimeoutError" || erro.name === "AbortError")

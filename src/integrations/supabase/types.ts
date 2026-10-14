@@ -508,6 +508,24 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_token_hashes: {
+        Row: {
+          created_at: string
+          name: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+          token_hash?: string
+        }
+        Relationships: []
+      }
       custom_lists: {
         Row: {
           cover_url: string | null

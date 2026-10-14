@@ -65,7 +65,8 @@ function CatalogAnimeCardComponent({ anime, rank }: CatalogAnimeCardProps) {
         <div className="relative aspect-[3/4] overflow-hidden rounded-xl">
           {/* Imagem do anime com lazy loading */}
           <AnimeCardImage
-            src={getAnimeImageUrl(anime)}
+            src={anime.image_url || '/placeholder.svg'}
+            localSrc={anime.local_image_url || undefined}
             alt={anime.title}
             showHoverEffect={true}
           />

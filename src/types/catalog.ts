@@ -3,6 +3,8 @@
  * Usados pela API própria (anime-api) e hooks relacionados
  */
 
+import { getUsableAnimeImageUrl, isCurrentAnimeImageUrl } from '@/lib/animeImageSources';
+
 // Anime do catálogo local
 export interface CatalogAnime {
   id: string;
@@ -138,9 +140,10 @@ export const ANIME_SEASONS: Record<string, string> = {
   'fall': 'Outono',
 };
 
-// Helper para obter URL da imagem (prioriza local)
+/** Obtém a capa, priorizando apenas imagens locais do projeto atual. */
 export function getAnimeImageUrl(anime: CatalogAnime): string {
-  return anime.local_image_url || anime.image_url || '/placeholder.svg';
+  return (anime.local_image_url && isCurrentAnimeImageUrl(anime.local_image_url)
+    ? anime.local_image_url : undefined) || getUsableAnimeImageUrl(anime.image_url) || '/placeholder.svg';
 }
 
 // Helper para obter sinopse (prioriza PT-BR)

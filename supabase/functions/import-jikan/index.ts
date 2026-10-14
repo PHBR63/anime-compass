@@ -113,13 +113,31 @@ Deno.serve(async (req) => {
     const intervalo = Date.now() - new Date(estado.updated_at).getTime();
     if (intervalo < 1200) await new Promise(resolve => setTimeout(resolve, 1200 - intervalo));
     const caminho = mode === "season" ? "/seasons/now" : "/anime";
-    const endereco = new URL(`https://api.jikan.moe/v4${caminho}`);
-    endereco.searchParams.set("page", String(page));
-    endereco.searchParams.set("limit", "25");
-    if (mode === "full") { endereco.searchParams.set("order_by", "mal_id"); endereco.searchParams.set("sort", "asc"); }
-    let resposta: Response;
-    try { resposta = await fetch(endereco, { signal: AbortSignal.timeout(20000) }); }
-    catch { throw new ErroImportacao("O Jikan não respondeu. A importação será retomada automaticamente.", true); }
+    // Monta a URL de consulta para uma base do Jikan (própria ou pública).
+    const montarEndereco = (base: string) => {
+      const endereco = new URL(`${base.replace(/\/+$/, "")}${caminho}`);
+      endereco.searchParams.set("page", String(page));
+      endereco.searchParams.set("limit", "25");
+      if (mode === "full") { endereco.searchParams.set("order_by", "mal_id"); endereco.searchParams.set("sort", "asc"); }
+      return endereco;
+    };
+    const BASE_PUBLICA = "https://api.jikan.moe/v4";
+    const basePropria = (Deno.env.get("JIKAN_BASE_URL") ?? "").trim();
+    // Só aceita instância própria em HTTPS válido; caso contrário usa apenas a pública.
+    const bases = /^https:\/\/[^\s]+$/i.test(basePropria) && basePropria.replace(/\/+$/, "") !== BASE_PUBLICA ? [basePropria, BASE_PUBLICA] : [BASE_PUBLICA];
+    let resposta: Response | null = null;
+    // Tenta a instância própria primeiro; em falha de rede ou erro 5xx/429, recorre à API pública.
+    for (const [indice, base] of bases.entries()) {
+      const ultima = indice === bases.length - 1;
+      try {
+        const r = await fetch(montarEndereco(base), { signal: AbortSignal.timeout(ultima ? 20000 : 12000) });
+        if (!ultima && (r.status >= 500 || r.status === 429 || r.status === 408)) { console.warn(`Instância própria do Jikan falhou (${r.status}); usando a API pública.`); await r.body?.cancel(); continue; }
+        resposta = r; break;
+      } catch {
+        if (!ultima) { console.warn("Instância própria do Jikan não respondeu; usando a API pública."); continue; }
+      }
+    }
+    if (!resposta) throw new ErroImportacao("O Jikan não respondeu. A importação será retomada automaticamente.", true);
     if (!resposta.ok) {
       const detalhes = await resposta.text();
       console.error(`Jikan [${resposta.status}]: ${detalhes}`);

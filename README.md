@@ -46,7 +46,7 @@ O projeto combina uma interface responsiva inspirada na estética japonesa com r
 
 ### Catálogo e descoberta
 
-- Catálogo local com mais de **13 mil animes** e sinopses em português brasileiro.
+- Catálogo local com milhares de animes e sinopses em português brasileiro.
 - Busca por título e filtros por gênero, estúdio, formato, status, ano e nota.
 - Ordenação por nota, popularidade, ano, título, ranking e número de membros.
 - Visões de temporada, títulos em destaque e carregamento contínuo de resultados.

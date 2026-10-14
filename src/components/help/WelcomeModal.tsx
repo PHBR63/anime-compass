@@ -23,7 +23,7 @@ import { useHelp } from '@/contexts/HelpContext';
 const welcomeSteps = [
   {
     icon: Sparkles,
-    title: 'Bem-vindo ao AniTracker! 🎉',
+    title: 'Bem-vindo ao AniCheck! 🎉',
     description: 'Seu companheiro perfeito para acompanhar animes. Vamos fazer um tour rápido pelas principais funcionalidades.',
     color: 'text-primary'
   },
@@ -92,7 +92,7 @@ export function WelcomeModal() {
     <Dialog open={showWelcomeModal} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="sm:max-w-md overflow-hidden" showBeams>
         <DialogHeader>
-          <DialogTitle className="sr-only">Bem-vindo ao AniTracker</DialogTitle>
+          <DialogTitle className="sr-only">Bem-vindo ao AniCheck</DialogTitle>
         </DialogHeader>
         
         <button 

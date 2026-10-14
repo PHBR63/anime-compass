@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import type { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 
 // Hook para adicionar membro ao grupo
@@ -97,7 +98,7 @@ export function useUpdateGroup() {
       name?: string; 
       avatarUrl?: string;
     }) => {
-      const updates: Record<string, any> = {};
+      const updates: Database['public']['Tables']['conversations']['Update'] = {};
       if (name !== undefined) updates.name = name;
       if (avatarUrl !== undefined) updates.avatar_url = avatarUrl;
 

@@ -16,7 +16,7 @@ const features = [
   {
     icon: Compass,
     title: 'Descubra Novos Animes',
-    description: 'Receba recomendações personalizadas com IA baseadas no seu histórico e preferências.',
+    description: 'Receba recomendações personalizadas baseadas no seu histórico e preferências.',
   },
   {
     icon: Trophy,

@@ -23,7 +23,7 @@ const ALLOWED_DOMAINS = [
 function isAllowedDomain(url: string): boolean {
   try {
     const parsedUrl = new URL(url);
-    return ALLOWED_DOMAINS.some(domain => parsedUrl.hostname.endsWith(domain));
+    return parsedUrl.protocol === 'https:' && ALLOWED_DOMAINS.some(domain => parsedUrl.hostname === domain || parsedUrl.hostname.endsWith('.' + domain));
   } catch {
     return false;
   }
@@ -96,6 +96,8 @@ Deno.serve(async (req) => {
 
     // Faz o fetch da imagem original
     const imageResponse = await fetch(imageUrl, {
+      redirect: 'error',
+      signal: AbortSignal.timeout(10000),
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; AniCheck/1.0)',
         'Accept': 'image/*',

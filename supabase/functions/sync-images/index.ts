@@ -1,3 +1,4 @@
+import { requireAdmin } from "../_shared/adminAuth.ts";
 /**
  * Edge Function para sincronizar imagens de animes para CDN local
  * Processa em chunks pequenos (50 por execução) para evitar timeout
@@ -383,6 +384,14 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
   
+  // Impede acesso privilegiado sem papel admin ou token do agendamento.
+  const access = await requireAdmin(req);
+  if (access.status !== 200) {
+    return new Response(JSON.stringify({ success: false, error: access.error }), {
+      status: access.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;

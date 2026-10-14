@@ -152,6 +152,7 @@ Deno.serve(async (req) => {
     if (!resposta.ok) {
       const detalhes = await resposta.text();
       console.error(`Jikan [${resposta.status}]: ${detalhes}`);
+      diagnostico("erro_http_jikan", { status: resposta.status, pagina: page, retry_after: resposta.headers.get("Retry-After") });
       const cabecalho = resposta.headers.get("Retry-After");
       const segundos = cabecalho ? Number(cabecalho) : NaN;
       const espera = cabecalho ? (Number.isFinite(segundos) ? segundos * 1000 : Date.parse(cabecalho) - Date.now()) : 0;
@@ -193,7 +194,7 @@ Deno.serve(async (req) => {
           const { error: erroCapa } = await banco.from("anime_catalog").update({ local_image_url: publica.publicUrl }).eq("mal_id", anime.mal_id);
           if (erroCapa) throw erroCapa;
           capas++;
-        } catch { falhasCapas++; /* Mantém URL original e a capa local anterior para posterior sincronização. */ }
+        } catch (falhaCapa) { falhasCapas++; diagnostico("falha_capa", { mal_id: anime.mal_id, erro: falhaCapa instanceof Error ? falhaCapa.message : "desconhecido" }); /* Mantém URL original e a capa local anterior para posterior sincronização. */ }
       }));
     }
     const continuar = resultado.pagination.has_next_page === true;

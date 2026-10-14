@@ -145,9 +145,11 @@ serve(async (req) => {
 async function handleList(supabase: any, params: URLSearchParams): Promise<Response> {
   const page = Math.max(1, parseNumber(params.get('page'), 1));
   const limit = Math.min(60, Math.max(1, parseNumber(params.get('limit'), 24)));
-  const filtros: Record<string, unknown> = {};
+  // A API pública mantém a ficha completa esperada pelos clientes anteriores.
+  // Somente a RPC usada diretamente pelos cards opta pela projeção reduzida.
+  const filtros: Record<string, unknown> = { full_record: true };
   // Parâmetros aceitos (nomes iguais aos do app).
-  for (const chave of ['search', 'genre', 'studio', 'type', 'status', 'season', 'season_year', 'year_min', 'year_max', 'score_min', 'hide_in_list']) {
+  for (const chave of ['search', 'genre', 'studio', 'type', 'status', 'season', 'season_year', 'year_min', 'year_max', 'score_min', 'score_max', 'has_image', 'has_synopsis_pt', 'hide_in_list']) {
     const valor = params.get(chave);
     if (valor !== null && valor !== '') filtros[chave] = chave === 'search' ? sanitizeSearchTerm(valor) : valor;
   }
@@ -156,6 +158,7 @@ async function handleList(supabase: any, params: URLSearchParams): Promise<Respo
   });
   if (error) {
     if (error.message?.includes('intervalo_ano_invalido')) return errorResponse('INVALID_RANGE', 'year_min deve ser menor ou igual a year_max', 400);
+    if (['22P02', '22003', '22023'].includes(error.code)) return errorResponse('INVALID_FILTER', 'Confira os valores dos filtros enviados', 400);
     console.error('[anime-api] Database error:', error);
     return errorResponse('DATABASE_ERROR', error.message, 500);
   }

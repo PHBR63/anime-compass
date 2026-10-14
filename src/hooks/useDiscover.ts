@@ -5,6 +5,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { CatalogAnime } from '@/types/catalog';
+import { useAuth } from '@/hooks/useAuth';
 
 export const DISCOVER_PAGE_SIZE = 24;
 
@@ -39,8 +40,9 @@ export function useDiscoverCatalog(
   order: 'asc' | 'desc',
   enabled = true,
 ) {
+  const { user } = useAuth();
   return useInfiniteQuery({
-    queryKey: ['discover-catalog', filters, sort, order],
+    queryKey: ['discover-catalog', user?.id ?? null, filters, sort, order],
     queryFn: async ({ pageParam }) => {
       const { data, error } = await supabase.rpc('discover_catalog', {
         p: filters, p_sort: sort, p_order: order, p_page: pageParam, p_limit: DISCOVER_PAGE_SIZE,
@@ -52,20 +54,22 @@ export function useDiscoverCatalog(
     // Fim da lista vem do banco (has_next); nunca buscamos além do total.
     getNextPageParam: (last) => (last.has_next ? last.page + 1 : undefined),
     enabled,
-    staleTime: 2 * 60 * 1000,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
   });
 }
 
 /** Facetas globais (contagens do catálogo elegível inteiro, não do resultado filtrado). */
 export function useDiscoverFacets() {
   return useQuery({
-    queryKey: ['discover-facets'],
+    queryKey: ['discover-facets', 'complete-v2'],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('discover_facets');
       if (error) throw error;
       return data as unknown as DiscoverFacets;
     },
-    staleTime: 30 * 60 * 1000,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
   });
 }
 

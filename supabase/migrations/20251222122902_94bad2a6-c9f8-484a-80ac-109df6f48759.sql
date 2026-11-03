@@ -2,12 +2,14 @@
 -- SISTEMA DE ADMIN: Tabelas de Auditoria e Logs de Erros
 -- ==============================================================
 
--- 1. Promover uzumakikun2@gmail.com para admin
+-- 1. Promover o e-mail do administrador (não exposto no repositório)
 -- Primeiro, buscar o ID do usuário e inserir na tabela user_roles
+-- A promoção real de administradores é feita pelo painel Admin (função admin_set_user_role),
+-- ou por migração pontual executada manualmente com o e-mail inserido no momento da execução.
 INSERT INTO public.user_roles (user_id, role)
 SELECT id, 'admin'::app_role
 FROM auth.users
-WHERE email = 'uzumakikun2@gmail.com'
+WHERE email = current_setting('app.admin_email', true)
 ON CONFLICT (user_id, role) DO NOTHING;
 
 -- 2. Criar tabela de logs de auditoria

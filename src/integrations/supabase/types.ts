@@ -330,6 +330,76 @@ export type Database = {
           },
         ]
       }
+      ann_metadata_audit: {
+        Row: {
+          after_values: Json
+          ann_id: number
+          applied_at: string
+          before_values: Json
+          fields: string[]
+          mal_id: number
+        }
+        Insert: {
+          after_values: Json
+          ann_id: number
+          applied_at?: string
+          before_values: Json
+          fields: string[]
+          mal_id: number
+        }
+        Update: {
+          after_values?: Json
+          ann_id?: number
+          applied_at?: string
+          before_values?: Json
+          fields?: string[]
+          mal_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ann_metadata_audit_mal_id_fkey"
+            columns: ["mal_id"]
+            isOneToOne: true
+            referencedRelation: "anime_catalog"
+            referencedColumns: ["mal_id"]
+          },
+        ]
+      }
+      aod_metadata_audit: {
+        Row: {
+          after_values: Json
+          applied_at: string
+          before_values: Json
+          fields: string[]
+          mal_id: number
+          source_version: string
+        }
+        Insert: {
+          after_values: Json
+          applied_at?: string
+          before_values: Json
+          fields: string[]
+          mal_id: number
+          source_version?: string
+        }
+        Update: {
+          after_values?: Json
+          applied_at?: string
+          before_values?: Json
+          fields?: string[]
+          mal_id?: number
+          source_version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aod_metadata_audit_mal_id_fkey"
+            columns: ["mal_id"]
+            isOneToOne: false
+            referencedRelation: "anime_catalog"
+            referencedColumns: ["mal_id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -1636,6 +1706,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      apply_ann_metadata: { Args: { p_items: Json }; Returns: Json }
+      apply_aod_metadata: { Args: { p_items: Json }; Returns: Json }
       apply_kitsu_metadata: {
         Args: {
           p_genres: Json

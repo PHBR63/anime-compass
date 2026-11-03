@@ -37,6 +37,7 @@ O projeto combina uma interface responsiva inspirada na estética japonesa com r
 - [Tecnologias](#tecnologias)
 - [Rotas principais](#rotas-principais)
 - [Executando localmente](#executando-localmente)
+  - [Quais valores de configuração são públicos](#quais-valores-de-configuração-são-públicos)
 - [Comandos disponíveis](#comandos-disponíveis)
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Documentação](#documentação)
@@ -272,7 +273,7 @@ cd anicheck
 npm install
 ```
 
-Crie um arquivo `.env` local com as variáveis públicas fornecidas para o ambiente de desenvolvimento:
+Crie um arquivo `.env` na raiz do projeto com as variáveis públicas do ambiente:
 
 ```env
 VITE_SUPABASE_URL=<url-do-backend>
@@ -280,7 +281,26 @@ VITE_SUPABASE_PUBLISHABLE_KEY=<chave-publica>
 VITE_SUPABASE_PROJECT_ID=<identificador-do-projeto>
 ```
 
-> Não inclua credenciais privadas no frontend nem envie o arquivo `.env` para o repositório.
+O `.gitignore` já ignora o `.env`, então ele nunca deve ser enviado ao repositório. Peça os valores ao responsável pelo projeto (ou copie do painel do backend) e rode `npm run dev`.
+
+### Quais valores de configuração são públicos
+
+Toda variável com prefixo `VITE_` é **pública por natureza**: o Vite embute o valor no bundle JavaScript que o navegador baixa, então qualquer visitante consegue lê-la. Isso é esperado e seguro para as três variáveis abaixo:
+
+| Variável | Papel | Por que pode ficar pública |
+|---|---|---|
+| `VITE_SUPABASE_URL` | Endereço das funções e do banco | O aplicativo já o usa em cada requisição feita do navegador |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Chave pública (anon) do backend | Identifica o projeto sem conceder privilégios; toda regra de acesso a dados fica nas políticas de segurança do banco |
+| `VITE_SUPABASE_PROJECT_ID` | Identificador do projeto | Usado para montar a URL acima e para o PWA |
+
+O que **nunca** deve aparecer no frontend, no `.env` versionado ou no repositório:
+
+- Chaves `service_role` ou qualquer credencial de administrador do backend;
+- Chaves de terceiros (DeepL, envio de push etc.) — todas são lidas no servidor por meio de segredos do ambiente de funções;
+- Tokens de agendamento (cron) — são comparados apenas como hash no banco;
+- Dados pessoais, como e-mails de administradores.
+
+> Não inclua credenciais privadas no frontend nem envie o arquivo `.env` para o repositório. O ambiente de produção (Vercel) recebe essas variáveis pela configuração do projeto, não por arquivo versionado.
 
 Inicie o ambiente de desenvolvimento:
 

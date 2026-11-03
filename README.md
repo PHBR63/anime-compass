@@ -37,6 +37,7 @@ O projeto combina uma interface responsiva inspirada na estética japonesa com r
 - [Tecnologias](#tecnologias)
 - [Rotas principais](#rotas-principais)
 - [Executando localmente](#executando-localmente)
+  - [Quais valores de configuração são públicos](#quais-valores-de-configuração-são-públicos)
 - [Comandos disponíveis](#comandos-disponíveis)
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Documentação](#documentação)

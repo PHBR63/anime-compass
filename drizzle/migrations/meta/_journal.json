@@ -113,6 +113,13 @@
       "when": 1794006580144,
       "tag": "0015_jikan_safe_pause_recovery",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794006721838,
+      "tag": "0016_jikan_serialized_legacy_reset",
+      "breakpoints": true
     }
   ]
 }

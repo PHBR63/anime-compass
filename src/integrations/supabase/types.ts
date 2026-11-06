@@ -1877,6 +1877,12 @@ export type Database = {
           updated_at: string
         }[]
       }
+      jikan_reset_checkpoint: {
+        Args: { p_updated_at: string }
+        Returns: {
+          id: string
+        }[]
+      }
       jikan_server_claim: { Args: never; Returns: Json }
       jikan_server_command: {
         Args: { p_action: string; p_mode: string; p_user_id: string }

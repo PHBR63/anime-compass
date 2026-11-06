@@ -53,7 +53,7 @@ function classificarResultado(evento: string, detalhes: Record<string, unknown>)
 function diagnostico(evento: string, detalhes: Record<string, unknown> = {}) {
   console.log(JSON.stringify({ fonte: "import-jikan", evento, ...detalhes }));
   const base = typeof detalhes.base === "string" ? detalhes.base : typeof detalhes.de === "string" ? detalhes.de : null;
-  const ehPublica = base ? base.includes("api.jikan.moe") : null;
+  const ehPublica = base ? base.includes("api.tenrai.org") : null;
   // Grava sem bloquear a importação; falhas de log nunca interrompem o fluxo.
   obterBancoLogs()?.from("jikan_import_logs").insert({
     evento,
@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
       if (mode === "full") { endereco.searchParams.set("order_by", "mal_id"); endereco.searchParams.set("sort", "asc"); }
       return endereco;
     };
-    const BASE_PUBLICA = "https://api.jikan.moe/v4";
+    const BASE_PUBLICA = "https://api.tenrai.org/v1";
     const basePropria = (Deno.env.get("JIKAN_BASE_URL") ?? "").trim();
     // Só aceita instância própria em HTTPS válido; caso contrário usa apenas a pública.
     const bases = /^https:\/\/[^\s]+$/i.test(basePropria) && basePropria.replace(/\/+$/, "") !== BASE_PUBLICA ? [basePropria, BASE_PUBLICA] : [BASE_PUBLICA];

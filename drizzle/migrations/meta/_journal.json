@@ -106,6 +106,13 @@
       "when": 1794006460232,
       "tag": "0014_jikan_atomic_page_acquisition",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794006580144,
+      "tag": "0015_jikan_safe_pause_recovery",
+      "breakpoints": true
     }
   ]
 }

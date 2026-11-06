@@ -1865,6 +1865,18 @@ export type Database = {
         Returns: boolean
       }
       is_moderator_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      jikan_acquire_page: {
+        Args: {
+          p_mode: string
+          p_page: number
+          p_updated_at: string
+          p_worker_lease?: string
+        }
+        Returns: {
+          id: string
+          updated_at: string
+        }[]
+      }
       jikan_server_claim: { Args: never; Returns: Json }
       jikan_server_command: {
         Args: { p_action: string; p_mode: string; p_user_id: string }

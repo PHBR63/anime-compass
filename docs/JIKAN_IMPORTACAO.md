@@ -37,6 +37,7 @@ O cron `jikan-import-daily` permanece às 03h BRT e até 40 páginas por disparo
 - Testes SQL em PostgreSQL isolado: admin vs usuário comum, checkpoint 145→146, bloqueio da importação em andamento, aquisição duplicada, exclusão de navegador, pausa entre páginas, Retry-After, recuperação de concessão expirada, executor antigo rejeitado, resposta perdida, conclusão e erro permanente retirando agendamento.
 - Testes de autorização, retentativa e preservação do catálogo executados; status real autenticado e painel verificados.
 - Não iniciar/pausar a importação real para teste: ciclo completo de importação autônoma em produção não validado nesta implantação, para preservar o trabalho em andamento. O despertar protegido foi exercitado apenas no banco isolado com comando sem credenciais; a primeira execução real depende de ação do administrador e da disponibilidade da fonte.
+- A importação anterior avançou de 145 para 226/1.230 durante a implantação. Não foi criado nenhum registro autônomo nem job de recuperação em produção. Funções publicadas responderam 401 a credenciais inválidas; consulta administrativa real exibiu o checkpoint no painel, sem erros de execução ou excesso de largura nas quatro telas.
 
 ## Opções de tradução automática pesquisadas
 

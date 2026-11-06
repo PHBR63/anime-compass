@@ -92,6 +92,13 @@
       "when": 1792007533038,
       "tag": "0012_kitsu_links_for_old_titles",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794006398780,
+      "tag": "0013_jikan_autonomous_server_execution",
+      "breakpoints": true
     }
   ]
 }

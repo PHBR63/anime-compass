@@ -883,6 +883,62 @@ export type Database = {
         }
         Relationships: []
       }
+      jikan_server_run: {
+        Row: {
+          attempt: number
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          lease_id: string | null
+          lease_until: string | null
+          mode: string
+          next_attempt_at: string
+          pause_requested: boolean
+          requested_by: string | null
+          started_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempt?: number
+          finished_at?: string | null
+          id: string
+          last_error?: string | null
+          lease_id?: string | null
+          lease_until?: string | null
+          mode: string
+          next_attempt_at?: string
+          pause_requested?: boolean
+          requested_by?: string | null
+          started_at?: string
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          attempt?: number
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          lease_id?: string | null
+          lease_until?: string | null
+          mode?: string
+          next_attempt_at?: string
+          pause_requested?: boolean
+          requested_by?: string | null
+          started_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jikan_server_run_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kitsu_import_history: {
         Row: {
           cover_failures: number
@@ -1809,6 +1865,43 @@ export type Database = {
         Returns: boolean
       }
       is_moderator_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      jikan_acquire_page: {
+        Args: {
+          p_mode: string
+          p_page: number
+          p_updated_at: string
+          p_worker_lease?: string
+        }
+        Returns: {
+          id: string
+          updated_at: string
+        }[]
+      }
+      jikan_reset_checkpoint: {
+        Args: { p_updated_at: string }
+        Returns: {
+          id: string
+        }[]
+      }
+      jikan_server_claim: { Args: never; Returns: Json }
+      jikan_server_command: {
+        Args: { p_action: string; p_mode: string; p_user_id: string }
+        Returns: Json
+      }
+      jikan_server_finish: {
+        Args: {
+          p_error: string
+          p_lease: string
+          p_page: number
+          p_retryable: boolean
+          p_wait_ms?: number
+        }
+        Returns: Json
+      }
+      jikan_server_schedule: {
+        Args: { p_active: boolean; p_wake?: boolean }
+        Returns: undefined
+      }
       kitsu_link_candidates: {
         Args: { p_limit?: number }
         Returns: {

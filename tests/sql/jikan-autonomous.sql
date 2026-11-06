@@ -1,0 +1,64 @@
+-- Executar somente em banco isolado com fixture; nunca no catálogo real.
+BEGIN;
+DO $$
+DECLARE admin_ uuid:='00000000-0000-0000-0000-000000000001'; r jsonb; c jsonb; c2 jsonb; t timestamptz; n integer;
+BEGIN
+  -- A instalação não agenda nem assume a importação anterior.
+  ASSERT (SELECT count(*)=0 FROM public.jikan_server_run), 'Instalação deve permanecer inativa';
+  ASSERT (SELECT current_page=145 FROM sync_state WHERE id='jikan_import'), 'Checkpoint 145 preservado';
+  BEGIN
+    PERFORM public.jikan_server_command('resume','full','00000000-0000-0000-0000-000000000002');
+    RAISE EXCEPTION 'Usuário comum autorizado indevidamente';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  UPDATE sync_state SET is_running=true WHERE id='jikan_import';
+  r:=public.jikan_server_command('resume','full',admin_);
+  ASSERT r->>'success'='false', 'Não assumir página em andamento';
+  UPDATE sync_state SET is_running=false WHERE id='jikan_import';
+  r:=public.jikan_server_command('resume','full',admin_);
+  ASSERT r->>'success'='true', 'Administrador pode retomar';
+  ASSERT (SELECT current_page=145 FROM sync_state WHERE id='jikan_import'), 'Retomada não reinicia';
+  ASSERT (SELECT count(*)=1 FROM cron.job WHERE jobname='jikan-server-recovery'), 'Recuperação armada';
+  c:=public.jikan_server_claim();
+  ASSERT (c->>'page')::integer=146, 'Próxima página 146';
+  ASSERT public.jikan_server_claim() IS NULL, 'Despertar duplicado não adquire concessão';
+  SELECT updated_at INTO t FROM sync_state WHERE id='jikan_import';
+  SELECT count(*) INTO n FROM public.jikan_acquire_page('full',146,t,null);
+  ASSERT n=0, 'Navegador e cron não disputam executor ativo';
+  SELECT count(*) INTO n FROM public.jikan_acquire_page('full',146,t,(c->>'lease')::uuid);
+  ASSERT n=1, 'Concessão atual adquire página';
+  r:=public.jikan_server_command('pause','full',admin_);
+  ASSERT (r->'run'->>'pause_requested')::boolean, 'Pausa persistida';
+  ASSERT (SELECT status='working' FROM jikan_server_run), 'Pausa deixa página terminar';
+  ASSERT (SELECT count(*)=1 FROM cron.job WHERE jobname='jikan-server-recovery'), 'Pausa em página mantém recuperação até confirmação ou expiração';
+  UPDATE sync_state SET current_page=146,is_running=false WHERE id='jikan_import';
+  r:=public.jikan_server_finish((c->>'lease')::uuid,146,true,null,0);
+  ASSERT r->>'status'='paused', 'Página confirmada seguida de pausa';
+  ASSERT (SELECT count(*)=0 FROM cron.job WHERE jobname='jikan-server-recovery'), 'Pausa confirmada remove recuperação';
+  ASSERT (SELECT current_page=146 FROM sync_state WHERE id='jikan_import'), 'Pausa preserva página';
+  PERFORM public.jikan_server_command('resume','full',admin_);
+  c:=public.jikan_server_claim();
+  ASSERT (c->>'page')::integer=147, 'Retoma página seguinte';
+  r:=public.jikan_server_finish((c->>'lease')::uuid,147,true,'Fonte temporariamente indisponível',60000);
+  ASSERT r->>'status'='waiting', 'Falha temporária aguarda';
+  ASSERT (SELECT next_attempt_at>=now()+interval '60 seconds' FROM jikan_server_run), 'Retry-After respeitado';
+  ASSERT public.jikan_server_claim() IS NULL, 'Não repete antes do prazo';
+  ASSERT (SELECT current_page=146 FROM sync_state WHERE id='jikan_import'), 'Falha não avança checkpoint';
+  UPDATE jikan_server_run SET next_attempt_at=now()-interval '1 second';
+  c:=public.jikan_server_claim();
+  UPDATE jikan_server_run SET lease_until=now()-interval '1 second';
+  c2:=public.jikan_server_claim();
+  ASSERT c2->>'lease'<>c->>'lease', 'Runtime interrompido ganha nova concessão';
+  r:=public.jikan_server_finish((c->>'lease')::uuid,147,true,null,0);
+  ASSERT r->>'stale'='true', 'Executor antigo não confirma';
+  UPDATE sync_state SET current_page=147,max_page=147,is_running=false WHERE id='jikan_import';
+  r:=public.jikan_server_finish((c2->>'lease')::uuid,147,false,'Resposta perdida',0);
+  ASSERT r->>'status'='completed', 'Resposta perdida recuperada pelo checkpoint';
+  ASSERT (SELECT count(*)=0 FROM cron.job WHERE jobname='jikan-server-recovery'), 'Conclusão remove recuperação';
+  ASSERT (SELECT schedule='0 6 * * *' FROM cron.job WHERE jobname='jikan-import-daily'), 'Cron diário preservado';
+  PERFORM public.jikan_server_command('start','full',admin_);
+  c:=public.jikan_server_claim();
+  r:=public.jikan_server_finish((c->>'lease')::uuid,1,false,'Erro permanente',0);
+  ASSERT r->>'status'='failed', 'Erro permanente interrompe';
+  ASSERT (SELECT count(*)=0 FROM cron.job WHERE jobname='jikan-server-recovery'), 'Erro permanente remove recuperação';
+END $$;
+ROLLBACK;

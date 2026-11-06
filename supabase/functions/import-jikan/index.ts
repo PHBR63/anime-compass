@@ -5,13 +5,13 @@ import { gerarSugestoes } from "../_shared/deepl.ts";
 import { mapearAnime, permitirAnime, obterCapa, type AnimeJikan, type TextosExistentes } from "./catalog.ts";
 
 const esquema = z.object({
-  action: z.enum(["status", "process", "reset"]).default("status"),
+  action: z.enum(["status", "process", "reset", "start", "resume", "pause"]).default("status"),
   mode: z.enum(["full", "season"]).default("full"),
   page: z.number().int().min(1).max(100000).default(1),
 });
 const chaveEstado = "jikan_import";
 // Agendamento: orçamento de páginas por execução diária, carregado a cada salto.
-const esquemaAgendamento = z.object({ depth: z.number().int().min(0).max(60).default(40) });
+const esquemaAgendamento = z.object({ depth: z.number().int().min(0).max(60).default(40), workerLease: z.string().uuid().optional() });
 
 /** Agenda o próximo salto do agendamento com pausa, somente se houver páginas restantes. */
 function agendarProximo(url: string, token: string, depth: number) {
@@ -82,7 +82,8 @@ Deno.serve(async (req) => {
   const tokenAgendamento = req.headers.get("x-cron-token");
   let idUsuario: string | null = null;
   let profundidade = 0;
-  let action: "status" | "process" | "reset", mode: "full" | "season", page: number;
+  let workerLease: string | null = null;
+  let action: "status" | "process" | "reset" | "start" | "resume" | "pause", mode: "full" | "season", page: number;
   if (tokenAgendamento) {
     // Agendamento diário: compara o hash da senha exclusiva guardada no banco.
     const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(tokenAgendamento)))).map(b => b.toString(16).padStart(2, "0")).join("");
@@ -90,12 +91,23 @@ Deno.serve(async (req) => {
     if (!registro || registro.token_hash !== hash) return responder({ error: "Agendamento não autorizado" }, 401);
     const corpo = esquemaAgendamento.safeParse(await req.json().catch(() => ({})));
     if (!corpo.success) return responder({ error: "Parâmetros inválidos" }, 400);
+    workerLease = corpo.data.workerLease ?? null;
+    const { data: execucao, error: erroExecucao } = await banco.from("jikan_server_run").select("*").eq("id", chaveEstado).maybeSingle();
+    if (erroExecucao) return responder({ error: "Controle de execução indisponível" }, 503);
+    if (workerLease) {
+      if (!execucao || execucao.lease_id !== workerLease || execucao.status !== "working" || Date.parse(execucao.lease_until ?? "") <= Date.now()) return responder({ error: "Concessão expirada", retryable: true }, 409);
+      idUsuario = execucao.requested_by;
+    } else if (execucao && (execucao.pause_requested || ["queued", "working", "waiting", "paused"].includes(execucao.status))) {
+      // O cron diário não assume nem reinicia trabalho controlado pelo administrador.
+      return responder({ success: true, skipped: true, reason: "Execução administrativa autônoma tem prioridade" });
+    }
     // Continua a varredura completa a partir da última página salva.
     const { data: atual } = await banco.from("sync_state").select("current_page,mode,max_page").eq("id", chaveEstado).maybeSingle();
     const ultima = atual?.mode === "full" ? atual.current_page ?? 0 : 0;
-    action = "process"; mode = "full";
+    action = "process"; mode = workerLease && execucao ? execucao.mode : "full";
     page = atual?.max_page && ultima >= atual.max_page ? 1 : Math.max(2, ultima + 1);
     if (ultima === 0) page = 1;
+    if (workerLease) page = atual?.mode === mode ? (atual.current_page ?? 0) + 1 : 1;
     profundidade = corpo.data.depth;
   } else {
     const authorization = req.headers.get("Authorization") ?? "";
@@ -108,6 +120,10 @@ Deno.serve(async (req) => {
     if (!entrada.success) return responder({ error: "Parâmetros inválidos", details: entrada.error.flatten() }, 400);
     ({ action, mode, page } = entrada.data);
     idUsuario = usuario.user.id;
+  }
+  if (action === "start" || action === "resume" || action === "pause") {
+    const { data, error } = await banco.rpc("jikan_server_command", { p_action: action, p_mode: mode, p_user_id: idUsuario });
+    return error ? responder({ error: "Não foi possível alterar a execução", retryable: true }, 503) : responder(data);
   }
   let possuiBloqueio = false;
   let concessao = "";
@@ -125,18 +141,20 @@ Deno.serve(async (req) => {
     const { data: estado, error: erroEstado } = await banco.from("sync_state").select("*").eq("id", chaveEstado).single();
     if (erroEstado) throw erroEstado;
     const agora = new Date().toISOString();
-    const ocupado = estado.is_running && Date.now() - new Date(estado.updated_at).getTime() < 120000;
-    if (action === "status") return responder({ success: true, data: { ...estado, is_running: ocupado } });
-    if (ocupado) return responder({ error: "Uma página já está sendo processada; aguardando sua conclusão.", retryable: true, retryAfterMs: Math.max(5000, 120000 - (Date.now() - new Date(estado.updated_at).getTime())) }, 409);
+    const ocupado = estado.is_running && Date.now() - new Date(estado.updated_at).getTime() < 300000;
+    const { data: execucao, error: erroExecucao } = await banco.from("jikan_server_run").select("mode,status,pause_requested,attempt,next_attempt_at,last_error,started_at,finished_at").eq("id", chaveEstado).maybeSingle();
+    if (erroExecucao) throw erroExecucao;
+    if (action === "status") return responder({ success: true, data: { ...estado, is_running: ocupado, server_run: execucao } });
+    if (!workerLease && execucao && (["queued", "working", "waiting"].includes(execucao.status) || (execucao.status === "paused" && ocupado))) return responder({ error: "Execução autônoma ativa; use os controles de pausa e retomada.", retryable: false }, 409);
+    if (ocupado) return responder({ error: "Uma página já está sendo processada; aguardando sua conclusão.", retryable: true, retryAfterMs: Math.max(5000, 300000 - (Date.now() - new Date(estado.updated_at).getTime())) }, 409);
     if (action === "reset") {
-      const { data: reinicio, error } = await banco.from("sync_state").update({ current_page: 0, total_synced: 0, max_page: null, is_running: false, last_error: null, updated_at: agora }).eq("id", chaveEstado).eq("updated_at", estado.updated_at).select("id");
+      const { data: reinicio, error } = await banco.rpc("jikan_reset_checkpoint", { p_updated_at: estado.updated_at });
       if (error) throw error;
       if (!reinicio?.length) return responder({ error: "Outra execução alterou o progresso; tente novamente.", retryable: true }, 409);
       return responder({ success: true });
     }
     // Compare-and-swap impede importações simultâneas em abas diferentes.
-    const reiniciando = page === 1 || estado.mode !== mode;
-    const { data: bloqueio, error: erroBloqueio } = await banco.from("sync_state").update({ is_running: true, mode, ...(reiniciando ? { current_page: 0, total_synced: 0, max_page: null } : {}), updated_at: agora }).eq("id", chaveEstado).eq("updated_at", estado.updated_at).select("id,updated_at");
+    const { data: bloqueio, error: erroBloqueio } = await banco.rpc("jikan_acquire_page", { p_mode: mode, p_page: page, p_updated_at: estado.updated_at, p_worker_lease: workerLease });
     if (erroBloqueio) throw erroBloqueio;
     if (!bloqueio?.length) return responder({ error: "Outra importação iniciou; aguardando a liberação.", retryable: true, retryAfterMs: 5000 }, 409);
     possuiBloqueio = true;
@@ -243,7 +261,7 @@ Deno.serve(async (req) => {
     for (const p of pendentes ?? []) {
       await banco.from("jikan_import_history").update({ resolved_at: new Date().toISOString(), resolved_after_ms: Date.now() - new Date(p.finished_at).getTime() }).eq("id", p.id);
     }
-    if (tokenAgendamento && continuar && profundidade > 1) agendarProximo(`${urlBackend}/functions/v1/import-jikan`, tokenAgendamento, profundidade - 1);
+    if (tokenAgendamento && !workerLease && continuar && profundidade > 1) agendarProximo(`${urlBackend}/functions/v1/import-jikan`, tokenAgendamento, profundidade - 1);
     return responder({ success: true, continue: continuar, page, totalPages: resultado.pagination.last_visible_page, processed: total, stats: { novos, atualizados, capas, falhasCapas, traducoes, erroTraducao, filtrados: resultado.data.length - animes.length } });
   } catch (erro) {
     const eTimeout = erro instanceof Error && (erro.name === "TimeoutError" || erro.name === "AbortError");

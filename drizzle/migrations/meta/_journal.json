@@ -92,6 +92,34 @@
       "when": 1792007533038,
       "tag": "0012_kitsu_links_for_old_titles",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794006398780,
+      "tag": "0013_jikan_autonomous_server_execution",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794006460232,
+      "tag": "0014_jikan_atomic_page_acquisition",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794006580144,
+      "tag": "0015_jikan_safe_pause_recovery",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794006721838,
+      "tag": "0016_jikan_serialized_legacy_reset",
+      "breakpoints": true
     }
   ]
 }

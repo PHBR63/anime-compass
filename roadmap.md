@@ -1,7 +1,8 @@
 # Tarefas
 
-- [ ] Implementar execução Jikan autônoma no servidor, com início/retomada admin, pausa segura, retentativas limitadas ao trabalho ativo e progresso persistido; preservar importação em andamento e cron diário.
-- [ ] Validar autorização, preservação, falhas/retomada, painel em diferentes telas e publicar funções atualizadas; registrar limitações concretas.
+- [x] Implementar execução Jikan autônoma no servidor, com início/retomada admin, pausa segura, retentativas limitadas ao trabalho ativo e progresso persistido; preservar importação em andamento e cron diário.
+- [x] Validar autorização, preservação, falhas/retomada em banco isolado, painel autenticado em 320/390/768/1280 e publicar funções atualizadas; registrar limitações concretas.
+- [ ] Validar ciclo autônomo completo em produção — bloqueado pela restrição de não interferir na importação anterior; depende de início/retomada explícita pelo administrador após a página atual.
 
 - [x] Implementar espera progressiva, retomada automática persistida e status de falhas no painel Jikan.
 - [x] Validar falha real do Jikan e pausa; recuperação simulada após recarregar, repetição da mesma página, erro permanente e responsividade em 320, 390, 768 e 1280 px.

@@ -120,6 +120,13 @@
       "when": 1794006721838,
       "tag": "0016_jikan_serialized_legacy_reset",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794007243169,
+      "tag": "0017_secure_notification_and_audit_writes",
+      "breakpoints": true
     }
   ]
 }

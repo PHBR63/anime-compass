@@ -29,10 +29,11 @@ BEGIN
   r:=public.jikan_server_command('pause','full',admin_);
   ASSERT (r->'run'->>'pause_requested')::boolean, 'Pausa persistida';
   ASSERT (SELECT status='working' FROM jikan_server_run), 'Pausa deixa página terminar';
-  ASSERT (SELECT count(*)=0 FROM cron.job WHERE jobname='jikan-server-recovery'), 'Pausa remove recuperação';
+  ASSERT (SELECT count(*)=1 FROM cron.job WHERE jobname='jikan-server-recovery'), 'Pausa em página mantém recuperação até confirmação ou expiração';
   UPDATE sync_state SET current_page=146,is_running=false WHERE id='jikan_import';
   r:=public.jikan_server_finish((c->>'lease')::uuid,146,true,null,0);
   ASSERT r->>'status'='paused', 'Página confirmada seguida de pausa';
+  ASSERT (SELECT count(*)=0 FROM cron.job WHERE jobname='jikan-server-recovery'), 'Pausa confirmada remove recuperação';
   ASSERT (SELECT current_page=146 FROM sync_state WHERE id='jikan_import'), 'Pausa preserva página';
   PERFORM public.jikan_server_command('resume','full',admin_);
   c:=public.jikan_server_claim();

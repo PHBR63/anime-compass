@@ -5,8 +5,9 @@ O painel administrativo, na aba **Importação**, oferece uma fonte Jikan indepe
 - **Catálogo completo:** varredura paginada por identificador MAL, com 25 registros por página.
 - **Temporada atual:** consulta `/seasons/now` para inserir e atualizar títulos da temporada.
 - **Importar uma página:** executa apenas um lote; **Retomar** continua a partir da última página salva.
-- **Pausar:** conclui a página em andamento antes de interromper e cancela a retomada automática. Fechar a tela impede novas chamadas; ao voltar ao painel, a execução interrompida é retomada automaticamente para o mesmo administrador.
-- **Reiniciar progresso:** não apaga registros do catálogo.
+- **Importar / atualizar** e **Retomar no servidor:** registram execução autônoma, independente do navegador. Checkpoints incompletos são retomados, não reiniciados.
+- **Pausar:** impede páginas seguintes, deixa a página adquirida terminar e confirma a pausa no servidor. A pausa permanece inclusive perante o cron diário.
+- A instalação não assume a importação anterior: ela continua pelo executor que a iniciou. A transição exige ação explícita do administrador entre páginas.
 
 O Jikan não oferece um feed de alterações equivalente ao delta da fonte legada. Atualizar aqui significa consultar novamente o catálogo completo ou a temporada atual; não há remoção automática de títulos ausentes.
 
@@ -22,7 +23,20 @@ Todas as ações exigem sessão válida e papel de administrador verificado no s
 
 Falhas temporárias de rede, tempo limite, HTTP 408/429 e erros 5xx geram tentativas com esperas de 5, 10, 20, 40, 80, 160 e até 300 segundos. O limite 429 respeita pelo menos 60 segundos e o cabeçalho `Retry-After`, quando presente. A última falha, número da tentativa e contagem regressiva aparecem no painel. Erros permanentes, de permissão ou parâmetros encerram a retomada automática.
 
-O navegador guarda a intenção de execução, modo, página e prazo por administrador; o servidor mantém a última página confirmada e o erro. Antes de cada tentativa, o painel consulta esse progresso para recuperar inclusive chamadas que concluíram após perda da resposta. Bloqueios abandonados expiram após dois minutos. A retomada progressiva manual depende do painel aberto e pode ser cancelada em **Pausar**. Separadamente, existe o cron diário das 03h BRT: cada disparo percorre até 40 páginas, continua do checkpoint salvo e encerra a cadeia se uma página falhar. O próximo cron diário retoma do checkpoint. Isso não representa uma atualização completa diária de todos os títulos.
+O servidor guarda intenção, modo, tentativa, prazo e pausa em `jikan_server_run`, separado do checkpoint `sync_state`. O painel apenas envia comandos e consulta status a cada cinco segundos; não restaura intenções antigas do navegador. `jikan-worker` aceita somente o token protegido do cron existente; nenhum token é entregue ao frontend ou criado na implantação. RPCs de controle são exclusivas do serviço e verificam o papel do administrador. Aquisição de páginas e comandos usam o mesmo bloqueio transacional; confirmações exigem a concessão original.
+
+Ao iniciar/retomar, o banco desperta o executor e arma `jikan-server-recovery` a cada minuto, somente enquanto há trabalho. Cada despertar processa no máximo uma página. Pausa, conclusão e erro permanente removem o job; uma pausa durante processamento mantém a recuperação somente até a página terminar ou sua concessão expirar. O prazo de concessão é cinco minutos; retomada de chamada morta pode levar até seis minutos. Falhas transitórias persistem tentativa e `Retry-After`, com espera progressiva até cinco minutos (ou mais quando exigido pela fonte). Não há limite artificial de tentativas temporárias; o administrador pode pausar a espera, que continua gerando custo enquanto ativa. Erros permanentes requerem intervenção.
+
+São no máximo 1.440 verificações por dia enquanto ativo. Com uma página de até 25 títulos por minuto, 1.230 páginas levam cerca de 20h30 sem falhas; fechamento do navegador não muda essa cadência. Um prazo de retry pode ter até um minuto adicional de atraso. Essa recuperação é necessária porque execução em segundo plano da função não é durável; não há verificação permanente quando a fila drena.
+
+O cron `jikan-import-daily` permanece às 03h BRT e até 40 páginas por disparo, com seu comando e token intactos. Ele não assume execução autônoma ativa/pausada. Quando não há execução autônoma, mantém o comportamento anterior. Isso não representa uma atualização completa diária. Sugestões DeepL continuam no fluxo existente e podem consumir sua cota; não são publicadas automaticamente.
+
+### Validação de implantação (06/11/2026)
+
+- Migrações aditivas, sem backfill ou alteração do checkpoint/catalog/listas; instalação com zero execuções autônomas e zero jobs novos ativos.
+- Testes SQL em PostgreSQL isolado: admin vs usuário comum, checkpoint 145→146, bloqueio da importação em andamento, aquisição duplicada, exclusão de navegador, pausa entre páginas, Retry-After, recuperação de concessão expirada, executor antigo rejeitado, resposta perdida, conclusão e erro permanente retirando agendamento.
+- Testes de autorização, retentativa e preservação do catálogo executados; status real autenticado e painel verificados.
+- Não iniciar/pausar a importação real para teste: ciclo completo de importação autônoma em produção não validado nesta implantação, para preservar o trabalho em andamento. O despertar protegido foi exercitado apenas no banco isolado com comando sem credenciais; a primeira execução real depende de ação do administrador e da disponibilidade da fonte.
 
 ## Opções de tradução automática pesquisadas
 

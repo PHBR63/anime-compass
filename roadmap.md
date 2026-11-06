@@ -1,5 +1,7 @@
 # Tarefas
 
+- [x] Corrigir inserções indevidas em notificações e auditoria, preservar emissores legítimos e validar sem interferir na importação.
+
 - [x] Implementar execução Jikan autônoma no servidor, com início/retomada admin, pausa segura, retentativas limitadas ao trabalho ativo e progresso persistido; preservar importação em andamento e cron diário.
 - [x] Validar autorização, preservação, falhas/retomada em banco isolado, painel autenticado em 320/390/768/1280 e publicar funções atualizadas; registrar limitações concretas.
 - [ ] Validar ciclo autônomo completo em produção — bloqueado pela restrição de não interferir na importação anterior; depende de início/retomada explícita pelo administrador após a página atual.

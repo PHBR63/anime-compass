@@ -1,5 +1,6 @@
 # Architecture rules
 
+- Allow notification/audit inserts only from trusted service clients or security-definer triggers; keep the audit writer RPC non-executable by browser roles to prevent forged records.
 - Validate local anime image origins through `src/lib/animeImageSources.ts` before rendering; imported catalog data can reference retired environments.
 - Share the image-loading fallback lifecycle between `LazyImage` and `AnimeCardImage`; identical recovery and cleanup prevent broken covers across views.
 - Keep ingestion pipelines separate (legacy delta, Jikan, Kitsu); each source has its own edge function and resumable page scans.
